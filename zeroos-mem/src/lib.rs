@@ -12,12 +12,12 @@ pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
 
 pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     let bigint = value.into_bigint();
-    let limbs = bigint.to_64_bit_limbs();
-    if limbs.iter().skip(1).any((|&l| l != 0) {
+    let limbs: &[u64] = bigint.as_ref();
+    if limbs.is_empty() || limbs.iter().skip(1).any(|&l| l != 0) {
         return None;
     }
     let addr = limbs[0];
-    if canonical_addr_to_field::<F>(addr) == value {
+    if F::from(addr) == value {
         Some(addr)
     } else {
         None
