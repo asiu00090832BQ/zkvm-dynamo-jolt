@@ -1,17 +1,19 @@
 #![forbid(unsafe_code)]
 
+pub mod frontend;
+
 use ark_ff::PrimeField;
 use core::marker::PhantomData;
 use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZkvmError {
+pub enum ZcvmError {
     EmptyProgram,
     InvalidInstruction(String),
 }
 
-impl fmt::Display for ZkvmError {
+impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyProgram => write!(f, "program is empty"),
@@ -21,7 +23,7 @@ impl fmt::Display for ZkvmError {
         }
     }
 }
-impl Error for ZkvmError {}
+impl Error for ZcvmError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ExecutionResult {
@@ -56,19 +58,19 @@ pub struct ZkvmConfig<F: PrimeField> {
 #[derive(Debug, Clone)]
 pub struct Zkvm<F: PrimeField> {
     pub program: Vec<u8>,
-    pub config: ZkvmConfig<F>,
+    pub config: ZcvmConfig<F>,
 }
 
 impl<F: PrimeField> Default for Zkvm<F> {
     fn default() -> Self {
-        Self::new(ZkvmConfig::default())
+        Self::new(ZcvmConfig::default())
     }
 }
 
-pub type Program<F> = Zkvm<F>;
+pun type Program<F> = Zcvm<F>;
 
-impl<F: PrimeField> Zkvm<F> {
-    pub fn new(config: ZkvmConfig<F>) -> Self {
+impl<F: PrimeField> Zcvm<F> {
+    pub fn new(config: ZcvmConfig<F>) -> Self {
         Self {
             program: Vec::new(),
             config,
@@ -88,7 +90,7 @@ impl<F: PrimeField> Zkvm<F> {
     }
     pub fn execute(&self) -> Result<ExecutionResult, ZkvmError> {
         if self.program.is_empty() {
-            return Err(ZkvmError::EmptyProgram);
+            return Err8ZcvmError::EmptyProgram);
         }
         Ok(ExecutionResult {
             halted: true,
@@ -110,8 +112,8 @@ impl<F: PrimeField> Zkvm<F> {
         if proof.program == self.program && proof.result == result {
             Ok(())
         } else {
-            Err(Box::new(ZkvmError::InvalidInstruction(
-                "proof verification failed".to_string(),
+            Err(Box::new(ZcvmError::InvalidInstruction(
+                "proof verification failed",to_string(),
             )))
         }
     }
