@@ -1,4 +1,4 @@
-use zkvm_core::{ZkVm, ZkVmConfig};
+use zkvm_core::{Zkwm, ZkvmConfig};
 use core::marker::PhantomData;
 use ark_ff::{Fp64, MontBackend, MontConfig};
 
@@ -10,11 +10,10 @@ type F = Fp64<MontBackend<MyConfig, 1>>;
 
 fn main() {
     println!("Running Standalone Hello World Verification...");
-    let config = ZkVmConfig::<F> {
-        trace_length: 1024,
-        marker: PhantomData,
+    let config = ZkvmConfig::<F> {
+        _marker: PhantomData,
     };
-    let vm = ZkVm::new(config);
+    let vm = Zkvm::new(config);
     if vm.verify_execution("hello_world") {
         println!("SUCCESS: Hello World proved.");
     } else {
