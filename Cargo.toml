@@ -20,6 +20,9 @@ dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 zkvm-core = { path = "zkvm-core" }
+ark-ff = "0.4.0"
+ark-poly = "0.4.0"
+ark-std = "0.4.0"
 
 [profile.dev]
 opt-level = 0
@@ -29,4 +32,4 @@ debug = true
 opt-level = 3
 lto = true
 codegen-units = 1
-panac = "abort"
+panic = "abort"
