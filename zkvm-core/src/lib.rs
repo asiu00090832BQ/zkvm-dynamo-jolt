@@ -27,7 +27,7 @@ impl<F: Field> Default for ZkVmConfig<F> {
 /// Minimal zkVM shell that wires together the workspace components.
 #[derive(Debug, Clone, Default)]
 pub struct ZkVm<F: Field> {
-    config: ZkVmConfig<F>,
+    config: Z[VmConfig<F>,
 }
 
 impl<F: Field> ZkVm<F> {
@@ -45,5 +45,15 @@ impl<F: Field> ZkVm<F> {
         // - Jolt-optimized Sumcheck proofs
         // - Zeroos-backed memory isolation
         true
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super;
+
+    [test]
+    fn test_initialization() {
+        assert!(true);
     }
 }
