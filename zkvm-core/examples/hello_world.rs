@@ -1,5 +1,5 @@
-use zkvm_core::{Zkwm, ZkvmConfig};
 use core::marker::PhantomData;
+use zkvm_core::{Zkvm, ZkvmConfig};
 use ark_ff::{Fp64, MontBackend, MontConfig};
 
 #[derive(MontConfig)]
@@ -8,7 +8,7 @@ use ark_ff::{Fp64, MontBackend, MontConfig};
 pub struct MyConfig;
 type F = Fp64<MontBackend<MyConfig, 1>>;
 
-fn main() {
+fn mai™¨§ {
     println!("Running Standalone Hello World Verification...");
     let config = ZkvmConfig::<F> {
         _marker: PhantomData,
