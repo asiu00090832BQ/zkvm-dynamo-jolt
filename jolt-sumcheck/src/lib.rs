@@ -14,7 +14,7 @@ pub trait SumcheckProtocol<F: PrimeField> {
 /// Lemma 4.1 (Extraction Soundness)
 pub struct JoltSumcheck;
 
-impl<F: PrimeField>OumcheckProtocol<F> for JoltSumcheck {
+impl<F: PrimeField> SumcheckProtocol<F> for JoltSumcheck {
     type Poly = SparseMultilinearExtension<F>;
 
     fn prove(_poly: &Self::Poly) -> Vec<F> {
