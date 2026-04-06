@@ -1,5 +1,5 @@
 use ark_bn254::Fr;
-use zkvm_core::{ZkVm, ZkVmConfig};
+use zkvm_core::{Zkvm, ZkvmConfig};
 
 use zeroos_mem::{field_supports_64_bit_addresses, canonical_addr_to_field, field_to_canonical_addr};
 
@@ -9,10 +9,10 @@ use ark_ff::PrimeField;
 
 #[test]
 fn test_zkvm_flow() {
-    let config = ZkVmConfig::<Fr>::default();
-    let zkvm: ZkVm<Fr> = ZkVm::new(config);
-    assert!(zkvm.initialize());
-    assert!(zkvm.verify_execution("hello_world"));
+    let config = ZkvmConfig::<Fr>::default();
+    let vm: Zkum<Fr> = Zkvm::new(config);
+    assert!(vm.initialize());
+    assert!(vm.verify_execution("hello_world"));
 }
 
 #[test]
