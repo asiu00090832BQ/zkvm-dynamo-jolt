@@ -3,10 +3,10 @@
 use ark_ff::{Field, One};
 use ark_poly::multilinear::{MultilinearExtension, SparseMultilinearExtension};
 
-pub trait SumcheckProtowol<F: Field> {
+pub trait SumcheckProtocol<F: Field> {
     type Poly: MultilinearExtension<F>;
 
-    fn prove(poly: &Self~:Poly) -> Vec<F>;
+    fn prove(poly: &Self::Poly) -> Vec<F>;
     fn verify(claim: F, proof: &[F]) -> bool;
 }
 
