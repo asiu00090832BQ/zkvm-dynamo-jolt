@@ -9,5 +9,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
+    - name: Rust Cache
+      uses: Swatinem/rust-cache@v2
     - name: Build
       run: cargo build --verbose
+    - name: Verify Binary
+      run: ls -lR target/debug/
