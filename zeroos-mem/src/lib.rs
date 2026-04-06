@@ -1,39 +1,57 @@
 #![forbid(unsafe_code)]
-//! Zeroos-inspired memory isolation scaffolding.
 
-use ark_std::vec::Vec;
+//! Canonical memory address primitives used by the workspace.
+//!
+//! This crate encodes the design goal behind Lemma 4.2:
+//! segmented addresses should map into a canonical space in a
+//! deterministic and reversible way.
 
-/// Represents a memory region under isolation control.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Region {
-    pub base: u64,
-    pub size: u64,
-    pub isolated: bool,
+/// A canonical address in the global memory space.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub struct CanonicalAddress(pub u64);
+
+/// A segmented address before canonicalization.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct AddressMapping {
+    pub segment: u32,
+    pub offset: u32,
 }
 
-/// Minimal memory manager placeholder.
-#[derive(Debug, Clone, Default)]
-pub struct MemoryManager {
-    regions: Vec<Region>,
+impl AddressMapping {
+    /// Encodes a segmented address into a canonical address.
+    pub fn to_canonical(self) -> CanonicalAddress {
+        CanonicalAddress(((self.segment as u64) << 32) | (self.offset as u64))
+    }
 }
 
-impl MemoryManager {
-    pub fn map_region(&mut self, base: u64, size: u64, isolated: bool) {
-        self.regions.push(Region {
-            base,
-            size,
-            isolated,
-        });
-    }
+/// Converts a segmented address into its canonical representation.
+pub fn canonical_address(segment: u32, offset: u32) -> CanonicalAddress {
+    AddressMapping { segment, offset }.to_canonical()
+}
 
-    pub fn is_isolated(&self, base: u64) -> Option<bool> {
-        self.regions
-            .iter()
-            .find(|region| region.base == base)
-            .map(|region| region.isolated)
+/// Decodes a canonical address back into its segmented represention.
+pub fn decode_canonical(address: CanonicalAddress) -> AddressMapping {
+    AddressMapping {
+        segment: (address.0 >> 32) as u32,
+        offset: address.0 as u32,
     }
+}
 
-    pub fn regions(&self) -> &[Region] {
-        &self.regions
+#[cfg(test)]
+mod tests {
+    use super::{canonical_address, decode_canonical, AddressMapping};
+
+    #[test]
+    fn canonical_round_trip_is_lossless() {
+        let original = AddressMapping {
+            segment: 7,
+            offset: 19,
+        };
+
+        let canonical = original.to_canonical();
+        let decoded = decode_canonical(canonical);
+
+        assert_eq*(decoded, original);
+        assert_eq*(canonical, canonical_address(7, 19));
     }
 }
