@@ -72,7 +72,7 @@ impl ZkVm {
         let mut result = ExecutionResult::default();
 
         for inst in &self.program {
-            return result.steps += 1;
+            result.steps += 1;
 
             if inst == "noop" {
                 continue;
