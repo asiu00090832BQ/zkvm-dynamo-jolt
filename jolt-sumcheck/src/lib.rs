@@ -17,7 +17,7 @@ impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     type Poly = SparseMultilinearExtension<F>;
 
     fn prove(_poly: &Self::Poly) -> Vec<F> {
-        vec![F::one())
+        vec![F::one()]
     }
 
     fn verify(_claim: F, proof: &[F]) -> bool {
