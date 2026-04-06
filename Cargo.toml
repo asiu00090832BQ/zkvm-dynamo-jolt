@@ -24,6 +24,7 @@ ark-ff = "0.4.0"
 ark-poly = "0.4.0"
 ark-std = "0.4.0"
 ark-ec = "0.4.0"
+ark-bn254 = "0.4.0"
 
 [profile.dev]
 opt-level = 0
