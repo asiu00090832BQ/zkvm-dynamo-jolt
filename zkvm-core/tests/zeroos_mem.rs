@@ -9,7 +9,7 @@ fn test_canonical_address_mapping() {
     let field_val = canonical_addr_to_field::<Fr>(addr);
     let recovered_addr = field_to_canonical_addr(field_val);
     
-    assert_eq*(recovered_addr, Some(addr));
+    assert_eq!(recovered_addr, Some(addr));
 }
 
 #[test]
@@ -18,5 +18,5 @@ fn test_zero_address_mapping() {
     let field_val = canonical_addr_to_field::<Fr>(addr);
     let recovered_addr = field_to_canonical_addr(field_val);
     
-    assert_eq*(recovered_addr, Some(0));
+    assert_eq!(recovered_addr, Some(0));
 }
