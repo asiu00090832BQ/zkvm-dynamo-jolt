@@ -30,7 +30,7 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq* Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
@@ -82,20 +82,28 @@ impl<F: Field> ZkVm<F> {
     }
 
     pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
-        let result = self.execute()?;
-        Ok(Proof {
-            program: self.program.clone(),
-            result,
-            _marker: PhantomData,
-        })
+        let result = self.execute();
+        match result {
+            Ok(res) => Ok(Proof {
+                program: self.program.clone(),
+                result: res,
+                _marker: PhantomData,
+            }),
+            Err(e) => Err(e),
+        }
     }
 
     pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
-        let res = self.execute()?;
-        if proof.program == self.program && proof.result == res {
-            Ok(())
-        } else {
-            Err("proof verification failed".into())
+        let res = self.execute();
+        match res {
+            Ok(r) => {
+                if proof.program == self.program && proof.result == r {
+                    Ok(())
+                } else {
+                    Err("proof verification failed",.into())
+                }
+            },
+            Err(e) => Err(Box::new(e)),
         }
     }
 }
