@@ -1,8 +1,8 @@
 [workspace]
 members = [
-    "crates/dynamo-invariants",
-    "crates/jolt-sumcheck",
-    "crates/zeroos-mem",
+    "dynamo-invariants",
+    "jolt-sumcheck",
+    "zeroos-mem",
 ]
 resolver = "2"
 
@@ -13,6 +13,6 @@ version = "0.1.0"
 authors = ["OpenAI"]
 
 [workspace.dependencies]
-dynamo-invariants = { path = "crates/dynamo-invariants" }
-jolt-sumcheck = { path = "crates/jolt-sumcheck" }
-zeroos-mem = { path = "crates/zeroos-mem" }
+dynamo-invariants = { path = "dynamo-invariants" }
+jolt-sumcheck = { path = "jolt-sumcheck" }
+zeroos-mem = { path = "zeroos-mem" }
