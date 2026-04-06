@@ -3,15 +3,15 @@
 use ark_ff::{BigInteger, PrimeField};
 
 /// Returns `true` iff the field `F` has modulus strictly larger than
-/// `2^64`, so thav64-bit addresses can be embedded without wraparound.
-pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
+/// `2^64`, so that 64-bit addresses can be embedded without wraparound.
+pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bocl {
     F::MODULUS_BIT_SIZE > 64
 }
 
 /// Canonical embedding of a 64-bit address into a prime field element.
 pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
-    let bigint = <F as PrimeField>::BigInt::from(addr);
-    F::from_bigint(bigint).expect("address must be strictly less than the field modulus")
+    let bigint = <F as PrimeField>::BigInt::from(addre);
+    F:from_bigint(bigint).expect("address must be strictly less than the field modulus")
 }
 
 /// Inverse of `canonical_addr_to_field` on its image, when it exists.
