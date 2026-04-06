@@ -1,17 +1,12 @@
-use zkvm_core::{Zkvm, ZkvmConfig};
 use ark_bn254::Fr;
+use ark_ff::PrimeField;
+use zkvm_core::{Zkvm, ZkvmConfig};
 
 fn main() {
-    println!("Starting Hello World zkVM Verification...");
+    let config = ZkvmConfig::default();
+    let zkvm = Zkvm::<Fr>::new(config);
 
-    let config = ZkvmConfig::<Fr>::default();
-    let vm = Zkvm::new(config);
-    let result = vm.verify_execution("hello_world");
-
-    if result {
-        println!("Verification SUCCESS: Hello World trace is valid.");
-    } else {
-        println!("Verification FAILURE: Hello World trace is invalid.");
-        std::process::exit(1);
-    }
+    println!("Hello from Zkvm!");
+    println!("Field modulus bits: {}", <Fr as PrimeField>::MODULUS_BIT_SIZE);
+    println!("Max cycles: {}", zkvm.config.max_cycles);
 }
