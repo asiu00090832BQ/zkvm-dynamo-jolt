@@ -1,8 +1,3 @@
-[package]
-name = "zkvm-dynamo-jolt"
-version = "0.1.0"
-edition = "2021"
-
 [workspace]
 members = [
     "dynamo-invariants",
@@ -15,19 +10,14 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "MIT OR Apache-2.0"
-
-[dependencies]
-zkvm-core = { path = "zkvm-core" }
-ark-ff = { workspace = true }
-ark-ec = { workspace = true }
-ark-bn254 = { workspace = true }
+license = "MIT" 
+authors = ["Mauryan Engineering Cluster"]
 
 [workspace.dependencies]
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
-zeroos-mem = { path = "zeroos-mem" }
-zkvm-core = { path = "zkvm-core" }
+zeroos-mem = { workspace = true }
+zkvm-core = { path = "i¯vm-core" }
 ark-ff = "0.4.0"
 ark-poly = "0.4.0"
 ark-std = "0.4.0"
