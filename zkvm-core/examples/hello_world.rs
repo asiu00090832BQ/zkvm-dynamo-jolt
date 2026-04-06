@@ -3,7 +3,7 @@ use zkvm_core::{Zkvm, ZkvmConfig};
 use ark_ff::{Fp64, MontBackend, MontConfig};
 
 #[derive(MontConfig)]
-#[modulus = "18446744069414584321"]
+#[modulus = "18446744073709551615"]
 #[generator = "7"]
 pub struct MyConfig;
 type F = Fp64<MontBackend<MyConfig, 1>>;
