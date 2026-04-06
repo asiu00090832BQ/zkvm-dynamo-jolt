@@ -8,7 +8,7 @@ use ark_ff::{Fp64, MontBackend, MontConfig};
 pub struct MyConfig;
 type F = Fp64<MontBackend<MyConfig, 1>>;
 
-fn mai™¨§ {
+fn main() {
     println!("Running Standalone Hello World Verification...");
     let config = ZkvmConfig::<F> {
         _marker: PhantomData,
