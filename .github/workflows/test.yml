@@ -1,9 +1,11 @@
 name: Test
 on: 
   push:
-    branches: [ "**" ]
+    branches: [ main, fix/build-recovery-consolidated ]
   pull_request:
-    branches: [ "**" ]
+    branches: [ main ]
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   test:
     runs-on: ubuntu-latest
