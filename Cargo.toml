@@ -1,19 +1,18 @@
 [workspace]
 members = [
-    "zkvm-core",
-    "dynamo-invariants",
-    "jolt-sumcheck",
-    "zeroos-mem",
+    "crates/dynamo-invariants",
+    "crates/jolt-sumcheck",
+    "crates/zeroos-mem",
 ]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
 edition = "2021"
 license = "MIT OR Apache-2.0"
+version = "0.1.0"
 authors = ["OpenAI"]
 
 [workspace.dependencies]
-ark-ff = { version = "0.4", default-features = false, features = ["std"] }
-ark-poly = { version = "0.4", default-features = false, features = ["std"] }
-ark-std = { version = "0.4", default-features = false, features = ["std"] }
+dynamo-invariants = { path = "crates/dynamo-invariants" }
+jolt-sumcheck = { path = "crates/jolt-sumcheck" }
+zeroos-mem = { path = "crates/zeroos-mem" }
