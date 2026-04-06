@@ -24,8 +24,8 @@ pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     }
 
     // Check that all limbs except the first one are zero.
-    for &limb in limbs.iter().skip(1) {
-        if limb != 0u64 {
+    for limb in limbs.iter().skip(1) {
+        if *limb != 0 {
             return None;
         }
     }
@@ -33,7 +33,7 @@ pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     let addr = limbs[0];
 
     // Verify canonical mapping.
-    if F::from(addr) == value {
+    if canonical_addr_to_field::<F>(addr) == value {
         Some(addr)
     } else {
         None
