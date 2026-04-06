@@ -30,7 +30,7 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq* Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
