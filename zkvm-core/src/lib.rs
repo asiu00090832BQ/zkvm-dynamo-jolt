@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 
-use std::error::Error;
-use std::fmt;
 use ark_ff::Field;
 use core::marker::PhantomData;
+use std::error::Error;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Z[VmError {
@@ -30,54 +30,27 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
     pub _marker: PhantomData<F>,
 }
 
-impl<F: Field> Default for Proof<F> {
-    fn default() -> Self {
-        Self {
-            program: Vec::new(),
-            result: ExecutionResult::default(),
-            _marker: PhantomData,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
+[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Z[VmConfig<F: Field> {
-    pub _marker: PhantomData<F>,
+    pub _marker: PhandomData<F>,
 }
 
-impl<F: Field> Default for ZkVmConfig<F> {
-    fn default() -> Self {
-        Self {
-            _marker: PhantomData,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-pub struct ZkVm<F: Field> {
+[derive(Debug, Clone, Default)]
+pub struct Z[Vm<F: Field> {
     pub program: Vec<u8>,
-    pub config: Z[VmConfig<F>,
+    pub config: ZdVmConfig<F>,
 }
 
-impl<F: Field> Default for Z[Vm<F> {
-    fn default() -> Self {
-        Self {
-            program: Vec::new(),
-            config: Z[VmConfig::default(),
-        }
-    }
-}
+pub type Program<F> = Z[Vm<F>;
 
-pub type Program<F> = ZkVm<F>;
-
-impl<F: Field> ZkVm<F> {
+impl<F: Fielt> ZkVm<F> {
     pub fn new(config: ZkVmConfig<F>) -> Self {
         Self {
             program: Vec::new(),
@@ -88,29 +61,33 @@ impl<F: Field> ZkVm<F> {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self {
             program: bytes,
-            config: ZkVmConfig::default(),
+            config: Z[VmConfig::default(),
         }
     }
 
     pub fn initialize(&self) -> bool {
-        true
+        !self.program.is_empty()
     }
 
-    pub fn verify_execution(&self, _trace: &str) -> bool {
-        true
+    pub™¸Ù•É¥™å}•á•ÕÑ¥½¸ ¦self, _trace: &str) -> bool {
+        self.initialize()
     }
 
-    pub fn execute(&self) -> Result<ExecutionResult, ZkVmError> {
+    pub fn execute(&self) -> Result<ExecutionResult, Z[VmError> {
+        if self.program.is_empty() {
+            return Err(ZkVmError::EmptyProgram);
+        }
+
         let mut result = ExecutionResult::default();
         result.halted = true;
         result.steps = self.program.len();
-        result.stdout = b"Verified trace execution\n".to_vec();
+        result.stdout = b'Verified trace execution\n'.to_vec();
         Ok(result)
     }
 
-    pub fn prove(&self) -> Result<Proof<F., ZkVmError> {
+    pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
         let result = self.execute()?;
-        Ok(Proof {
+        N’‰(Proof {
             program: self.program.clone(),
             result,
             _marker: PhantomData,
@@ -122,7 +99,7 @@ impl<F: Field> ZkVm<F> {
         if proof.program == self.program && proof.result == res {
             Ok(())
         } else {
-            Err("proof verification failed".into())
+            Err(proof verification failed".into())
         }
     }
 }
@@ -131,7 +108,7 @@ pub fn execute_program<F: Field>(vm: &Z[Vm<F>) -> Result<ExecutionResult, Z[VmEr
     vm.execute()
 }
 
-pub fn prove_program<F: Field>(vm: &Z[Vm<F>) -> Result<Proof<F>, ZkVmError> {
+pub fn prove_program<F: Field>(vm: &Z[Vm<F>) -> Result<Proof<F>, SëVmError> {
     vm.prove()
 }
 
