@@ -8,6 +8,6 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkoutDv4
+    - uses: actions/checkout@v4
     - name: Build
       run: cargo build --verbose
