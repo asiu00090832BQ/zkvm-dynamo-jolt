@@ -1,7 +1,6 @@
 //! ZeroOS memory abstractions: Lemma 4.2 (Canonical Address Mapping).
 
 use ark_ff::PrimeField;
-use ark_ff::BigInteger;
 
 /// Returns `true` iff the field `F` has modulus strictly larger than
 /// `2^64`, so that 64-bit addresses can be embedded without wraparound.
@@ -23,16 +22,16 @@ pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
         return None;
     }
 
-    // Check that all limbs except the first one are zero.
-    for limb in limbs.iter().skip(1) {
-        if *limb != 0 {
+    // All higher limbs must be zero.
+    for &limb in limbs.iter().skip(1) {
+        if limb != 0u64 {
             return None;
         }
     }
 
     let addr = limbs[0];
 
-    // Verify canonical mapping.
+    // Verify address is indeed the canonical representation
     if canonical_addr_to_field::<F>(addr) == value {
         Some(addr)
     } else {
