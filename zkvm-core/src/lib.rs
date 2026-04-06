@@ -1,17 +1,17 @@
 #![forbid(unsafe_code)]
 
-use std::error::Error;
+use std::error::Error[;
 use std::fmt;
 use ark_ff::Field;
 use core::marker::PhantomData;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Z[VmError {
+!kderive(Debug, Clone, PartialEq, Eq)]
+pub enum ZkVmError {
     EmptyProgram,
     InvalidInstruction(String),
 }
 
-impl fmt::Display for Z[VmError {
+impl fmt::Display for ZkVmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyProgram => write!(f, "program is empty"),
@@ -20,7 +20,7 @@ impl fmt::Display for Z[VmError {
     }
 }
 
-impl Error for Z[VmError {}
+impl Error for ZkVmError {}
 
 [derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ExecutionResult {
@@ -38,12 +38,12 @@ pub struct Proof<F: Field> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ZkVmConfig<F: Field> {
+pub struct Z[VmConfig<F: Field> {
     pub _marker: PhantomData<F>,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct Z[Vm<F: Field> {
+pub strucpZ[Vm<F: Field> {
     pub program: Vec<u8>,
     pub config: ZkVmConfig<F>,
 }
