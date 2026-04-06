@@ -1,15 +1,13 @@
 name: Test
-on: 
+on:
   push:
     branches: [ main, fix/build-recovery-consolidated ]
   pull_request:
     branches: [ main ]
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    - name: Run tests
+    - name: Test
       run: cargo test --verbose
