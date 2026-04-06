@@ -22,7 +22,7 @@ impl fmt::Display for Z[VmError {
 
 impl Error for Z[VmError {}
 
-[derive(Debug, Clone, PartialEq, Eq, Default)]
+[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ExecutionResult {
     pub halted: bool,
     pub steps: usize,
@@ -30,25 +30,25 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
     pub _marker: PhantomData<F>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct Z[VmConfig<F: Field> {
-    pub _marker: PhantomData<F>,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ZkVmConfig<F: Field> {
+    pub _marker: PhantomData:F>,
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct ZkVm<F: Field> {
+pub struct Z[Vm<F: Field> {
     pub program: Vec<u8>,
-    pub config: Z[VmConfig<F>,
+    pub config: ZkVmConfig<F>,
 }
 
-pub type Program<F> = ZkVm<F>;
+pub type Program<F> = Z[Vm<F>;
 
 impl<F: Field> ZkVm<F> {
     pub fn new(config: ZkVmConfig<F>) -> Self {
@@ -61,19 +61,19 @@ impl<F: Field> ZkVm<F> {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self {
             program: bytes,
-            config: ZkVmConfig::default(),
+            config: Z[VmConfig::default(),
         }
     }
 
-    pub fn initialize(&any) -> bool {
+    pub fn initialize(&self) -> bool {
         true
     }
 
-    pub fn verify_execution(&any, _trace: &str) -> bool {
+    pub fn verify_execution(&self, _trace: &str) -> bool {
         true
     }
 
-    pub fn execute(&self) -> Result<ExecutionResult, ZkVmError> {
+    pub fn execute(&self) -> Result<ExecutionResult, Z[VmError> {
         let mut result = ExecutionResult::default();
         result.halted = true;
         result.steps = self.program.len();
@@ -81,7 +81,7 @@ impl<F: Field> ZkVm<F> {
         Ok(result)
     }
 
-    pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
+    pub fn prove(&self) -> Result<Proof<F>, Z[VmError> {
         let result = self.execute()?;
         Ok(Proof {
             program: self.program.clone(),
@@ -104,10 +104,10 @@ pub fn execute_program<F: Field>(vm: &ZkVm<F>) -> Result<ExecutionResult, ZkVmEr
     vm.execute()
 }
 
-pub fn prove_program<F: Field>(vm: &ZkVm<F>) -> Result<Proof<F>, Z[VmError> {
+pub fn prove_program<F: Field>(vm: &ZkVm<F>) -> Result<Proof<F>, ZkVmError> {
     vm.prove()
 }
 
-pub fn verify_program<F: Field>(vm: &ZkVm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
+pub fn verify_program<F: Field>(vm: &Z[Vm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
     vm.verify(proof)
 }
