@@ -1,26 +1,22 @@
 use dynamo_invariants::*;
-use ark_curves::bls12_381::Fr;
-use ark_poly::multilinear::SparseMultilinearExtension;
+use ark_bn254::Fr;
 
 struct TestRelation;
-impl DynamoExtractionRelation<Fr> for TestRelation {
-    type MLE: SparseMultilinearExtension<Fr>;
-    type PublicInput = ();
-    type Witness = Vec<Fr>;
-
-    fn is_consistent(_: &(), _: &Self::MLE) -> bool { true }
-    fn check_relation(_: &(), _: &Vec<Fr>) -> bool { true }
+impl Lemma41<Fr> for TestRelation {
+    fn is_consistent(&self, _field_element: &Fr) -> bool {
+        true
+    }
+    fn step(&self, _current: &Fr, _next: &Fr) -> bool {
+        true
+    }
 }
 
 #[test]
 fn test_extraction_marker() {
-    struct TestExtractor;
-    impl DynamoWitnessExtractor<Fr, TestRelation> for TestExtractor {
-        type Witness = Vec<Fr>;
-        fn extract(_: &(), _: &SparseMultilinearExtension<Fr>) -> Option<Vec<Fr>> {
-            Some(vec![Fr::from(1u64)])
-        }
-    }
+    let relation = TestRelation;
+    let trace = vec![Fr::from(1u64), Fr::from(1u64)];
+    assert!(lemma_4_1_holds(&relation, &trace));
 
-    Extraction_Soundness_Marker::<Fr, TestRelation, TestExtractor>::lemma_4_1_spec();
+    let marker = relation.extraction_soundness_marker();
+    let _ = format!{":?", marker};
 }
