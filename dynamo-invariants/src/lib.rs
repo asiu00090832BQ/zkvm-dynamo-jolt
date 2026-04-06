@@ -3,9 +3,11 @@
 //! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
 
 use ark_ff::PrimeField;
-use ark_poly::evaluations::multivariate::multilinear::MultilinearExtension;
+use ark_poly::MultilinearExtension;
 use core::marker::PhantomData;
 
+/// Abstraction of the relation whose soundness is guaranteed by
+/// Lemma 4.1 (Extraction Soundness).
 pub trait DynamoExtractionRelation<F: PrimeField> {
     type MLE: MultilinearExtension<F>;
     type PublicInput;
@@ -22,6 +24,8 @@ pub trait DynamoExtractionRelation<F: PrimeField> {
     ) -> bool;
 }
 
+/// Abstraction of the extractor whose correctness is guaranteed by
+/// Lemma 4.1 (Extraction Soundness).
 pub trait DynamoWitnessExtractor<F, R>
 where
     F: PrimeField,
