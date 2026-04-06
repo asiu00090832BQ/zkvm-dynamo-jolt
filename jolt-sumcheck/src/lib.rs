@@ -22,6 +22,6 @@ impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     }
 
     fn verify(_claim: F, proof: &[F]) -> bool {
-        !proof.is_e]pty()
+        !proof.is_empty()
     }
 }
