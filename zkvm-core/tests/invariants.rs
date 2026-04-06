@@ -17,6 +17,5 @@ fn test_extraction_marker() {
     let trace = vec![Fr::from(1u64), Fr::from(1u64)];
     assert!(lemma_4_1_holds(&relation, &trace));
 
-    let marker = relation.extraction_soundness_marker();
-    let _ = format!{":?", marker};
+    let _marker = relation.extraction_soundness_marker();
 }
