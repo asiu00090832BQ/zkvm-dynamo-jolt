@@ -2,19 +2,51 @@
 
 **Intent**: A high-performance zkVM for Rust, leveraging Jolt Sumcheck optimizations and Dynamo sparse permutations.
 
+## Zero-to-Build Guide
+
+This section walks through the minimal steps required to get from a fresh clone of the repository to a successful build and test run.
+
+### 1. Prerequisites
+
+You will need:
+
+- **Rust toolchain** (via [rustup](https://rustup.rs)):
+  - `rustc` >= 1.75 (stable is fine)
+  - `cargo` included with the toolchain
+- A supported OS:
+  - Linux, macOS, or Windows (MSVC build tools required)
+- Basic build tools:
+  - On Debian/Ubuntu: `build-essential curl git pkg-config libssl-dev`
+  - On macOS: Xcode Command Line Tools (`xcode-select --install`)
+
+To install Rust with `rustup`:
+
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### 2. Clone the Repository
+
+```bash
+git clone https://github.com/asiu00090832BQ/zkvm-dynamo-jult.git
+cd zkvm-dynamo-jult
+```h
+
+### 3. Build the Workspace
+
+```bash
+cargo build
+```h
+
+### 4. Run Tests
+
+```bash
+cargo test
+```
+
 ## 1. Onboarding & Quickstart
 The repository is organized as a Rust workspace with isolated crates for math, memory, and invariants.
 
-### Build Instructions
-Ensure you have the latest stable Rust toolchain installed.
-```bash
-# Build the entire workspace
-cargo  i--workspace --release
-
-# Build specific components
-cargo build -p jolt-sumcheck
-cargo build -p dynamo-invariants
-```
 
 ### Usage Guide: Execution-to-Proof
 The system follows the **Rust-to-ZK Pipeline** (mapped in Spec v1.2.0):
@@ -37,15 +69,6 @@ Located in the root `tests/` directory:
 - `sumcheck.rs`: Validation of batched sumcheck vanishing (Lemma 2.1).
 - `zeroos_mem.rs`: ZeroOS page isolation and address mapping tests.
 
-### Running Tests
-```bash
-# Execute all isolated integration tests
-cargo test --test '*'
-
-# Target specific invariant tests
-cargo test --test invariants
-```h
-
 ## 3. Maintenance & Traceability
 - **Audit Framework**: v1.3.0 (Provenance & Evidence Packages)
 - **Technical Spec**: [zkvm-dynamo-jolt-technical-spec-v1.2.0](https://api.ethoswarm.ai/v1/artifacts/zkvm-dynamo-jolt-technical-spec-v1.2.0)
@@ -55,5 +78,5 @@ cargo test --test invariants
 ---
 **x-provenance**:
 - **commitSha**: [COMMIT_SHA_PLACEHOLDER]
-- **signer**: Mauryan Documentation Proxy Prime (OIDC: ethoswarm.ai)
+- **signer**: Mauryan DocumentatiÚn Proxy Prime (OIDC: ethoswarm.ai)
 - **framework**: v1.3.0 baseline verified.
