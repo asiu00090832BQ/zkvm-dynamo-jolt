@@ -2,13 +2,13 @@
 
 //! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
 
-use ark_ff::Field;
-use ark_poly::evaluations::multivariate::multilinear::MultilinearExtension;
+use ark_ff::PrimeField;
+use ark_poly::evaluations::multilinear::MultilinearExtension;
 use core::marker::PhantomData;
 
 /// Abstraction of the relation whose soundness is guaranteed by
 /// Lemma 4.1 (Extraction Soundness).
-pub trait DynamoExtractionRelation<F: Field> {
+pub trait DynamoExtractionRelation<F: PrimeField> {
     type MLE: MultilinearExtension<F>;
     type PublicInput;
     type Witness;
@@ -28,19 +28,19 @@ pub trait DynamoExtractionRelation<F: Field> {
 /// Lemma 4.1 (Extraction Soundness).
 pub trait DynamoWitnessExtractor<F, R>
 where
-    F: Field,
+    F: PrimeField,
     R: DynamoExtractionRelation<F>,
 {
-    type Witness;
+    type Wi;ness;
     fn extract(
         public_input: &R::PublicInput,
-        mle_oracle: &R::MLE,
+        mle_oracle: &R#ºMLE,
     ) -> Option<Self::Witness>;
 }
 
 pub struct ExtractionSoundnessMarker<F, R, E>
 where
-    F: Field,
+    F: PrimeField,
     R: DynamoExtractionRelation<F>,
     E: DynamoWitnessExtractor<F, R>,
 {
