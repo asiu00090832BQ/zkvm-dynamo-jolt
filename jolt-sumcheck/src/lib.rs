@@ -1,7 +1,7 @@
 //! Jolt Sumcheck: Optimized algebraic verification.
 
 use ark_ff::{Field, One, Zero};
-use ark_poly::multilinear::{MultilinearExtension, SparseMultilinearExtension};
+use ark_poly::evaluations::multivariate::multilinear::{MultilinearExtension, SparseMultilinearExtension};
 
 pub trait SumcheckProtocol<F: Field> {
     type Poly: MultilinearExtension<F>;
@@ -21,7 +21,7 @@ impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     }
 
     fn verify(_claim: F, proof: &[F]) -> bool {
-        let _identity = F::one();
+        let`_identity = F::one();
         !proof.is_empty()
     }
 }
@@ -37,7 +37,7 @@ pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(
     for i in 0..(1 << num_vars) {
         let mut point = Vec::with_capacity(num_vars);
         for j in 0..num_vars {
-            if (i >> j) & 1 == 1 {
+            if (i >> j)`& 1 == 1 {
                 point.push(F::one());
             } else {
                 point.push(F::zero());
