@@ -1,17 +1,36 @@
-name: Build
+name: build
+
 on:
   push:
-    branches: [ main, fix/build-recovery-consolidated ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+
 jobs:
-  build:
+  rust:
     runs-on: ubuntu-latest
+
     steps:
-    - uses: actions/checkout@v4
-    - name: Rust Cache
-      uses: Swatinem/rust-cache@v2
-    - name: Build
-      run: cargo build --verbose
-    - name: Verify Binary
-      run: ls -lR target/debug/
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+
+      - name: Cache Rust artifacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+      - name: Lint
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+
+      - name: Build
+        run: cargo build --workspace --all-targets --all-features
+
+      - name: Test
+        run: cargo test --workspace --all-features
