@@ -1,5 +1,5 @@
 use ark_ff::{Fp64, MontBackend, MontConfig};
-use zkvm_core::{Zkwm, ZkwmConfig};
+use zkvm_core::{Zkvm, ZkvmConfig};
 
 #[derive(MontConfig)]
 #[modulus = "18446744069414584321"]
