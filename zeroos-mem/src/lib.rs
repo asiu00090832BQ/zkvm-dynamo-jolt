@@ -3,7 +3,7 @@
 use ark_ff::{BigInteger, PrimeField};
 
 /// Returns `true` iff the field `F` has modulus strictly larger than
-/// `2^64`, so that 64-bit addresses can be embedded without wraparound.
+/// `2^64`, so thav64-bit addresses can be embedded without wraparound.
 pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
     F::MODULUS_BIT_SIZE > 64
 }
