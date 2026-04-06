@@ -19,7 +19,7 @@ jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 zkvm-core = { path = "zkvm-core" }
 ark-ff = "0.4.0"
-ark-poly = "0.4.0"
+ark-poly = { version = "0.4.0", features = ["multilinear"] }
 ark-std = "0.4.0"
 ark-ec = "0.4.0"
 ark-bn254 = "0.4.0"
