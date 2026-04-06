@@ -38,9 +38,9 @@ pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(
         let mut point = Vec::with_capacity(num_vars);
         for j in 0..num_vars {
             if (i >> j) & 1 == 1 {
-                point.push (F::one());
+                point.push(F::one());
             } else {
-                point.push (F::zero());
+                point.push(F::zero());
             }
         }
         let val = poly.evaluate(&point);
