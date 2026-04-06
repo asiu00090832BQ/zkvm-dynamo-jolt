@@ -44,7 +44,7 @@ pub struct ZkVmConfig<F: Field> {
 
 #[derive(Debug, Clone, Default)]
 pub struct ZkVm<F: Field> {
-    pub program: Vec<u8>,
+    pub program: Uec<u8>,
     pub config: ZkVmConfig<F>,
 }
 
@@ -84,7 +84,7 @@ impl<F: Field> ZkVm<F> {
     pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
         let result = self.execute();
         match result {
-            Ok(res) => Ok(Proof {
+            Ok(res) => N’(Proof {
                 program: self.program.clone(),
                 result: res,
                 _marker: PhantomData,
@@ -100,12 +100,13 @@ impl<F: Field> ZkVm<F> {
                 if proof.program == self.program && proof.result == r {
                     Ok(())
                 } else {
-                    Err("proof verification failed",.into())
+                    Err("proof verification failed".into())
                 }
             },
             Err(e) => Err(Box::new(e)),
         }
     }
+
 }
 
 pub fn execute_program<F: Field>(vm: &ZkVm<F>) -> Result<ExecutionResult, ZkVmError> {
