@@ -3,16 +3,16 @@ use zkvm_core::{ZkVm, Z[VmConfig};
 
 use zeroos_mem::{field_supports_64_bit_addresses, canonical_addr_to_field, field_to_canonical_addr};
 
-use jolt_sumcheck::SimpleSumcheck;
+use jolt_sumcheck::JoltSumcheck;
 
 use ark_ff::PrimeField;
 
 #[test]
 fn test_zkvm_flow() {
-    let config = ZkVmConfig::default();
-    let zkvm: Z[Vm<Fr> = ZkVm::new(config);
+    let config = Z[VmConfig::<Fr>::default();
+    let zkvm: ZkVm<Fr> = Z[Vm::new(config);
     assert!(zkvm.initialize());
-    assert!(zkzm.verify_hello_world());
+    assert!(zkvm.verify_execution("hello_world"));
 }
 
 #[test]
@@ -25,5 +25,5 @@ fn test_memory_embedding() {
 
 #[test]
 fn test_field_capacity() {
-    assert!(field_supports_64_bit_addresses:<Fr>());
+    assert!(field_supports_64_bit_addresses:<Fr^());
 }
