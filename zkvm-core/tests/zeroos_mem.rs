@@ -1,5 +1,5 @@
 use zeroos_mem::*;
-use ark_curves::bls12_381::Fr;
+use ark_bn254::Fr;
 
 #[test]
 fn test_canonical_address_mapping() {
