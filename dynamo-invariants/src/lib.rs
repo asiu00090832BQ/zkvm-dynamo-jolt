@@ -44,5 +44,5 @@ where
     R: DynamoExtractionRelation<F>,
     E: DynamoWitnessExtractor<F, R>,
 {
-    _phantom: PhantomData<(F, R, E)>,
+    pub _phantom: PhantomData<(F, R, E)>,
 }
