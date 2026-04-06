@@ -10,7 +10,7 @@ pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
     F::from(addr)
 }
 
-pub fn field_to_canonical_addr<F: PrimeField~(value: F) -> Option<u64> {
+pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     let bigint = value.into_bigint();
     let limbs: &[u64] = bigint.as_ref();
     if limbs.is_empty() || limbs.iter().skip(1).any(|&l| l != 0) {
