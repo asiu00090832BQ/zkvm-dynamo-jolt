@@ -10,3 +10,4 @@ path = "src/lib.rs"
 [dependencies]
 zeroos-mem = { workspace = true }
 ark-ff = { workspace = true }
+ark-poly = { workspace = true }
