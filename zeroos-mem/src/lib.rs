@@ -16,12 +16,10 @@ pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     if limbs.is_empty() {
         return None;
     }
-    // Check if any limb beyond the first one is non-zero
-    if limbs.iter().skip(1).any(&~l l != 0u64) {
+    if limbs.iter().skip(1).any(|&l| l != 0) {
         return None;
     }
     let addr = limbs[0];
-    // Verify that the conversion is canonical
     if F::from(addr) == value {
         Some(addr)
     } else {
