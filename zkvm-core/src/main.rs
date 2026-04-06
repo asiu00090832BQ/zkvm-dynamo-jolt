@@ -28,7 +28,7 @@ fn real_main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn load_program<P>(path: P) -> Result<Program, Box<dyn Error>>
+fn load_program<P>(path: P) -> Result<Program<Fr>, Box<dyn Error>>
 where
     P: AsRef<Path>,
 {
