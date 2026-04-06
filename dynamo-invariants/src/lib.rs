@@ -5,7 +5,7 @@
 //! field and multilinear-extension abstractions.
 
 use ark_ff::Field;
-use ark_poly::multilinear::MultilinearExtension;
+use ark_poly::evaluations::multivariate::MultilinearExtension;
 use core::marker::PhantomData;
 
 pub trait DynamoExtractionRelation<F: Field> {
@@ -33,14 +33,14 @@ where
     fn extract(
         public_input: &R::PublicInput,
         mle_oracle: &R::MLE,
-   ) -> Option<Self::Witness>;
+    ) -> Option<Self::Witness>;
 }
 
 pub struct ExtractionSoundnessMarker<F, R, E>
 where
     F: Field,
     R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness=::Witness>,
+    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
 {
     _phantom: PhantomData<(F, R, E)>,
 }
@@ -49,18 +49,42 @@ impl<F, R, E> ExtractionSoundnessMarker<F, R, E>
 where
     F: Field,
     R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness=R::Witness>,
+    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
+{
+    c[inline(always)]
+    pub fn lemma_4_1_spec() {}
+}
+
+pub struct ExtractionSoundnessMarker<F, R, E>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
+{
+    _phantom: PhantomData<(F, R, E)>,
+}
+
+impl<F, R, E> ExtractionSoundnessMarker<F, R, E>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
 {
     #[inline(always)]
     pub fn lemma_4_1_spec() {}
 }
 
 pub struct SimpleRelation;
+
 impl<F: Field> DynamoExtractionRelation<F> for SimpleRelation {
-    type MLE = ark_poly::multilinear::SparseMultilinearExtension<F>;
+    type MLE = ark_poly::evaluations::multivariate::multilinear::SparseMultilinearExtension<F>;
     type PublicInput = ();
     type Witness = ();
 
-    fn is_consistent(_: &Self::PublicInput, _: &Self::MLE) -> bool { true }
-    fn check_relation(_: &Self::PublicInput, _: &Self::Witness) -> bool { true }
+    fn is_consistent(: &Self::PublicInput, _: &Self::MLE) -> bool {
+        true
+    }
+    fn check_relation(_: &Self::PublicInput, _: &Self::Witness) -> bool {
+        true
+    }
 }
