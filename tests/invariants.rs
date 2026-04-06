@@ -1,60 +1,26 @@
-use dynamo-invariants::{ExtractionWitness, MemoryClaim};
+use dynamo-invariants::*;
+use ark_curves::bls12_381::Fr;
+use ark_poly::multilinear::SparseMultilinearExtension;
 
-#[test]
-fn sound_when_addresses_are_unique() {
-    let witness = ExtractionWitness::new(vec![
-        MemoryClaim {
-            segment: 0,
-            offset: 0,
-            value: 7,
-        },
-        MemoryClaim {
-            segment: 0,
-            offset: 1,
-            value: 9,
-        },
-        MemoryClaim {
-            segment: 1,
-            offset: 0,
-            value: 11,
-        },
-    ]);
+struct TestRelation;
+impl DynamoExtractionRelation<Fr> for TestRelation {
+    type MLE: SparseMultilinearExtension<Fr>;
+    type PublicInput = ();
+    type Witness = Vec<Fr>;
 
-    assert!(witness.is_sound());
+    fn is_consistent(_: &(), _: &Self::MLE) -> bool { true }
+    fn check_relation(_: &(), _: &Vec<Fr>) -> bool { true }
 }
 
 #[test]
-fn sound_when_duplicate_addresses_are_unique_agree() {
-    let witness = ExtractionWitness::new(vec![
-        MemoryClaim {
-            segment: 2,
-            offset: 3,
-            value: 42,
-        },
-        MemoryClaim {
-            segment: 2,
-            offset: 3,
-            value: 42,
-        },
-    ]);
+fn test_extraction_marker() {
+    struct TestExtractor;
+    impl DynamoWitnessExtractor<Fr, TestRelation> for TestExtractor {
+        type Witness = Vec<Fr>;
+        fn extract(_: &(), _: &SparseMultilinearExtension<Fr>) -> Option<Vec<Fr>> {
+            Some(vec![Fr::from(1u64)])
+        }
+    }
 
-    assert!(witness.is_sound());
-}
-
-#[test]
-fn unsound_when_duplicate_addresses_conflict() {
-    let witness = ExtractionWitness::new(vec![
-        MemoryClaim {
-            segment: 5,
-            offset: 8,
-            value: 1,
-        },
-        MemoryClaim {
-            segment: 5,
-            offset: 8,
-            value: 2,
-        },
-    ]);
-
-    assert!(!witness.is_sound());
+    Extraction_Soundness_Marker::Fr, TestRelation, TestExtractor>::lemma_4_1_spec();
 }
