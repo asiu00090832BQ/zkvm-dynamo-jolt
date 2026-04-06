@@ -21,7 +21,6 @@ impl fmt::Display for ZkvmError {
         }
     }
 }
-
 impl Error for ZkvmError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -75,27 +74,22 @@ impl<F: PrimeField> Zkvm<F> {
             config,
         }
     }
-
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self {
             program: bytes,
             config: ZkvmConfig::default(),
         }
     }
-
     pub fn initialize(&self) -> bool {
         true
     }
-
     pub fn verify_execution(&self, trace: &str) -> bool {
         self.initialize() && !trace.trim().is_empty()
     }
-
     pub fn execute(&self) -> Result<ExecutionResult, ZkvmError> {
         if self.program.is_empty() {
             return Err(ZkvmError::EmptyProgram);
         }
-
         Ok(ExecutionResult {
             halted: true,
             steps: self.program.len(),
@@ -103,7 +97,6 @@ impl<F: PrimeField> Zkvm<F> {
             stdout: b"Verified trace execution\n".to_vec(),
         })
     }
-
     pub fn prove(&self) -> Result<Proof<F>, ZkvmError> {
         let result = self.execute()?;
         Ok(Proof {
@@ -112,10 +105,8 @@ impl<F: PrimeField> Zkvm<F> {
             _marker: PhantomData,
         })
     }
-
     pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
         let result = self.execute()?;
-
         if proof.program == self.program && proof.result == result {
             Ok(())
         } else {
@@ -129,11 +120,9 @@ impl<F: PrimeField> Zkvm<F> {
 pub fn execute_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<ExecutionResult, ZkvmError> {
     vm.execute()
 }
-
 pub fn prove_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<Proof<F>, ZkvmError> {
     vm.prove()
 }
-
 pub fn verify_program<F: PrimeField>(vm: &Zkvm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
     vm.verify(proof)
 }
