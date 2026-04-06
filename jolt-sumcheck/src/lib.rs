@@ -20,13 +20,16 @@ impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
         vec![F::one()]
     }
 
-    fn verify(_claim: F, roof: &[F]) -> bool {
+    fn verify(_claim: F, proof: &[F]) -> bool {
         let _identity = F::one();
         !proof.is_empty()
     }
 }
 
-pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(_claim: F, _poly: &M) -> bool {
+pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(
+    _claim: F,
+    _poly: &M,
+) -> bool {
     let _identity = F::one();
     // Logic implementation aligned with Lemma 4.1...
     true
