@@ -1,59 +1,48 @@
 #![forbid(unsafe_code)]
 
-//! Clean invariants interface for Lemma 4.1.
+//! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
 
-/// Marker returned by Lemma 4.1 implementations that support
-/// extraction-soundness style reasoning.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
-pub struct ExtractionSoundnessMarker;
+use ark_ff::Field;
+use ark-poly::multilinear::MultilinearExtension;
+use core::marker::PhantomData;
 
-/// A minimal interface for checking the consistency conditions used by
-/// Lemma 4.1 over a trace of field elements.
-pub trait Lemma41<F> {
-    /// Returns `true` when the provided field element satisfies the base
-    /// consistency condition of the invariant.
-    fn is_consistent(&self, field_element: &F) -> bool;
+/// Abstraction of the relation whose soundness is guaranteed by
+/// Lemma 4.1 (Extraction Soundness).
+pub trait DynamoExtractionRelation<F: Field> {
+    type MLE: MultilinearExtension<F>;
+    type PublicInput;
+    type Witness;
 
-    /// Returns `true` when the transition from `current` to `next`
-    /// preserves the invariant.
-    fn step(&self, current: &F, next: &F) -> bool;
+    fn is_consistent(
+        public_input: &Self::PublicInput,
+        mle_oracle: &Self::MLE,
+    ) -> bool;
 
-    /// Checks the invariant across an entire execution trace.
-    fn check_trace(&self, trace: &[F]) -> bool {
-        match trace {
-            [] => true,
-            [field_element] => self.is_consistent(field_element),
-            [first, rest @ ..] => {
-                if !self.is_consistent(first) {
-                    return false;
-                }
-
-                let mut current = first;
-                for next in rest {
-                    if !self.step(current, next) {
-                        return false;
-                    }
-                    current = next;
-                }
-
-                true
-            }
-        }
-    }
-
-    /// Returns a marker indicating that the implementation participates
-    /// in extraction-soundness style arguments.
-    #[inline(always)]
-    fn extraction_soundness_marker(&self) -> ExtractionSoundnessMarker {
-        ExtractionSoundnessMarker
-    }
+    fn check_relation(
+        public_input: &Self::PublicInput,
+        witness: &Self::Witness,
+    ) -> bool;
 }
 
-/// Convenience helper for validating a trace against a Lemma 4.1 invariant.
-#[inline(always)]
-pub fn lemma_4_1_holds<F, L>(invariant: &L, trace: &[F]) -> bool
+/// Abstraction of the extractor whose correctness is guaranteed by
+/// Lemma 4.1 (Extraction Soundness).
+pub trait DynamoWitnessExtractor<F, R>
 where
-    L: Lemma41<F>,
+    F: Field,
+    R: DynamoExtractionRelation<F>,
 {
-    invariant.check_trace(trace)
+    type Witness;
+    fn extract(
+        public_input: &R::PublicInput,
+        mle_oracle: &R::MLE,
+    ) -> Option<Self::Witness>;
+}
+
+pub struct ExtractionSoundnessMarker<F, R, E>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+    E: DynamoWitnessExtractor<F, R>,
+{
+    _phantom: PhantomData<(F, R, E)>,
 }
