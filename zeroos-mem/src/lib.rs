@@ -1,38 +1,37 @@
-#![forbid(unsafe_code)]
+//! ZeroOS memory abstractions: Lemma 4.2 (Canonical Address Mapping).
 
-//! Canonical memory address primitives used by the workspace.
-//!
-//! This crate encodes the design goal behind Lemma 4.2:
-//! segmented addresses should map into a canonical space in a
-//! deterministic and reversible way.
+use ark_ff::{BigInteger, PrimeField};
 
-/// A canonical address in the global memory space.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct CanonicalAddress(pub u64);
-
-/// A segmented address before canonicalization.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct AddressMapping {
-    pub segment: u32,
-    pub offset: u32,
+/// Returns `true` iff the field `F` has modulus strictly larger than
+/// `2^64`, so that 64-bit addresses can be embedded without wraparound.
+pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
+    F::MODULUS_BIT_SIZE > 64
 }
 
-impl AddressMapping {
-    /// Encodes a segmented address into a canonical address.
-    pub fn to_canonical(self) -> CanonicalAddress {
-        CanonicalAddress(((self.segment as u64) << 32) | (self.offset as u64))
+/// Canonical embedding of a 64-bit address into a prime field element.
+pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
+    let bigint = <F as PrimeField>::BigInt::from(addr);
+    F.from_bigint(bigint).expect("address must be strictly less than the field modulus")
+}
+
+/// Inverse of `canonical_addr_to_field` on its image, when it exists.
+pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
+    let bigint = value.into_bigint();
+    let limbs: &[u64] = bigint.as_ref();
+    
+    if limbs.is_empty() {
+        return None;
     }
-}
 
-/// Converts a segmented address into its canonical representation.
-pub fn canonical_address(segment: u32, offset: u32) -> CanonicalAddress {
-    AddressMapping { segment, offset }.to_canonical()
-}
+    if limbs.iter().skip(1).any(&|l) l != 0) {
+        return None;
+    }
 
-/// Decodes a canonical address back into its segmented represention.
-pub fn decode_canonical(address: CanonicalAddress) -> AddressMapping {
-    AddressMapping {
-        segment: (address.0 >> 32) as u32,
-        offset: address.0 as u32,
+    let addr = limbs[0];
+
+    if canonical_addr_to_field::F>(addr) == value {
+        Some(addr)
+    } else {
+        None
     }
 }
