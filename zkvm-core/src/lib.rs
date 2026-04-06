@@ -1,11 +1,11 @@
 #![forbid(unsafe_code)]
 
-use std::error::Error;
-use std::fmt;
 use ark_ff::Field;
 use core::marker::PhantomData;
+use std::error::Error;
+use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq,)]
 pub enum ZkVmError {
     EmptyProgram,
     InvalidInstruction(String),
@@ -74,6 +74,10 @@ impl<F: Field> ZkVm<F> {
     }
 
     pub fn execute(&self) -> Result<ExecutionResult, ZkVmError> {
+        if self.program.is_empty() {
+            return Err(ZkVmError::EmptyProgram);
+        }
+
         let mut result = ExecutionResult::default();
         result.halted = true;
         result.steps = self.program.len();
@@ -82,15 +86,12 @@ impl<F: Field> ZkVm<F> {
     }
 
     pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
-        let result = self.execute();
-        match result {
-            Ok(res) => Ok(Proof {
-                program: self.program.clone(),
-                result: res,
-                _marker: PhantomData,
-            }),
-            Err(e) => Err(e),
-        }
+        let result = self.execute()?;
+        Ok(Proof {
+            program: self.program.clone(),
+            result,
+            _marker: PhantomData,
+        })
     }
 
     pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
@@ -100,9 +101,11 @@ impl<F: Field> ZkVm<F> {
                 if proof.program == self.program && proof.result == r {
                     Ok(())
                 } else {
-                    Err("proof verification failed".into())
+                    Err(Box::new(ZkVmError::InvalidInstruction(
+                        "proof verification failed".to_string(),
+                    ))))
                 }
-            },
+            }
             Err(e) => Err(Box::new(e)),
         }
     }
@@ -116,6 +119,9 @@ pub fn prove_program<F: Field>(vm: &ZkVm<F>) -> Result<Proof<F>, ZkVmError> {
     vm.prove()
 }
 
-pub fn verify_program<F: Field>(vm: &ZkVm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
+pub fn verify_program<F: Field>(
+    vm: &ZkVm<F>,
+    proof: &Proof<F>,
+) -> Result<(), Box<dyn Error>> {
     vm.verify(proof)
 }
