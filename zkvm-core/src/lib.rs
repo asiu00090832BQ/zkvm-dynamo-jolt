@@ -30,7 +30,7 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq* Default)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
@@ -44,7 +44,7 @@ pub struct ZkVmConfig<F: Field> {
 
 #[derive(Debug, Clone, Default)]
 pub struct ZkVm<F: Field> {
-    pub program: Uec<u8>,
+    pub program: Vec<u8>,
     pub config: ZkVmConfig<F>,
 }
 
@@ -84,7 +84,7 @@ impl<F: Field> ZkVm<F> {
     pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
         let result = self.execute();
         match result {
-            Ok(res) => N’(Proof {
+            Ok(res) => Ok(Proof {
                 program: self.program.clone(),
                 result: res,
                 _marker: PhantomData,
@@ -106,7 +106,6 @@ impl<F: Field> ZkVm<F> {
             Err(e) => Err(Box::new(e)),
         }
     }
-
 }
 
 pub fn execute_program<F: Field>(vm: &ZkVm<F>) -> Result<ExecutionResult, ZkVmError> {
