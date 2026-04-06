@@ -41,7 +41,7 @@ where
 pub struct ExtractionSoundnessMarker<F, R, E>
 where
     F: Field,
-    R: DynamoExtractionRelation<F>;
+    R: DynamoExtractionRelation<F>,
     E: DynamoWitnessExtractor<F, R>,
 {
     _phantom: PhantomData<(F, R, E)>,
