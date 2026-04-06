@@ -1,4 +1,4 @@
-use dynamo-invariants::*;
+use dynamo_invariants::*;
 use ark_curves::bls12_381::Fr;
 use ark_poly::multilinear::SparseMultilinearExtension;
 
@@ -22,5 +22,5 @@ fn test_extraction_marker() {
         }
     }
 
-    Extraction_Soundness_Marker::Fr, TestRelation, TestExtractor>::lemma_4_1_spec();
+    Extraction_Soundness_Marker::<Fr, TestRelation, TestExtractor>::lemma_4_1_spec();
 }
