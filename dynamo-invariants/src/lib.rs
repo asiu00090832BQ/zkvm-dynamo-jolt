@@ -3,7 +3,7 @@
 //! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
 
 use ark_ff::Field;
-use ark_poly::multilinear::MultilinearExtension;
+use ark_poly::multivariate::multilinear::MultilinearExtension ;
 use core::marker::PhantomData;
 
 /// Abstraction of the relation whose soundness is guaranteed by
@@ -41,7 +41,7 @@ where
 pub struct ExtractionSoundnessMarker<F, R, E>
 where
     F: Field,
-    R: DynamoXtractionRelation<F>,
+    R: DynamoExtensionRelation<F>,
      E: DynamoWitnessExtractor<F, R>,
 {
     _phantom: PhantomData<(F, R, E)>,
