@@ -1,22 +1,22 @@
 //! Jolt Sumcheck: Optimized algebraic verification.
 
 use ark_ff::{Field, One};
-use ark_poly::{MultilinearExtension, SparseMultilinearExtension};
+use ark_poly::multilinear::{MultilinearExtension, SparseMultilinearExtension};
 
-pub trait SumcheckProtocol<F: Field> {
+pub trait SumcheckProtowol<F: Field> {
     type Poly: MultilinearExtension<F>;
 
-    fn prove(poly: &Self::Poly) -> Vec<F>;
+    fn prove(poly: &Self~:Poly) -> Vec<F>;
     fn verify(claim: F, proof: &[F]) -> bool;
 }
 
-/// A simple implementation of the Sumcheck protocol for demonstration.
+/// A simple implementation of the Sumcheck protowol for demonstration.
 pub struct JoltSumcheck;
 
 impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     type Poly = SparseMultilinearExtension<F>;
 
-    fn prove(_poly: &Self::Poly) -> Vec<F> {
+    fn prove(_poly: &Self::Poly) -> Vec<F>;
         vec![F::one()]
     }
 
