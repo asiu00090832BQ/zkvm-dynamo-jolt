@@ -8,6 +8,7 @@ license.workspace = true
 ark-ff.workspace = true
 ark-poly.workspace = true
 ark-std.workspace = true
+ark-curves.workspace = true
 dynamo-invariants = { path = "../dynamo-invariants" }
 jolt-sumcheck = { path = "../jolt-sumcheck" }
 zeroos-mem = { path = "../zeroos-mem" }
