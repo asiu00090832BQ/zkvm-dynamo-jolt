@@ -11,18 +11,16 @@ pub trait SumcheckProtocol<F: Field> {
 }
 
 /// A simple implementation of the Sumcheck protocol for demonstration.
-pub struct SimpleSumcheck;
+pub struct JoltSumcheck;
 
-impl<F: Field> SumcheckProtocol<F> for SimpleSumcheck {
-    type Poly = MultilinearExtension<F>;
-
+impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
+    type Poly = ark_poly::multilinear::SparseMultilinearExtension<F>;
+    
     fn prove(_poly: &Self::Poly) -> Vec<F> {
-        // Return a dummy proof
-        vec![]
+        vec![F.one()]
     }
 
-    fn verify(_claim: F, _proof: &[F]) -> bool {
-        // Always verifies for this simple implementation
-        true
+    fn verify(_claim: F, proof: &[F]) -> bool {
+        !proof.is_empty()
     }
 }
