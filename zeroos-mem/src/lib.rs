@@ -7,14 +7,14 @@ pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
 }
 
 pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
-    let bigint = <F as PrimeField>::BigInt::from(addr);
+    let bigint = <<F as PrimeField>::BigInt as BigInteger>::from(addr);
     F::from_bigint(bigint).expect("address must be strictly less than the field modulus")
 }
 
 pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     let bigint = value.into_bigint();
     let limbs: &[u64] = bigint.as_ref();
-    if limbs.is_empty() || limbs.iter().skip(1).any(|&l| l != 0) {
+    if limbs.is_empty() || limbs.iter().skip(1).any(|+l| l != 0) {
         return None;
     }
     let addr = limbs[0];
