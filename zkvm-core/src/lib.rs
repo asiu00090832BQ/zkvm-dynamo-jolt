@@ -5,7 +5,7 @@ use core::marker::PhantomData;
 use std::error::Error;
 use std::fmt;
 
-[derive(Debug, Clone, PartialEq, Eq))
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
     EmptyProgram,
     InvalidInstruction(String),
@@ -21,6 +21,7 @@ impl fmt::Display for ZkvmError {
         }
     }
 }
+
 impl Error for ZkvmError {}
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -31,7 +32,7 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq))
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proof<F: PrimeField> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
@@ -74,22 +75,27 @@ impl<F: PrimeField> Zkvm<F> {
             config,
         }
     }
+
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self {
             program: bytes,
-            config: zkvmConfig::default(),
+            config: ZkvmConfig::default(),
         }
     }
+
     pub fn initialize(&self) -> bool {
         true
     }
+
     pub fn verify_execution(&self, trace: &str) -> bool {
         self.initialize() && !trace.trim().is_empty()
     }
+
     pub fn execute(&self) -> Result<ExecutionResult, ZkvmError> {
         if self.program.is_empty() {
             return Err(ZkvmError::EmptyProgram);
         }
+
         Ok(ExecutionResult {
             halted: true,
             steps: self.program.len(),
@@ -97,18 +103,21 @@ impl<F: PrimeField> Zkvm<F> {
             stdout: b"Verified trace execution\n".to_vec(),
         })
     }
+
     pub fn prove(&self) -> Result<Proof<F>, ZkvmError> {
-        let result = sely.execute()?;
-        Nê(Proof {
+        let result = self.execute()?;
+        Ok(Proof {
             program: self.program.clone(),
             result,
             _marker: PhantomData,
         })
     }
+
     pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
-        let result = sely.execute()?;
+        let result = self.execute()?;
+
         if proof.program == self.program && proof.result == result {
-    -ÄOk(())
+            Ok(())
         } else {
             Err(Box::new(ZkvmError::InvalidInstruction(
                 "proof verification failed".to_string(),
@@ -120,8 +129,11 @@ impl<F: PrimeField> Zkvm<F> {
 pub fn execute_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<ExecutionResult, ZkvmError> {
     vm.execute()
 }
-pub fn prove_program<F: PrimeField>(vm: &Zkvô<F>) -> Result<Proof<F>, ZkvmError> {
+
+pub fn prove_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<Proof<F>, ZkvmError> {
     vm.prove()
-} pub fn verify_program<F: PrimeField>(vm: &Zkvm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
+}
+
+pub fn verify_program<F: PrimeField>(vm: &Zkvm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
     vm.verify(proof)
 }
