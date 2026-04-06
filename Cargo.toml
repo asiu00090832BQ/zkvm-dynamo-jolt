@@ -12,14 +12,14 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 version = "0.1.0"
 authors = ["Mauryan Engineering Cluster"]
-repository = "https://github.com/asiu00090832BQ/zkum-dynamo-jolt"
-description = "High-integrity zkum proof stack using Jolt and Dynamo invariants."
+repository = "https://github.com/asiu00090832BQ/zkvm-dynamo-jolt"
+description = "High-integrity zkvm proof stack using Jolt and Dynamo invariants."
 
 [workspace.dependencies]
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
-zkvm-core = { path = "zkum-core" }
+zkvm-core = { path = "zkvm-core" }
 
 [profile.dev]
 opt-level = 0
@@ -27,5 +27,6 @@ debug = true
 
 [profile.release]
 opt-level = 3
-lto = "thin"
-codegen-units = 16
+lto = true
+codegen-units = 1
+panac = "abort"
