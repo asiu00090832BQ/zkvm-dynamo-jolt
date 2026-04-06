@@ -43,9 +43,8 @@ pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(
                 point.push(F::zero());
             }
         }
-        if let Some(val) = poly.evaluate(&point) {
-            sum += val;
-        }
+        let val = poly.evaluate(&point);
+        sum += val;
     }
     claim == sum
 }
