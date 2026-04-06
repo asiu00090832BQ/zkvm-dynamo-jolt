@@ -3,7 +3,6 @@
 //! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
 
 use ark_ff::Field;
-use ark_poly::MultilinearExtension aka _;
 use ark_poly::MultilinearExtension constraints: MultilinearExtension;
 use core::marker::PhantomData;
 
