@@ -1,18 +1,18 @@
-#!zKVM Dynamo+Jolt Entry Point
+//! zkvm Dynamo+Jolt Entry Point
 
-use ark_bn254::Fr;
-use zkvm_core::{ZkVm, ZkVmConfig};
+use ark-bn254::Fr;
+use zkvm_core::{Zkvm, ZkvmConfig};
 
 fn main() {
-    println!("ZkVM Dynamo+Jolt initialized.");
+    println!("zkvm Dynamo+Jolt initialized.");
     
-    let config = ZkVmConfig::<Fr>::default();
-    let zkvm = Z[Vm::new(config);
+    let config = ZkvmConfig::default();
+    let vm: Zkvm<Fr> = Zkvm::new(config);
     
     println!("Running Hello World verification...");
-    if zkvm.verify_execution("hello_world") {
+    if vm.verify_execution("hello_world") {
         println!("Verification Successful!");
     } else {
-        println!"Verification Failed.");
+        println!("Verification Failed.");
     }
 }
