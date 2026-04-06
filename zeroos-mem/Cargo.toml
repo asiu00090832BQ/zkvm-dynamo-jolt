@@ -4,5 +4,5 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[dependencies]
-ark-std.workspace = true
+[lib]
+path = "src/lib.rs"
