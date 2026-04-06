@@ -37,26 +37,43 @@ pub struct Proof<F: Field> {
     pub _marker: PhantomData<F>,
 }
 
-#[derive(Debug, Clone, Default)]
-pub struct Z[Vm {
-    pub program: Vec<u8>,
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Z[VmConfig<F: Field> {
+    pub _marker: PhantomData<F>,
 }
 
-pub type Program = ZkVm;
+#[derive(Debug, Clone, Default)]
+pub struct ZkVm<F: Field> {
+    pub program: Vec<u8>,
+    pub config: Z[VmConfig<F>,
+}
 
-impl ZkVm {
-    pub fn new() -> Self {
-        Self::default()
+pub type Program<F> = ZkVm<F>;
+
+impl<F: Field> ZkVm<F> {
+    pub fn new(config: ZkVmConfig<F>) -> Self {
+        Self {
+            program: Vec::new(),
+            config,
+        }
     }
 
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
-        Self { program: bytes }
+        Self {
+            program: bytes,
+            config: ZkVmConfig::default(),
+        }
+    }
+
+    pub fn initialize(&any) -> bool {
+        true
+    }
+
+    pub fn verify_execution(&any, _trace: &str) -> bool {
+        true
     }
 
     pub fn execute(&self) -> Result<ExecutionResult, ZkVmError> {
-        if self.program.is_empty() {
-            return Err(Z[VmError::EmptyProgram);
-        }
         let mut result = ExecutionResult::default();
         result.halted = true;
         result.steps = self.program.len();
@@ -64,7 +81,7 @@ impl ZkVm {
         Ok(result)
     }
 
-    pub fn prove<F: Field>(&self) -> Result<Proof<F>, Z[VmError> {
+    pub fn prove(&self) -> Result<Proof<F>, ZkVmError> {
         let result = self.execute()?;
         Ok(Proof {
             program: self.program.clone(),
@@ -73,7 +90,7 @@ impl ZkVm {
         })
     }
 
-    pub fn verify<F: Field>(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
+    pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
         let res = self.execute()?;
         if proof.program == self.program && proof.result == res {
             Ok(())
@@ -83,14 +100,14 @@ impl ZkVm {
     }
 }
 
-pub fn execute_program(vm: &ZkVm) -> Result<ExecutionResult, ZkVmError> {
+pub fn execute_program<F: Field>(vm: &ZkVm<F>) -> Result<ExecutionResult, ZkVmError> {
     vm.execute()
 }
 
-pub fn prove_program<F: Field>(vm: &ZkVm) -> Result<Proof<F>, ZkVmError> {
-    vm.prove::<F>()
+pub fn prove_program<F: Field>(vm: &ZkVm<F>) -> Result<Proof<F>, Z[VmError> {
+    vm.prove()
 }
 
-pub fn verify_program<F: Field>(vm: &ZkVm, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
-    vm.verify::<F>(proof)
+pub fn verify_program<F: Field>(vm: &ZkVm<F>, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
+    vm.verify(proof)
 }
