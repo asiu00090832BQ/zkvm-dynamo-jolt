@@ -1,7 +1,7 @@
 //! Jolt Sumcheck: Optimized algebraic verification.
 
 use ark_ff::{Field, One};
-use ark_poly::multilinear::{MultilinearExtension, SparseMultilinearExtension};
+use ark_poly::multivariate::{MultilinearExtension, SparseMultilinearExtension};
 
 pub trait SumcheckProtocol<F: Field> {
     type Poly: MultilinearExtension<F>;
