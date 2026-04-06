@@ -1,44 +1,56 @@
-use std::collections::BTreeMap;
+//! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
+//!
+//! This module provides *interfaces* that encode the structure of
+//! Lemma 4.1 as it appears in Artifact 36D70C87, using arkworks-style
+//! field and multilinear-extension abstractions.
 
-// Lemma 4.1: an extraction witness is sound exactly when no two claims
-// assign different values to the same canonical memory address.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct MemoryClaim {
-    pub segment: usize,
-    pub offset: usize,
-    pub value: u64,
+use ark_ff::Field;
+use ark_poly::multilinear::MultilinearExtension;
+use core::marker::PhantomData;
+
+pub trait DynamoExtractionRelation<F: Field> {
+    type MLE: MultilinearExtension<F>;
+    type PublicInput;
+    type Witness;
+
+    fn is_consistent(
+        public_input: &Self::PublicInput,
+        mle_oracle: &Self::MLE,
+    ) -> bool;
+
+    fn check_relation(
+        public_input: &Self::PublicInput,
+        witness: &Self::Witness,
+    ) -> bool;
 }
 
-impl MemoryClaim {
-    pub fn canonical_address(&self) -> (usize, usize) {
-        (self.segment, self.offset)
-    }
+pub trait DynamoWitnessExtractor<F, R>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+{
+    type Witness;
+    fn extract(
+        public_input: &R::PublicInput,
+        mle_oracle: &R::MLE,
+    ) -> Option<Self::Witness>;
 }
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct ExtractionWitness {
-    pub claims: Vec<MemoryClaim>,
+pub struct ExtractionSoundnessMarker<F, R, E>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+    E: DynamoWitnessExtractor<F, R>,
+{
+    _phantom: PhantomData<(F, R, E>),
 }
 
-impl ExtractionWitness {
-    pub fn new(claims: Vec<MemoryClaim>) -> Self {
-        Self { claims }
-    }
-
-    pub fn is_sound(&self) -> bool {
-        let mut seen: BTreeMap<(usize, usize), u64> = BTreeMap::new();
-
-        for claim in &self.claims {
-            let addr = claim.canonical_address();
-            match seen.get(&addr) {
-                Some(existing) if *existing != claim.value => return false,
-                Some(_) => {}
-                None => {
-                    seen.insert(addr, claim.value);
-                }
-            }
-        }
-
-        true
-    }
+impl<F, R, E> ExtractionSoundnessMarker<F, R, E>
+where
+    F: Field,
+    R: DynamoExtractionRelation<F>,
+    E: DynamoWitnessExtractor<F, R>,
+{
+    #[inline(always)]
+    pub fn lemma_4_1_spec() {}
 }
