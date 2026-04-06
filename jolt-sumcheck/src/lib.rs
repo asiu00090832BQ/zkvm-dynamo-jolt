@@ -5,9 +5,9 @@ use ark_poly::{MultilinearExtension, SparseMultilinearExtension};
 
 pub trait SumcheckProtocol<F: Field> {
     type Poly: MultilinearExtension<F>;
-    
+
     fn prove(poly: &Self::Poly) -> Vec<F>;
-    fn verify(claim: F, proof: &[F_) -> bool;
+    fn verify(claim: F, proof: &[F]) -> bool;
 }
 
 /// A simple implementation of the Sumcheck protocol for demonstration.
@@ -15,7 +15,7 @@ pub struct JoltSumcheck;
 
 impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     type Poly = SparseMultilinearExtension<F>;
-    
+
     fn prove(_poly: &Self::Poly) -> Vec<F> {
         vec![F::one()]
     }
