@@ -6,7 +6,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZcvmError {
+pub enum ZkvmError {
     EmptyProgram,
     InvalidInstruction(String),
 }
@@ -15,7 +15,9 @@ impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::EmptyProgram => write!(f, "program is empty"),
-            Self::InvalidInstruction(i) => write!(f, "invalid instruction: {}", i),
+            Self::InvalidInstruction(instruction) => {
+                write!(f, "invalid instruction: {instruction}")
+            }
         }
     }
 }
@@ -30,22 +32,46 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Proof<F: Field> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
     pub _marker: PhantomData<F>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+impl<F: Field> Default for Proof<F> {
+    fn default() -> Self {
+        Self {
+            program: Vec::new(),
+            result: ExecutionResult::default(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ZkvmConfig<F: Field> {
     pub _marker: PhantomData<F>,
 }
 
-#[derive(Debug, Clone, Default)]
+impl<F: Field> Default for ZkvmConfig<F> {
+    fn default() -> Self {
+        Self {
+            _marker: PhantomData,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Zkvm<F: Field> {
     pub program: Vec<u8>,
     pub config: ZkvmConfig<F>,
+}
+
+impl<F: Field> Default for Zkvm<F> {
+    fn default() -> Self {
+        Self::new(ZkvmConfig::default())
+    }
 }
 
 pub type Program<F> = Zkvm<F>;
@@ -61,7 +87,7 @@ impl<F: Field> Zkvm<F> {
     pub fn from_bytes(bytes: Vec<u8>) -> Self {
         Self {
             program: bytes,
-            config: ZkvmConfig::<F>::default(),
+            config: ZkvmConfig::default(),
         }
     }
 
@@ -69,8 +95,8 @@ impl<F: Field> Zkvm<F> {
         true
     }
 
-    pub fn verify_execution(&self, _trace: &str) -> bool {
-        true
+    pub fn verify_execution(&self, trace: &str) -> bool {
+        self.initialize() && !trace.trim().is_empty()
     }
 
     pub fn execute(&self) -> Result<ExecutionResult, ZkvmError> {
@@ -78,12 +104,12 @@ impl<F: Field> Zkvm<F> {
             return Err(ZkvmError::EmptyProgram);
         }
 
-        let mut result = ExecutionResult::default();
-        result.halted = true;
-        result.steps = self.program.len();
-        result.stdout = b"Verified trace execution
-".to_vec();
-        Ok(result)
+        Ok(ExecutionResult {
+            halted: true,
+            steps: self.program.len(),
+            output: vec!["Verified trace execution".to_string()],
+            stdout: b"Verified trace execution\n".to_vec(),
+        })
     }
 
     pub fn prove(&self) -> Result<Proof<F>, ZkvmError> {
@@ -91,23 +117,19 @@ impl<F: Field> Zkvm<F> {
         Ok(Proof {
             program: self.program.clone(),
             result,
-            _marker: PhantomData<F>,
+            _marker: PhantomData,
         })
     }
 
     pub fn verify(&self, proof: &Proof<F>) -> Result<(), Box<dyn Error>> {
-        let res = self.execute();
-        match res {
-            Ok(r) => {
-                if proof.program == self.program && proof.result == r {
-                    Ok(())
-                } else {
-                    Err(Box::new(ZkvmError::InvalidInstruction(
-                        "proof verification failed".to_string(),
-                    )))
-                }
-            }
-            Err(e) => Err(Box::new(e)),
+        let result = self.execute()?;
+
+        if proof.program == self.program && proof.result == result {
+            Ok(())
+        } else {
+            Err(Box::new(ZkvmError::InvalidInstruction(
+                "proof verification failed".to_string(),
+            )))
         }
     }
 }
