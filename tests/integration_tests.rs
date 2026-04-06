@@ -25,5 +25,5 @@ fn test_memory_embedding() {
 
 #[test]
 fn test_field_capacity() {
-    assert!(field_supports_64_bit_addresses:<Fr^());
+    assert!(field_supports_64_bit_addresses:<Fr>());
 }
