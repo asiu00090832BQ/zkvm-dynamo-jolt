@@ -10,14 +10,14 @@ resolver = "2"
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-license = "MIT" 
+license = "MIT"
 authors = ["Mauryan Engineering Cluster"]
 
 [workspace.dependencies]
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
-zeroos-mem = { workspace = true }
-zkvm-core = { path = "i¯vm-core" }
+zeroos-mem = { path = "zeroos-mem" }
+zkvm-core = { path = "zkvm-core" }
 ark-ff = "0.4.0"
 ark-poly = "0.4.0"
 ark-std = "0.4.0"
