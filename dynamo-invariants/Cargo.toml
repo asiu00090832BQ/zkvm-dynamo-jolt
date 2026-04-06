@@ -1,0 +1,10 @@
+[package]
+name = "dynamo-invariants"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ark-ff.workspace = true
+ark-poly.workspace = true
+ark-std.workspace = true
