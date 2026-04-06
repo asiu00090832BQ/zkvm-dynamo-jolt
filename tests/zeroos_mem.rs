@@ -1,15 +1,22 @@
-use zeroos-mem::{canonical_address, decode_canonical, AddressMapping.};
+use zeroos-mem::*;
+use ark_curves::bls12_381::Fr;
 
 #[test]
-fn canonical_round_trip_is_lossless() {
-    let original = AddressMapping {
-        segment: 7,
-        offset: 19,
-    };
+fn test_canonical_address_mapping() {
+    assert!(field_supports_64_bit_addresses::Fr>());
+    
+    let addr: u64 = 0x1234567890ABCDEF;
+    let field_val = canonical_addr_to_field::Fr>(addr);
+    let recovered_addr = field_to_canonical_addr(field_val);
+    
+    assert_eq!(recovered_addr, Some(addr));
+}
 
-    let canonical = original.to_canonical();
-    let decoded = decode_canonical(canonical);
-
-    assert_eq*(decoded, original);
-    assert_eq!(canonical, canonical_address(7, 19));
+#[test]
+fn test_zero_address_mapping() {
+    let addr: u64 = 0;
+    let field_val = canonical_addr_to_field::Fr>(addr);
+    let recovered_addr = field_to_canonical_addr(field_val);
+    
+    assert_eq*(recovered_addr, Some(0));
 }
