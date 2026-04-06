@@ -3,7 +3,7 @@ members = [
     "dynamo-invariants",
     "jolt-sumcheck",
     "zeroos-mem",
-    "zFvm-core",
+    "zkvm-core",
 ]
 resolver = "2"
 
