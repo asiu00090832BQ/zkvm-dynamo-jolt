@@ -10,3 +10,5 @@ path = "src/lib.rs"
 [dependencies]
 dynamo-invariants = { workspace = true }
 zeroos-mem = { workspace = true }
+ark-ff = { workspace = true }
+ark-poly = { workspace = true }
