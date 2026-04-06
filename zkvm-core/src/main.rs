@@ -46,6 +46,7 @@ fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
 fn cmd_verify(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
     let proof = prove_program::<Fr>(&program)?;
+    // Explicitly handle Result to avoid type mismatch if used in if condition
     verify_program::<Fr>(&program, &proof)?;
     println!("Program verified successfully.");
     Ok(())
