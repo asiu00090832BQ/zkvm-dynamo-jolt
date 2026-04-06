@@ -13,15 +13,9 @@ pub trait DynamoExtractionRelation<F: Field> {
     type PublicInput;
     type Witness;
 
-    fn is_consistent(
-        public_input: &Self::PublicInput,
-        mle_oracle: &Self::MLE,
-    ) -> bool;
+    fn is_consistent(public_input: &Self::PublicInput, mle_oracle: &Self::MLE) -> bool;
 
-    fn check_relation(
-        public_input: &Self::PublicInput,
-        witness: &Self::Witness,
-    ) -> bool;
+    fn check_relation(public_input: &Self::PublicInput, witness: &Self::Witness) -> bool;
 }
 
 pub trait DynamoWitnessExtractor<F, R>
@@ -30,29 +24,8 @@ where
     R: DynamoExtractionRelation<F>,
 {
     type Witness;
-    fn extract(
-        public_input: &R::PublicInput,
-        mle_oracle: &R::MLE,
-    ) -> Option<Self::Witness>;
-}
 
-pub struct ExtractionSoundnessMarker<F, R, E>
-where
-    F: Field,
-    R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
-{
-    _phantom: PhantomData<(F, R, E)>,
-}
-
-impl<F, R, E> ExtractionSoundnessMarker<F, R, E>
-where
-    F: Field,
-    R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
-{
-    c[inline(always)]
-    pub fn lemma_4_1_spec() {}
+    fn extract(public_input: &R::PublicInput, mle_oracle: &R::MLE) -> Option<Self::Witness>;
 }
 
 pub struct ExtractionSoundnessMarker<F, R, E>
@@ -77,13 +50,15 @@ where
 pub struct SimpleRelation;
 
 impl<F: Field> DynamoExtractionRelation<F> for SimpleRelation {
-    type MLE = ark_poly::evaluations::multivariate::multilinear::SparseMultilinearExtension<F>;
+    type MLE =
+        ark_poly::evaluations::multivariate::multilinear::SparseMultilinearExtension<F>;
     type PublicInput = ();
     type Witness = ();
 
-    fn is_consistent(: &Self::PublicInput, _: &Self::MLE) -> bool {
+    fn is_consistent(: &<Self as DynamoExtractionRelation<F>>::PublicInput, _: &Self::MLE) -> bool {
         true
     }
+
     fn check_relation(_: &Self::PublicInput, _: &Self::Witness) -> bool {
         true
     }
