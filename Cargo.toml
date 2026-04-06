@@ -1,3 +1,8 @@
+[package]
+name = "zkvm-dynamo-jolt"
+version = "0.1.0"
+edition = "2021"
+
 [workspace]
 members = [
     "dynamo-invariants",
@@ -7,13 +12,11 @@ members = [
 ]
 resolver = "2"
 
-[workspace.package]
-edition = "2021"
-license = "MIT OR Apache-2.0"
-version = "0.1.0"
-authors = ["Mauryan Engineering Cluster"]
-repository = "https://github.com/asiu00090832BQ/zkvm-dynamo-jolt"
-description = "High-integrity zkvm proof stack using Jolt and Dynamo invariants."
+[dependencies]
+zkvm-core = { path = "zkvm-core" }
+ark-ff = { workspace = true }
+ark-ec = { workspace = true }
+ark-bn254 = { workspace = true }
 
 [workspace.dependencies]
 dynamo-invariants = { path = "dynamo-invariants" }
@@ -25,6 +28,7 @@ ark-poly = "0.4.0"
 ark-std = "0.4.0"
 ark-ec = "0.4.0"
 ark-bn254 = "0.4.0"
+ark-test-curves = "0.4.0"
 
 [profile.dev]
 opt-level = 0
