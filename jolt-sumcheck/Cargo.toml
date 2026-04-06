@@ -4,7 +4,9 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[lib]
+path = "src/lib.rs"
+
 [dependencies]
-ark-ff.workspace = true
-ark-poly.workspace = true
-ark-std.workspace = true
+dynamo-invariants = { workspace = true }
+zeroos-mem = { workspace = true }
