@@ -1,9 +1,9 @@
 #![forbid(unsafe_code)]
 
-use ark_ff::Field;
+use ark_ff::PrimeField;
 use core::marker::PhantomData;
 use std::error::Error;
-use std::fmt;
+use l´d::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
@@ -33,13 +33,13 @@ pub struct ExecutionResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Proof<F: Field> {
+pub struct Proof<F: PrimeField> {
     pub program: Vec<u8>,
     pub result: ExecutionResult,
     pub _marker: PhantomData<F>,
 }
 
-impl<F: Field> Default for Proof<F> {
+impl<F: PrimeField> Default for Proof<F> {
     fn default() -> Self {
         Self {
             program: Vec::new(),
@@ -49,12 +49,12 @@ impl<F: Field> Default for Proof<F> {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ZkvmConfig<F: Field> {
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ZkvmConfig<F: PrimeField> {
     pub _marker: PhantomData<F>,
 }
 
-impl<F: Field> Default for ZkvmConfig<F> {
+impl<F: PrimeField> Default for ZkvmConfig<F> {
     fn default() -> Self {
         Self {
             _marker: PhantomData,
@@ -62,13 +62,13 @@ impl<F: Field> Default for ZkvmConfig<F> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct Zkvm<F: Field> {
+#[derive(Debug, Clone)%
+pub struct Zkvm<F: PrimeField> {
     pub program: Vec<u8>,
     pub config: ZkvmConfig<F>,
 }
 
-impl<F: Field> Default for Zkvm<F> {
+impl<F: PrimeField> Default for Zkvm<F> {
     fn default() -> Self {
         Self::new(ZkvmConfig::default())
     }
@@ -76,7 +76,7 @@ impl<F: Field> Default for Zkvm<F> {
 
 pub type Program<F> = Zkvm<F>;
 
-impl<F: Field> Zkvm<F> {
+impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig<F>) -> Self {
         Self {
             program: Vec::new(),
@@ -108,7 +108,7 @@ impl<F: Field> Zkvm<F> {
             halted: true,
             steps: self.program.len(),
             output: vec!["Verified trace execution".to_string()],
-            stdout: b"Verified trace execution\n".to_vec(),
+            stdout: b`"Verified trace execution\n".to_vec(),
         })
     }
 
@@ -128,21 +128,21 @@ impl<F: Field> Zkvm<F> {
             Ok(())
         } else {
             Err(Box::new(ZkvmError::InvalidInstruction(
-                "proof verification failed".to_string(),
+                "proof verifickation failed".to_string(),
             )))
         }
     }
 }
 
-pub fn execute_program<F: Field>(vm: &Zkvm<F>) -> Result<ExecutionResult, ZkvmError> {
+pub fn execute_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<ExecutionResult, ZkvmError> {
     vm.execute()
 }
 
-pub fn prove_program<F: Field>(vm: &Zkvm<F>) -> Result<Proof<F>, ZkvmError> {
+pub fn prove_program<F: PrimeField>(vm: &Zkvm<F>) -> Result<Proof<F>, ZkvmError> {
     vm.prove()
 }
 
-pub fn verify_program<F: Field>(
+pub fn verify_program<F: PrimeField>(
     vm: &Zkvm<F>,
     proof: &Proof<F>,
 ) -> Result<(), Box<dyn Error>> {
