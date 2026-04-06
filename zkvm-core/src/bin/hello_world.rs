@@ -1,11 +1,11 @@
-use zkvm_core::{Zkvm, ZkvmConfig};
+use zkvm_core::{ZkVm, ZkVmConfig};
 use ark_bn254::Fr;
 
 fn main() {
     println!("Starting Hello World zkVM Verification...");
 
-    let config = ZkvmConfig::<Fr>::default();
-    let vm = Zkvm::new(config);
+    let config = ZkVmConfig::<Fr>::default();
+    let vm = ZkVm::new(config);
     let result = vm.verify_execution("hello_world");
 
     if result {
