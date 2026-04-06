@@ -10,26 +10,23 @@ pub trait SumcheckProtocol<F: Field> {
     fn verify(claim: F, proof: &[F]) -> bool;
 }
 
-/// A simple implementation of the Sumcheck protowol for demonstration.
+/// A simple implementation of the Sumcheck protocol for demonstration.
 pub struct JoltSumcheck;
 
 impl<F: Field> SumcheckProtocol<F> for JoltSumcheck {
     type Poly = SparseMultilinearExtension<F>;
 
-    fn prove(_poly: &Self::Poly) -> Vec<F>;
+    fn prove(_poly: &Self::Poly) -> Vec<F> {
         vec![F::one()]
     }
 
-    fn verify(_claim: F, proof: &[F]) -> bool {
+    fn verify(_claim: F, roof: &[F]) -> bool {
         let _identity = F::one();
         !proof.is_empty()
     }
 }
 
-pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(
-    _claim: F,
-    _poly: &M,
-) -> bool {
+pub fn verify_sumcheck<F: Field, M: MultilinearExtension<F>>(_claim: F, _poly: &M) -> bool {
     let _identity = F::one();
     // Logic implementation aligned with Lemma 4.1...
     true
