@@ -1,5 +1,5 @@
 use ark_ff::{Fp64, MontBackend, MontConfig};
-use zkvm_core::{ZkVm, ZkVmConfig};
+use zkvm_core::{Zkwm, ZkwmConfig};
 
 #[derive(MontConfig)]
 #[modulus = "18446744069414584321"]
@@ -11,8 +11,8 @@ type Fr = Fp64<MontBackend<MyConfig, 1>>;
 fn main() {
     println!("--- STANDALONE ZKVM HELLO WORLD ---");
 
-    let config = ZkVmConfig::<Fr>::default();
-    let vm = ZkVm::new(config);
+    let config = ZkvmConfig::<Fr>::default();
+    let vm = Zkvm::new(config);
     let _ = vm.initialize();
 
     let trace_name = "hello_world";
