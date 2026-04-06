@@ -1,65 +1,59 @@
-//! Dynamo invariants: Lemma 4.1 (Extraction Soundness).
-//!
-//! This module provides interfaces that encode the structure of
-//! Lemma 4.1 as it appears in Artifact 36D70C87, using arkworks-style
-//! field and multilinear-extension abstractions.
+#![forbid(unsafe_code)]
 
-use ark_ff::Field;
-use ark_poly::evaluations::multivariate::MultilinearExtension;
-use core::marker::PhantomData;
+//! Clean invariants interface for Lemma 4.1.
 
-pub trait DynamoExtractionRelation<F: Field> {
-    type MLE: MultilinearExtension<F>;
-    type PublicInput;
-    type Witness;
+/// Marker returned by Lemma 4.1 implementations that support
+/// extraction-soundness style reasoning.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Hash)]
+pub struct ExtractionSoundnessMarker;
 
-    fn is_consistent(public_input: &Self::PublicInput, mle_oracle: &Self::MLE) -> bool;
+/// A minimal interface for checking the consistency conditions used by
+/// Lemma 4.1 over a trace of field elements.
+pub trait Lemma41<F> {
+    /// Returns `true` when the provided field element satisfies the base
+    /// consistency condition of the invariant.
+    fn is_consistent(&self, field_element: &F) -> bool;
 
-    fn check_relation(public_input: &Self::PublicInput, witness: &Self::Witness) -> bool;
-}
+    /// Returns `true` when the transition from `current` to `next`
+    /// preserves the invariant.
+    fn step(&self, current: &F, next: &F) -> bool;
 
-pub trait DynamoWitnessExtractor<F, R>
-where
-    F: Field,
-    R: DynamoExtractionRelation<F>,
-{
-    type Witness;
+    /// Checks the invariant across an entire execution trace.
+    fn check_trace(&self, trace: &[F]) -> bool {
+        match trace {
+            [] => true,
+            [field_element] => self.is_consistent(field_element),
+            [first, rest @ ..] => {
+                if !self.is_consistent(first) {
+                    return false;
+                }
 
-    fn extract(public_input: &R::PublicInput, mle_oracle: &R::MLE) -> Option<Self::Witness>;
-}
+                let mut current = first;
+                for next in rest {
+                    if !self.step(current, next) {
+                        return false;
+                    }
+                    current = next;
+                }
 
-pub struct ExtractionSoundnessMarker<F, R, E>
-where
-    F: Field,
-    R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
-{
-    _phantom: PhantomData<(F, R, E)>,
-}
+                true
+            }
+        }
+    }
 
-impl<F, R, E> ExtractionSoundnessMarker<F, R, E>
-where
-    F: Field,
-    R: DynamoExtractionRelation<F>,
-    E: DynamoWitnessExtractor<F, R, Witness = R::Witness>,
-{
+    /// Returns a marker indicating that the implementation participates
+    /// in extraction-soundness style arguments.
     #[inline(always)]
-    pub fn lemma_4_1_spec() {}
+    fn extraction_soundness_marker(&self) -> ExtractionSoundnessMarker {
+        ExtractionSoundnessMarker
+    }
 }
 
-pub struct SimpleRelation;
-
-impl<F: Field> DynamoExtractionRelation<F> for SimpleRelation {
-    type MLE =
-        ark_poly::evaluations::multivariate::multilinear::SparseMultilinearExtension<F>;
-    type PublicInput = ();
-    type Witness = ();
-
-    fn is_consistent(: &<Self as DynamoExtractionRelation<F>>::PublicInput, _: &Self::MLE) -> bool {
-        true
-    }
-
-    fn check_relation(_: &Self::PublicInput, _: &Self::Witness) -> bool {
-        true
-    }
+/// Convenience helper for validating a trace against a Lemma 4.1 invariant.
+#[inline(always)]
+pub fn lemma_4_1_holds<F, L>(invariant: &L, trace: &[F]) -> bool
+where
+    L: Lemma41<F>,
+{
+    invariant.check_trace(trace)
 }
