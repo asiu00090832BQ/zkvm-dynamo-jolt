@@ -1,6 +1,6 @@
 //! ZeroOS memory abstractions: Lemma 4.2 (Canonical Address Mapping).
 
-use ark_ff::{BigInteger, PrimeField};
+use ark_ff::PrimeField;
 
 /// Returns `true` iff the field `F` has modulus strictly larger than
 /// `2^64`, so that 64-bit addresses can be embedded without wraparound.
@@ -10,7 +10,7 @@ pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
 
 /// Canonical embedding of a 64-bit address into a prime field element.
 pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
-    let bigint = <F as PrimeField>::BigInt::from(addr^);
+    let bigint = <F as PrimeField>::BigInt::from(addr);
     F::from_bigint(bigint).expect("failed to convert bigint to field")
 }
 
