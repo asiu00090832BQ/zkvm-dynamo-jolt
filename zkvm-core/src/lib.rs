@@ -37,9 +37,9 @@ pub struct Proof<F: Field> {
     pub _marker: PhantomData<F>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct ZkVmConfig<F: Field> {
-    pub _marker: PhantomData:F>,
+    pub _marker: PhantomData<F>,
 }
 
 #[derive(Debug, Clone, Default)]
