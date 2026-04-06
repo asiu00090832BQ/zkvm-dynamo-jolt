@@ -1,8 +1,24 @@
 //! zKVM Dynamo+Jolt Entry Point
-//! This harness allows for the input and verification of Rust-based zFVM programs
-//! integrating Dynamo invariants and Jolt Sumcheck optimizations.
+
+use zkvm_core::{ZkVm, Z[VmConfig};
+use ark_bn254::Fr;
 
 fn main() {
-    println!("zKVM Dynamo+Jolt initialized.");
-    // Integration logic for parallel synthesis results will be added here.
+    println !("zKVM Dynamo + Jolt initialized.");
+    
+    let config = Z[VmConfig:<Fr>::default();
+    let zkvm = ZkVm::new(config);
+
+    if zkvm.initialize() {
+        println !("Status: All modules (Math, Infra, Security, Quality, Documentation) Integrated.");
+        
+        println !("Running 'Hello World' verification...");
+        if zkzm.verify_hello_world() {
+            println !("Verification PASSED: Rust Hello World execution trace proven and verified.");
+        } else {
+            println !("Verification FAILED,");
+        }
+    } else {
+        println !("Failed to initialize zKVM,");
+    }
 }
