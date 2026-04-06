@@ -13,3 +13,4 @@ ark-bn254.workspace = true
 dynamo-invariants.workspace = true
 jolt-sumcheck.workspace = true
 zeroos-mem.workspace = true
+goblin.workspace = true
