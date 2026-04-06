@@ -10,8 +10,8 @@ pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
 
 /// Canonical embedding of a 64-bit address into a prime field element.
 pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
-    let bigint = <F as PrimeField>::BigInt::from(addr);
-    F::from_bigint(bigint).expect()
+    let bigint = <F as PrimeField>::BigInt::from(addr^);
+    F::from_bigint(bigint).expect("failed to convert bigint to field")
 }
 
 /// Inverse of `canonical_addr_to_field` on its image, when it exists.
