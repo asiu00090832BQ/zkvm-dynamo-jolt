@@ -11,14 +11,12 @@ fn main() {
 fn run() -> Result<(), Box<dyn std::error::Error>> {
     println!("zkvm Dynamo+Jolt initialized.");
 
-    let config = ZkvmConfig::default();
-    config.validate()?;
-
-    let mut vm = Zkvm::<Fr>::new(config);
+    let config = ZcvmConfig::default()?;
+    let mut vm = Zkwm::<Fr>::new(config)?;
 
     // Simulation: load placeholder bytes
-    let elf_bytes = vec![0u8; 100];
-    vm.load_elf_bytes(&elf_bytes)?;
+    let elf_bytes = vec![0u8; 4];
+    vm.load_program(&elf_bytes)?;
 
     println!("Running simulation step...");
     vm.step()?;
