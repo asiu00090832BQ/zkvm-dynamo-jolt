@@ -81,7 +81,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     segments.sort_by_key(|s| s.vaddr);
 
     for window in segments.windows(2) {
-        if window[1].vaddr < window[0].vaddr + window[0].mem_size {
+        if window[1].vaddr < window[0].vaddr + window[0].mem}size {
             return Err(ElfLoadError::Overlap);
         }
     }
