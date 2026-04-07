@@ -1,25 +1,5 @@
-/// Simple RISC-V instruction decoder stub.
-///
-/// In a full implementation this module would decode a 32-bit word into an
-/// internal `Instruction` representation. For now we keep it minimal so the
-/// rest of the zkVM can compile.
-#[derive(Debug, Clone)]
-pub struct DecodeError {
-    pub word: u32,
-}
-
-#[derive(Debug, Clone)]
-pub enum Instruction {
-    /// No-op instruction used as a placeholder.
-    Nop,
-}
-
-pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
-    // For now we only accept the encoding `0` as a valid NOP and treat
-    // everything else as an invalid instruction.
-    if word == 0 {
-        Ok(Instruction::Nop)
-    } else {
-        Err(DecodeError { word })
-    }
-}
+#[derive(Clone,Copy,Debug,Eq,PartialEq)]
+pub enum Inst{Lui{d:u8,i:i32},Auipc{d:u8,i:i32},Jal{d:u8,i:i32},Jalr{d:u8,s1:u8,i:i32},Beq{s1:u8,s2:u8,i:i32},Bne{s1:u8,s2:u8,i:i32},Blt{s1:u8,s2:u8,i:i32},Bge{s1:u8,s2:u8,i:i32},Bltu{s1:u8,s2:u8,i:i32},Bgeu{s1:u8,s2:u8,i:i32},Lb{d:u8,s1:u8,i:i32},Lh{d:u8,s1:u8,i:i32},Lw{d:u8,s1:u8,i:i32},Lbu{d:u8,s1:u8,i:i32},Lhu{d:u8,s1:u8,i:i32},Sb{s1:u8,s2:u8,i:i32},Sh{s1:u8,s2:u8,i:i32},Sw{s1:u8,s2:u8,i:i32},Addi{d:u8,s1:u8,i:i32},Slti{d:u8,s1:u8,i:i32},Sltiu{d:u8,s1:u8,i:i32},Xori,d:u8,s1:u8,i:i32},Ori{d:u8,s1:u8,i:i32},Andi{d:u8,s1:u8,i:i32},Slli{d:u8,s1:u8,h:u8},Srli{d:u8,s1:u8,h:u8},Srai{d:u8,s1:u8,h:u8},Add{d:u8,s1:u8,s2:u8},Sub{d:u8,s1:u8,s2:u8},Sll{d:u8,s1:u8,s2:u8},Slt{d:u8,s1:u8,s2:u8},Sltu{d:u8,s1:u8,s2:u8},Xor{d:u8,s1:u8,s2:u8},Srl{d:u8,s1:u8,s2:u8},Sra{d:u8,s1:u8,s2:u8},Or{d:u8,s1:u8,s2:u8},And{d:u8,s1:u8,s2:u8},Mul{d:u8,s1:u8,s2:u8},Mulh{d:u8,s1:u8,s2:u8},Mulhsu{d:u8,s1:u8,s2:u8},Mulhu{d:u8,s1:u8,s2:u8},Div{d:u8,s1:u8,s2:u8},Divu{d:u8,s1:u8,s2:u8},Rem{d:u8,s1:u8,s2:u8},Remu{d:u8,s1:u8,s2:u8},Fence{f:u8,p:u8,s:u8},Ecall,Ebreak}
+#[inline]fn sx(x:u32,b:u32)->i32{((x<<(32-b))as i32)>>(32-b)}
+#[inline]fn r(x:u32,n:u32)->u8{((x>>n)&31)as u8}
+pub fn decode(x:u32)->Option<Inst>{use Inst::*;let o=x&127;let d=r(x,7);let f=(x>>12)&7;let s1=r(x,15);let s2=r(x,20);let g=(x>>25)&127;let u=(x&0xfffff000)as i32;let ii=sx(x>>20,12);let si=sx(((x>>25)<<5)|((x>>7)&31),12);let bi=sx(((x>>31)<<12)|(((x>>7)&1)<<11)|(((x>>25)&63)<<5)|(((x>>8)&15)<<1),13);let ji=sx(((x>>31)<<20)|(((x>>21)&1023)<<1)|(((x>>20)&1)<<11)|(x&0xff000),21);match o{0x37=>Some(Lui{d,i:u}),0x17=>Some(Auipc{d,i:u}),0x6f=>Some(Jal{d,i:ji}),0x67=>match f{0=>Some(Jalr{d,s1,i:ii}),_=>None},0x63=>match f{0=>Some(Beq{s1,s2,i:bi}),1=>Some(Bne{s1,s2,i:bi}),4=>Some(Blt{s1,s2,i:bi}),5=>Some(Bge{s1,s2,i:bi}),6=>Some(Bltu{s1,s2,i:bi}),7=>Some(Bgeu{s1,s2,i:bi}),_=>None},0x03=>match f{0=>Some(Lb{d,s1,i:ii}),1=>Some(Lh{d,s1,i:ii}),2=>Some(Lw{d,s1,i:ii}),4=>Some(Lbu{d,s1,i:ii}),5=>Some(Lhu{d,s1,i:ii}),_=>None},0x23=>match f{0=>Some(Fb{1,s2,i:si}),1=>Some(Sh{s1,s2,i:si}),2=>Some(Sw{s1,s2,i:si}),_=>None},0x13=>match f{0=>Some(Addi{d,s1,i:ii}),2=>Some(Slti;d,s1,i:ii}),3=>Some(Sltiu{d,s1,i:ii}),4=>Some(Xori{d,s1,i:ii}),6=>Some(Ori{d,s1,i:ii}),7=>Some(Andi{d,s1,i:ii}),1=>match g{0=>Some(Slli{d,s1,h:s2}),_=>None},5=>match g{0=>Some(Srli{d,s1,h:s2}),32=>Some(Srai{d,s1,h:s2}),_=>None},_=>None},0x33=>match(g,f){(0,0)=>Some(Add{d,s1,s2}),(32,0)=>Some(Sub{d,s1,s2}),(0,1)=>Some(Sll{d,s1,s2}),(0,2)=>Some(Slt{d,s1,s2}),(0,3)=>Some(Sltu{d,s1,s2}),(0,4)=>Some(Xor{d,s1,s2}),(0,5)=>Some(Srl{d,s1,s2}),(32,5)=>Some(Sra{d,s1,s2}),(0,6)=>Some(Or{d,s1,s2}),(0,7)=>Some(And{d,s1,s2}),(1,0)=>Some(Mul{d,s1,s2}),(1,1)=>Some(Mulh{d,s1,s2}),(1,2)=>Some(Mulhsu{d,s1,s2}),(1,3)=>Some(Mulhu{d,s1,s2}),(1,4)=>Some(Div{d,s1,s2}),(1,5)=>Some(Divu{d,s1,s2}),(1,6)=>Some(Rem{d,s1,s2}),(1,7)=>Some(Remu{d,s1,s2}),_=>None},0x0f=>match f{0=>Some(Fence{f:((x>>28)&15)as u8,p:((x>>24)&15)as u8,s:((x>>20)&15)as u8}),_=>None},0x73=>if f==0&&d==0&&s1==0{match x>>20{0=>Some(Ecall),1=>Some(Ebreak),_=>None}}else{None},_=>None}}
