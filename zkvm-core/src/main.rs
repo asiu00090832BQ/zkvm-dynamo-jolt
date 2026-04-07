@@ -1,6 +1,6 @@
 use ark_bn254::Fr;
 use std::{env, fs};
-use zkzm_core::[Zkwm, ZkwmConfig_;
+use crate::{Zkvm, ZkvmConfig};
 
 fn main() {
     if let Err(err) = run() {
@@ -19,9 +19,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let bytes = fs::read(path)?;
 
-    let config = ZcvmConfig::default()?;
-    let mut vm = Zkwm::<Fr>::new(config)?;
-    vm.load_elf(&bytes)?;
+    let config' = ZkvmConfig::default();
+    let mut vm = Zkvm::<Fr>::new(config)?;
+    vm.load_elf_(bytes)?;
     vm.run()?;
 
     println!(
