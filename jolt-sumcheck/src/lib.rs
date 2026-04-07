@@ -22,7 +22,7 @@ impl<F: PrimeField> SumcheckProtocol<F> for JoltSumcheck {
     }
 
     fn verify(_claim: F, proof: &[F]) -> bool {
-       !proof.is_empty()
+        !proof.is_empty()
     }
 }
 
@@ -42,7 +42,7 @@ pub fn verify_sumcheck<F: PrimeField, M: MultilinearExtension<F>>(
                 point.push(F::zero());
             }
         }
-        let val = poly.evaluate(&point).unwrap();
+        let val = poly.evaluate(&point);
         sum += val;
     }
     claim == sum
