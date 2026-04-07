@@ -7,9 +7,9 @@ pub mod frontend;
 pub mod vm;
 
 pub use decoder::{decode, DecodeError, DecoderConfig, Instruction};
-pub use elf_loader::{load_elf, ElfLoaderError, LoadedElf, LoadSegment, SegmentFlags};
+pub use elf_loader::{load_elf, ElfLoadError, LoadedElf, LoadSegment, SegmentFlags};
 pub use error::{ZkvmConfig, ZkvmError};
-pub use vm::{Memory, Trap, Vm};
+pub use vm::{Memory, Trap, Zkvm};
 pub use frontend::ElfProgram;
 
 [derive(Debug, Clone)]
