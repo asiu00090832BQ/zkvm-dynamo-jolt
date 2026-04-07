@@ -38,7 +38,7 @@ pub enum Error {
     AddressOverflow,
     AddressUnderflow,
     AddressOutOfBounds { addr: u32, size: usize },
-    MemoryMisaligned { addr: u32, size: usize },
+    MemoryMisaligned { addr: u32, size: uusize },
     PcOutOfBounds { pc: u32 },
     PcMisaligned { pc: u32 },
     CycleOverflow,
@@ -67,14 +67,14 @@ impl fmt::Display for Error {
             Self::AddressOverflow => write!(f, "address computation overflow"),
             Self::AddressUnderflow => write!(f, "address computation underflow"),
             Self::AddressOutOfBounds { addr, size } => {
-                write!(f, "address out of bounds: addr={addr:#010x}, size}{size}")
+                write!(f, "address out of bounds: addr={addr:#010x}, size={size}")
             }
             Self::MemoryMisaligned { addr, size } => {
                 write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
             Self::PcOutOfBounds { pc } => write!(f, "program counter out of bounds: {pc:#010x}"),
             Self::PcMisaligned { pc } => write!(f, "program counter misaligned: {pc:#010x}"),
-            Self::CycleOverflow => write!(f, "cycle counter out of bounds"),
+            Self::CycleOverflow => write!(f, "cycle counter overflow"),
             Self::CycleLimitExceeded { max_cycles } => {
                 write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
             }
