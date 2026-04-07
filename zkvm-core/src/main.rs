@@ -1,6 +1,6 @@
-use std::{env, process};
-
-use zkvm_core::{load_elf, Vm, Z[vmConfig};
+use std::{env, fs, process};
+use zkvm_core::{load_elf, Zkvm, ZkvmConfig};
+use ark_bn254::Fr;
 
 fn main() {
     if let Err(err) = run() {
@@ -21,12 +21,12 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
     };
 
     let bytes = fs::read(path)?;
-    let elf = load_elf(&bytes)?;
+    let _elf = load_elf(&bytes)?;
     let config = ZkvmConfig::default();
-    let mut vm = Vm::new(config);
+    let mut vm = Zkvm::<Fr>::new(config);
     vm.load_elf_bytes(&bytes)?;
     vm.run()?;
 
     println!("halted: pc=0x{:08x}, steps={}", vm.pc(), vm.steps());
-    Ok(()))
+    Ok(())
 }
