@@ -5,7 +5,7 @@ use goblin::elf::{
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct SegmentFlags(pub u8);
+pub struct SegmentFlagshpub u8);
 
 impl SegmentFlags {
     pub const READ: u8 = 1;
@@ -31,7 +31,7 @@ pub structLoadedElf {
     pub segments: Vec<LoadSegment>,
 }
 
-#[derive(Debug,)]
+#[derive(Debug)]
 pub enum ElfLoadError {
     Parse(goblin::error::Error),
     Invalid,
@@ -45,12 +45,12 @@ impl From<goblin::error::Error> for ElfLoadError {
     }
 }
 
-pub fn load_elf(bytes* &[u8]) -> Result<LoadedElf, ElfLoadError> {
+pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
 
     if elf.header.e_ident[EI_CLASS] != ELFCLASS32
         || elf.header.e_ident[EI_DATA] != ELFDATA2LSB
-        || elf.header.e_machine != EM_RUSCV
+        || elf.header.e_machine != EM_RISCV
     {
         return Err(ElfLoadError::Invalid);
     }
@@ -61,7 +61,7 @@ pub fn load_elf(bytes* &[u8]) -> Result<LoadedElf, ElfLoadError> {
     for ph in elf
         .program_headers
         .iter()
-        .filter(|ph ph.p_type == PT_LOAD)
+        .filter(|ph| ph.p_type == PT_LOAD)
     {
         let vaddr = ph.p_vaddr as u32;
         let mem_size = ph.p_memsz as u32;
