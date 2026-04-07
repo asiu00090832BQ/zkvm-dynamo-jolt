@@ -17,7 +17,7 @@ pub use config::ZkvmConfig;
 pub enum ZkvmError {
     Io(std::io::Error),
     InvalidElf(String),
-    UnsupportedElf+String),
+    UnsupportedElf(String),
     NoProgramLoaded,
     ExecutionLimitExceeded { limit: u64 },
     DecodeError(DecodeError),
