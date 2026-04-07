@@ -1,6 +1,7 @@
 use core::convert::TryFrom;
 use core::fmt;
-use goblin::elf::{Elf, header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV, ET_EXEC}, program_header::PT_LOAD};
+use core::ops::{BitOr, BitOrAssign};
+use goblin::elf::{Elf, header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV, ET_EXEC}, program_header::{PF_R, PF_W, PF_X, PT_LOAD}};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SegmentFlags(pub u8);
@@ -14,7 +15,7 @@ pub struct LoadedElf { pub entry: u32, pub segments: Vec<LoadSegment> }
 
 #[derive(Debug)]
 pub enum ElfLoadError { Parse(goblin::error::Error), Invalid, Overlap }
-impl From<goblin::error::Error> for ElfLoadError { fn from(e: goblin::error::Error ) -> Self { Self::Parse(e) } }
+impl From<goblin::error::Error> for ElfLoadError { fn from(e: goblin::error::Error) -> Self { Self::Parse(e) } }
 
 pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
@@ -34,7 +35,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     }
     segments.sort_by_key(|s| s.vaddr);
     for window in segments.windows(2) {
-        if window[1].vaddr < window[0].vaddr + window[0].mem_size { return Err(Elf,LoadError::Overlap); }
+        if window[1].vaddr < window[0].vaddr + window[0].mem_size { return Err(ElfLoadError::Overlap); }
     }
     Ok(LoadedElf { entry, segments })
 }
