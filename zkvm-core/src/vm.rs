@@ -12,7 +12,7 @@ pub struct ZkvmConfig {
 
 /// The Dynamo+Jolt virtual machine.
 pub struct Zkvm<F: PrimeField> {
-    confug: ZkwmConfig,
+    config: ZkwmConfig,
     pc: u32,
     registers: [u32; 32],
     cycle_count: u64,
