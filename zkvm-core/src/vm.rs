@@ -45,22 +45,14 @@ impl<F: PrimeField> Zkvm<F> {
 
     pub fn step(&mut self) -> Result<(), ZkvmError> {
         if self.program.is_none() {
-            return Err(ZkvmError::NoProgramLoaded);
+            return Err(ZkvmError::Vm("No program loaded".to_string()));
         }
 
         if self.cycle_count >= self.config.max_cycles {
-            return Err(ZkvmError::ExecutionLimitExceeded {
-                limit: self.config.max_cycles,
-            });
+            return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles });
         }
 
-        self.cycle_count =
-            self.cycle_count
-                .checked_add(1)
-                .ok_or(ZkvmError::ExecutionLimitExceeded {
-                    limit: self.config.max_cycles,
-                })?;
-
+        self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
         Ok(())
     }
 }
