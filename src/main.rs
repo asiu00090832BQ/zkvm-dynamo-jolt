@@ -1,26 +1,12 @@
 use ark_bn254::Fr;
-use zkvm_core::{Zkvm, ZkvmConfig};
+use zkvm_core::{Zkvm, ZkvmConfig, Result};
 
-fn main() {
-    if let Err(err) = run() {
-        eprintln!("error: {err}");
-        std::process::exit(1);
-    }
-}
-
-fn run() -> Result<(), Box<dyn std::error::Error>> {
-    println!("zkvm Dynamo+Jolt initialized.");
-
+fn main() -> Result<()> {
     let config = ZkvmConfig::default();
     let mut vm = Zkvm::<Fr>::new(config)?;
-    
-    // Simulation: load placeholder bytes
-    let elf_bytes = vec![0u8; 4];
-    vm.load_program(&elf_bytes)?;
-
-    println!("Running simulation step...");
-    vm.step()?;
-
-    println!("Execution Successful!");
+    let elf_bytes = include_bytes!("../examples/hello_world.elf");
+    vm.load_elf(elf_bytes)?;
+    vm.run()?;
+    println!("Execution verified. Total cycles: {}", vm.cycle_count());
     Ok(())
 }
