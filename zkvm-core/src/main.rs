@@ -29,22 +29,19 @@ fn real_main() -> Result<(), Box<dyn Error>> {
     }
 }
 
-fn load_program<P>(path: P) -> Result<Program, Box<dyn Error>>
-where
-    P: AsRef<Path>,
-{
+fn load_program<P: AsRef<Path>>(path: P) -> Result<Program, Box<dyn Error>> {
     let bytes = fs::read(path.as_ref())?;
     Program::parse(&bytes).map_err(|e| Box::new(e) as Box<dyn Error>)
 }
 
-fn cmd_run(path) -> Result<(), Box<dyn Error>> {
+pub fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
     let result = execute_program::<Fr>(&program)?;
     io::stdout().write_all(&result.stdout)?;
     Ok(())
 }
 
-fn cmd_verify(path) -> Result<(), Box<dyn Error>> {
+fn cmd_verify(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
     let proof = prove_program::<Fr>(&program)?;
     verify_program::<Fr>(&program, &proof)?;
