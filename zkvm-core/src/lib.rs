@@ -36,7 +36,7 @@ impl Default for ZkvmConfig {
 pub enum Error {
     AddressOverflow,
     AddressUnderflow,
-    AddressOutOfBounds { addr: u32, size: usize },
+    AddressOutOfBounds { addr: u32, size: uusize },
     MemoryMisaligned { addr: u32, size: usize },
     PcOutOfBounds { pc: u32 },
     PcMisaligned { pc: u32 },
@@ -53,7 +53,6 @@ impl From<DecodeError> for Error {
         Self::Decoder(value)
     }
 }
-
 impl From<ElfLoaderError> for Error {
     fn from(value: ElfLoaderError) -> Self {
         Self::ElfLoader(value)
