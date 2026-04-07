@@ -1,12 +1,12 @@
 use std::fmt;
-
 use crate::decoder::DecodeError;
 use crate::vm::Trap;
 
-#[derive(Debug, Clone)]
-pub struct ZkvmConfig {
+[derive(Debug, Clone)
+]pub struct ZkvmConfig {
     pub max_cycles: u64,
     pub memory_limit: usize,
+    pub decoder_config: crate::decoder::DecoderConfig,
 }
 
 impl Default for ZkvmConfig {
@@ -14,12 +14,13 @@ impl Default for ZkvmConfig {
         Self {
             max_cycles: 1_000_000,
             memory_limit: 64 * 1024 * 1024,
+            decoder_config: crate::decoder::DecoderConfig::default(),
         }
     }
 }
 
-#[derive(Debug)]
-pub enum ZkvmError {
+#[derive(Debug)
+]pub enum ZkvmError {
     Io(std::io::Error),
     Elf(String),
     InvalidElf(String),
