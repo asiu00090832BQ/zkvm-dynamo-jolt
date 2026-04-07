@@ -1,4 +1,4 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Inst {
     Lui { d: u8, i: i32 },
     Auipc { d: u8, i: i32 },
@@ -73,11 +73,17 @@ pub fn decode(x: u32) -> Option<Inst> {
     let ii = sx(x >> 20, 12);
     let si = sx(((x >> 25) << 5) | ((x >> 7) & 31), 12);
     let bi = sx(
-        ((x >> 31) << 12) | (((x >> 7) & 1) << 11) | (((x >> 25) & 63) << 5) | (((x >> 8) & 15) << 1),
+        ((x >> 31) << 12)
+            | (((x >> 7) & 1) << 11)
+            | (((x >> 25) & 63) << 5)
+            | (((x >> 8) & 15) << 1),
         13,
     );
     let ji = sx(
-        ((x >> 31) << 20) | (((x >> 21) & 1023) << 1) | (((x >> 20) & 1) << 11) | (x & 0xff000),
+        ((x >> 31) << 20)
+            | (((x >> 21) & 1023) << 1)
+            | (((x >> 20) & 1) << 11)
+            | (x & 0xff000),
         21,
     );
 
@@ -100,8 +106,7 @@ pub fn decode(x: u32) -> Option<Inst> {
         },
         0x03 => match f {
             0 => Some(Lb { d, s1, i: ii }),
-            1 => Some(Lh { d, s1, i: ii }),
-            2 => Some(Lw { d, s1, i: ii }),
+            1 => Some(Lh { d, s1, i: ii }),\n            2 => Some(Lw { d, s1, i: ii }),
             4 => Some(Lbu { d, s1, i: ii }),
             5 => Some(Lhu { d, s1, i: ii }),
             _ => None,
@@ -135,16 +140,14 @@ pub fn decode(x: u32) -> Option<Inst> {
             (32, 0) => Some(Sub { d, s1, s2 }),
             (0, 1) => Some(Sll { d, s1, s2 }),
             (0, 2) => Some(Slt { d, s1, s2 }),
-            (0, 3) => Some(Sltu { d, s1, s2 }),
-            (0, 4) => Some(Xor { d, s1, s2 }),
+            (0, 3) => Some(Sltu { d, s1, s2 }),\n            (0, 4) => Some(Xor { d, s1, s2 }),
             (0, 5) => Some(Srl { d, s1, s2 }),
             (32, 5) => Some(Sra { d, s1, s2 }),
             (0, 6) => Some(Or { d, s1, s2 }),
             (0, 7) => Some(And { d, s1, s2 }),
             (1, 0) => Some(Mul { d, s1, s2 }),
             (1, 1) => Some(Mulh { d, s1, s2 }),
-            (1, 2) => Some(Mulhsu { d, s1, s2 }),
-            (1, 3) => Some(Mulhu { d, s1, s2 }),
+            (1, 2) => Some(Mulhsu { d, s1, s2 }),\n            (1, 3) => Some(Mulhu { d, s1, s2 }),
             (1, 4) => Some(Div { d, s1, s2 }),
             (1, 5) => Some(Divu { d, s1, s2 }),
             (1, 6) => Some(Rem { d, s1, s2 }),
@@ -152,24 +155,16 @@ pub fn decode(x: u32) -> Option<Inst> {
             _ => None,
         },
         0x0f => match f {
-            0 => Some(Fence {
-                f: ((x >> 28) & 15) as u8,
+            0 => Some(Fence {\n                f: ((x >> 28) & 15) as u8,
                 p: ((x >> 24) & 15) as u8,
                 s: ((x >> 20) & 15) as u8,
             }),
             _ => None,
         },
-        0x73 => {
-            if f == 0 && d == 0 && s1 == 0 {
-                match x >> 20 {
-                    0 => Some(Ecall),
+        0x73 => {\n            if f == 0 && d == 0 && s1 == 0 {\n                match x >> 20 {\n                    0 => Some(Ecall),
                     1 => Some(Ebreak),
                     _ => None,
-                }
-            } else {
-                None
-            }
+                }\n            } else {\n                None\n            }
         }
         _ => None,
-    }
-}
+    }\n}
