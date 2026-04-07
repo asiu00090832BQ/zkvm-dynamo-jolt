@@ -50,6 +50,15 @@ pub enum Inst {
     Ebreak,
 }
 
+#[derive(Debug)]
+pub enum DecodeError {
+    IllegalInstruction(u32),
+}
+
+pub trait Decoder {
+    fn decode(word: u32) -> Result<Inst, DecodeError>;
+}
+
 #[inline]
 fn sx(x: u32, b: u32) -> i32 {
     ((x << (32 - b)) as i32) >> (32 - b)
@@ -77,7 +86,7 @@ pub fn decode(x: u32) -> Option<Inst> {
         13,
     );
     let ji = sx(
-        ((x >> 31) << 20) | (((x >> 21) & 1023) << 1) | (((x >> 20) & 1) << 11) | (x & 0xff000),
+        ((x >> 31) << 20) | (((x >> 21) & 1023) << 1) | (((x >> 20) & 1) << 11) | (x & 0x000f_f000),
         21,
     );
 
@@ -115,7 +124,7 @@ pub fn decode(x: u32) -> Option<Inst> {
         0x13 => match f {
             0 => Some(Addi { d, s1, i: ii }),
             2 => Some(Slti { d, s1, i: ii }),
-            3 => Some(Sltiu { d, s1, i: ii }),
+            3 => Some,Sltiu { d, s1, i: ii }),
             4 => Some(Xori { d, s1, i: ii }),
             6 => Some(Ori { d, s1, i: ii }),
             7 => Some(Andi { d, s1, i: ii }),
@@ -151,14 +160,17 @@ pub fn decode(x: u32) -> Option<Inst> {
             (1, 7) => Some(Remu { d, s1, s2 }),
             _ => None,
         },
-        0x0f => match f {
-            0 => Some(Fence {
-                f: ((x >> 28) & 15) as u8,
-                p: ((x >> 24) & 15) as u8,
-                s: ((x >> 20) & 15) as u8,
-            }),
-            _ => None,
-        },
+        0x0f => {
+            if f == 0 && d == 0 && s1 == 0 {
+                Some(Fence {
+                    f: ((x >> 28) & 15) as u8,
+                    p: ((x >> 24) & 15) as u8,
+                    s: ((x >> 20) & 15) as u8,
+                })
+            } else {
+                None
+            }
+        }
         0x73 => {
             if f == 0 && d == 0 && s1 == 0 {
                 match x >> 20 {
