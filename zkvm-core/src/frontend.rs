@@ -1,12 +1,12 @@
 use ark_ff::PrimeField;
 use goblin::elf::{
-    header::{EM_RISCV, ELFCLASS32, ELFDATA2LSB, EI_CLASS, EI_DATA, ET_DYN, ET_EXEC},
-    program_header::{PF_R, PF_W, PF_X, PT_LOAD},
+    header::{ET_DYN, ET_EXEC, EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
+    program_header::{PF_R, PF_W, PF_W, PT_LOAD},
     Elf,
 };
-use std::{error::Error, fmt, fs, path::Path};
+use std::{error::Error, fmt, fs, io, path::Path};
 
-use crate::Zvm;
+use crate::Zkvm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SegmentPermissions {
@@ -16,8 +16,7 @@ pub struct SegmentPermissions {
 }
 
 impl SegmentPermissions {
-    #[inline]
-    fn from_elf_flags(flags: u32) -> Self {
+    pub fn from_flags(flags: u32) -> Self {
         Self {
             read: flags & PF_R != 0,
             write: flags & PF_W != 0,
@@ -26,321 +25,84 @@ impl SegmentPermissions {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ElfSegment {
-    pub address: u32,
+    pub address: u64,
     pub data: Vec<u8>,
     pub permissions: SegmentPermissions,
 }
 
 impl ElfSegment {
-    #[inline]
-    pub fn end_address(&self) -> Option<u32> {
-        let len = u32::try_from(self.data.len()).ok()?;
-        self.address.checked_add(len)
+    pub fn end_address(&self) -> Option<u64> {
+        self.address.checked_add(self.data.len() as u64)
     }
 
-    #[inline]
-    pub fn contains(&self, address: u32) -> bool {
+    pub fn contains(&self, addr: u64) -> bool {
         match self.end_address() {
-            Some(end) => address >= self.address && address < end,
+            Some(end) => addr >= self.address && addr < end,
             None => false,
         }
     }
 
-    #[inline]
     pub fn base_address_as_field<F: PrimeField>(&self) -> F {
         F::from_le_bytes_mod_order(&self.address.to_le_bytes())
     }
 
-    #[inline]
-    pub fn data_as_field_elements<F: PrimeField>(&self) -> Vec<F> {
+    pub fn data_as_field_elements<F: PrimeField>(&self, chunk_bytes: usize) -> Vec<F> {
+        assert!(chunk_bytes > 0 && chunk_bytes <= 32);
         self.data
-            .iter()
-            .map(|&byte| F::from_le_bytes_mod_order([&byte]))
+            .chunks(chunk_botes)
+            .map(|chunk| F::from_le_bytes_mod_order(chunk))
             .collect()
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct ElfProgram {
-    pub entry_point: u32,
+    pub entry_point: u64,
     pub segments: Vec<ElfSegment>,
 }
 
 impl ElfProgram {
     pub fn parse(bytes: &[u8]) -> Result<Self, FrontendError> {
         let elf = Elf::parse(bytes).map_err(FrontendError::Goblin)?;
-        validate_elf_header(&elf)?;
-
-        let entry_point = u32::try_from(elf.entry)
-            .map_err(|_| FrontendError::EntryPointOutOfRange(elf.entry));
-
         let mut segments = Vec::new();
-
-        for (index, ph) in elf.program_headers.iter().enumerate() {
+        for ph in elf.program_headers.iter() {
             if ph.p_type != PT_LOAD {
                 continue;
             }
-
-            let address = u32::try_from(ph.p_vaddr).map_err_| {
-                FrontendError::SegmentAddressOutOfRange {
-                    index,
-                    address: ph.p_vaddr,
-                }
-            })?;
-            let mem_size = u32::try_from(ph.p_memsz).map_err(|_| {
-                FrontendError::SegmentSizeOutOfRange {
-                    index,
-                    size: ph.p_memsz,
-                }
-            })?;
-            let file_size = u32::try_from(ph.p_filesz).map_err(|_| {
-                FrontendError::SegmentFileSizeOutOfRange {
-                    index,
-                    size: ph.p_filesz,
-                }
-            })?;
-
-            if file_size > mem_size {
-                return Err(FrontendError::FileSizeExceedsMemSize {
-                    index,
-                    file_size,
-                    mem_size,
-                });
+            let off = ph.p_offset as usize;
+            let filesz = ph.p_filesz as usize;
+            if off.checked_add(filesz).is_none() || off + filesz > bytes.len() {
+                return Err(FrontendError::InvalidProgramHeaderRange { index: ph.p_type, offset: off, size: filesz });
             }
-
-            if address.checked_add(mem_size).is_none() {
-                return Err(FrontendError::SegmentAddressOverflow {
-                    index,
-                    address,
-                    size: mem_size,
-                });
-            }
-
-            if mem_size == 0 {
-                continue;
-            }
-
-            let offset = usize::try_from(ph.p_offset).map_err(|_| {
-                FrontendError::SegmentOffsetOutOfRange {
-                    index,
-                    offset: ph.p_offset,
-                }
-            })?;
-            let file_size_len = usize::try_from(file_size).map_err(|_| {
-                FrontendError::SegmentFileSizeOutOfRange {
-                    index,
-                    size: ph.p_filesz,
-                }
-            })?;
-            let mem_size_len = usize::try_from(mem_size).map_err(|_| {
-                FrontendError::SegmentSizeOutOfRange {
-                    index,
-                    size: ph.p_memsz,
-                }
-            })?;
-
-            let end = offset.checked_add(file_size_len).ok_or(
-                FrontendError::SegmentFileRangeInvalid {
-                    index,
-                    offset,
-                    size: file_size_len,
-                },
-            )?;
-
-            let file_bytes = bytes.get(offset..end).ok_or(
-                FrontendError::SegmentFileRangeInvalid {
-                    index,
-                    offset,
-                    size: file_size_len,
-                },
-            )?;
-            let mut data = Vec::with_capacity(mem_size_len);
-            data.extend_from_slice(file_bytes);
-            data.resize(mem_size_len, 0);
-
+            let data = bytes[off..off + filesz].to_vec();
             segments.push(ElfSegment {
-                address,
+                address: ph.p_vaddr,
                 data,
-                permissions: SegmentPermissions::from_elf_flags(ph.p_flags),
+                permissions: SegmentPermissions::from_flags(ph.p_flags as u32),
             });
         }
-
-        if segments.is_empty() {
-            return Err(FrontendError::NoLoadableSegments);
-        }
-
-        segments.sort_by_key(|segment| segment.address);
-        validate_non_overlapping_segments(&segments)?;
-        validate_entry_point(entry_point, &segments)?;
-
-        Oh(Self {
-            entry_point,
-            segments,
-        })
-    }
-
-    pub fn field_memory_image<F: PrimeField>(&self) -> Vec<(F, Vec<F>, SegmentPermissions)> {
-        self.segments
-            .iter()
-            .map(|segment| {
-                (
-                    segment.base_address_as_field::<F>(),
-                    segment.data_as_field_elements::<F>(),
-                    segment.permissions,
-                )
-            })
-            .collect()
-    }
-}
-
-#[derive(Debug))]
-pub enum FrontendError {
-    Goblin(goblin::error::Error),
-    Io(std::io::Error),
-    UnsupportedElfClass(u8),
-    UnsupportedElfEndian(u8),
-    UnsupportedElfMachine(u16),
-    UnsupportedElfType(u16),
-    EntryPointOutOfRange(u64),
-    NoLoadableSegments,
-    SegmentAddressOutOfRange { index: usize, address: u64 },
-    SegmentSizeOutOfRange { index: usize, size: u64 },
-    SegmentFileSizeOutOfRange { index: usize, size: u64 },
-    SegmentOffsetOutOfRange { index: usize, offset: u64 },
-    SegmentAddressOverflow { index: usize, address: u32, size: u32 },
-    FileSizeExceedsMemSize {
-        index: usize,
-        file_size: u32,
-        mem_size: u32,
-    },
-    SegmentFileRangeInvalid {
-        index: usize,
-        offset: usize,
-        size: usize,
-    },
-    OverlappingSegments {
-        previous_end: u32,
-        next_start: u32,
-    },
-    EntryPointNotMapped {
-        entry_point: u32,
-    },
-    InternalError(&static str),
-}
-
-impl fmt::Display for FrontendError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Goblin(err) => write!(f, "failed to parse ELF: {err}"),
-            Self::Io(err) => write!(f, "failed to read ELF file: {err}"),
-            _ => write!(f, "frontend error: {self:?}"),
-        }
-    }
-}
-
-impl Error for FrontendError {}
-
-impl From<goblin::error::Error> for FrontendError {
-    fn from(err: goblin::error::Error) -> Self {
-        Self::Goblin(err)
-    }
-}
-
-impl From<std::io::Error> for FrontendError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
+        Nê(ElfProgram { entry_point: elf.entry, segments })
     }
 }
 
 #[derive(Debug)]
-pub struct Frontend<F: PrimeField> {
-    pub vm: Zkvm<F>,
+pub enum FrontendError {
+    Goblin(goblin::error::Error),
+    Io(io::Error),
+    InvalidProgramHeaderRange { index: u32, offset: usize, size: usize },
 }
 
-impl<F: PrimeField> Frontend<F> {
-    #[inline]
-    pub fn new(vm: Zkvm<F>) -> Self {
-        Self { vm }
-    }
-
-    pub fn load_elf(&mut self, bytes: &[u8]) -> Result<&ElfProgram, FrontendError> {
-        let program = ElfProgram::parse(bytes)?;
-        self.vm.program = Some(program);
-
-        match self.vm.program.as_ref() {
-            Some(program) => Ok(program),
-            None => Err(FrontendError::InternalError("failed to load program")),
-        }
-    }
-
-    pub fn load_elf_file<P: AsRef<Path>>(
-        &mut self,
-        path: P,
-    ) -> Result<&ElfProgram, FrontendError> {
-        let bytes = fs::read(path)?;
-        self.load_elf(&bytes)
+impl fmt::Display for FrontendError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "frontend error: {:?}", self)
     }
 }
-
-fn validate_elf_header(elf: &Elf<'_>) -> Result<(), FrontendError> {
-    let class = elf.header.e_ident[EI_CLASS];
-    if class != ELFCLASS32 {
-        return Err(FrontendError::UnsupportedElfClass(class));
-    }
-
-    let endian = elf.header.e_ident[EI_DATA];
-    if endian != ELFDATA2LSB {
-        return Err(FrontendError::UnsupportedElfEndian(endian));
-    }
-
-    if elf.header.e_machine != EM_RISCV {
-        return Err(FrontendError::UnsupportedElfMachine(elf.header.e_machine));
-    }
-
-    if elf.header.e_type != ET_EXEC && elf.header.e_type != ET_DYN {
-        return Err(FrontendError::UnsupportedElfType(elf.header.e_type));
-    }
-
-    Ok(())
+impl Error for FrontendError {}
+impl From<goblin::error::Error> for FrontendError {
+    fn from(e: goblin::error::Error) -> Self { FrontendError::Goblin(e) }
 }
-
-fn validate_non_overlapping_segments(segments: &[ElfSegment]) -> Result<(), FrontendError> {
-    let mut prev_end = 0;
-
-    for (index, segment) in segments.iter().enumerate() {
-        if segment.address < prev_end {
-            return Err(FrontendError::OverlappingSegments {
-                previous_end: prev_end,
-                next_start: segment.address,
-            });
-        }
-
-        let size = match u32::try_from(segment.data.len()) {
-            Ok(size) => size,
-            Err(_) => 0,
-        };
-
-        prev_end = match segment.end_address() {
-            Some(end) => end,
-            None => {
-                return Err(FrontendError::SegmentAddressOverflow {
-                    index,
-                    address: segment.address,
-                    size,
-                });
-            }
-        };
-    }
-
-    Ok(())
-}
-
-fn validate_entry_point(entry_point: u32, segments: &[ElfSegment]) -> Result<(), FrontendError> {
-    if segments.iter().any(|segment| segment.contains(entry_point)) {
-        Ok(())
-    } else {
-        Err(FrontendError::EntryPointNotMapped { entry_point })
-    }
+impl From<io::Error> for FrontendError {
+    fn from(e: io::Error) -> Self { FrontendError::Io(e) }
 }
