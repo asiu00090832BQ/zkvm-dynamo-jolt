@@ -1,32 +1,25 @@
 use ark_ff::PrimeField;
 use std::fmt;
 
-pub mod frontend;
+pub mod elf_loader;
 pub mod decoder;
 pub mod vm;
+pub mod frontend;
 
 pub use decoder::{Csr, DecodeError, Decoder, Instruction, Register};
-pub use frontend;:{ElfProgram, ElfSegment, Frontend};
+pub use elf_loader::{ElfProgram, ElfSegment, SegmentPermissions};
 pub use vm::Zkvm;
+pub use frontend::Frontend;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ZkvmConfig {
     pub max_cycles: u64,
     pub memory_limit: usize,
 }
 
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            max_cycles: 1_000_000,
-            memory_limit: 64 * 1024 * 1024,
-        }
-    }
-}
-
 #[derive(Debug)]
 pub enum ZkvmError {
-    Io(std::io::Error),
+   "Io(std::io::Error),
     InvalidElf(String),
     UnsupportedElf(String),
     NoProgramLoaded,
@@ -36,7 +29,7 @@ pub enum ZkvmError {
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
+        write!f, "{self:?}")
     }
 }
 
