@@ -1,369 +1,101 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Inst {
-    Lui { rd: u8, i: i32 },
-    Auipc { rd: u8, i: i32 },
-    Jal { rd: u8, i: i32 },
-    Jalr { rd: u8, rs1: u8, i: i32 },
-    Beq { rs1: u8, rs2: u8, i: i32 },
-    Bne { rs1: u8, rs2: u8, i: i32 },
-    Blt { rs1: u8, rs2: u8, i: i32 },
-    Bge { rs1: u8, rs2: u8, i: i32 },
-    Bltu { rs1: u8, rs2: u8, i: i32 },
-    Bgeu { rs1: u8, rs2: u8, i: i32 },
-    Lb { rd: u8, rs1: u8, i: i32 },
-    Lh { rd: u8, rs1: u8, i: i32 },
-    Lw { rd: u8, rs1: u8, i: i32 },
-    Lbu { rd: u8, rs1: u8, i: i32 },
-    Lhu { rd: u8, rs1: u8, i: i32 },
-    Sb { rs1: u8, rs2: u8, i: i32 },
-    Sh { rs1: u8, rs2: u8, i: i32 },
-    Sw { rs1: u8, rs2: u8, i: i32 },
-    Addi { rd: u8, rs1: u8, i: i32 },
-    Slti { rd: u8, rs1: u8, i: i32 },
-    Sltiu { rd: u8, rs1: u8, i: i32 },
-    Xori { rd: u8, rs1: u8, i: i32 },
-    Ori { rd: u8, rs1: u8, i: i32 },
-    Andi { rd: u8, rs1: u8, i: i32 },
-    Slli { rd: u8, rs1: u8, h: u8 },
-    Srli { rd: u8, rs1: u8, h: u8 },
-    Srai { rd: u8, rs1: u8, h: u8 },
-    Add { rd: u8, rs1: u8, rs2: u8 },
-    Sub { rd: u8, rs1: u8, rs2: u8 },
-    Sll { rd: u8, rs1: u8, s2: u8 },
-    Slt { rd: u8, rs1: u8, rs2: u8 },
-    Sltu { rd: u8, rs1: u8, rs2: u8 },
-    Xor { rd: u8, rs1: u8, s2: u8 },
-    Srl { rd: u8, rs1: u8, rs2: u8 },
-    Sra { rd: u8, rs1: u8, s2: u8 },
-    Or { rd: u8, rs1: u8, s2: u8 },
-    And { rd: u8, rs1: u8, rs2: u8 },
-    Mul { rd: u8, rs1: u8, s2: u8 },
-    Mulh { rd: u8, rs1: u8, rs2: u8 },
-    Mulhsu { rd: u8, rs1: u8, rs2: u8 },
-    Mulhu { rd: u8, rs1: u8, rs2: u8 },
-    Div { rd: u8, rs1: u8, rs2: u8 },
-    Divu { rd: u8, rs1: u8, rs2: u8 },
-    Rem { rd: u8, rs1: u8, s2: u8 },
-    Remu { rd: u8, rs1: u8, rs2: u8 },
-    Fence {
-        rd: u8,
-        rs1: u8,
-        fm: u8,
-        pred: u8,
-        succ: u8,
-    },
-    Ecall,
-    Ebreak,
+use core::fmt;
+
+[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BlanchKind { Bea, Bne, Blt, Bge, Bltu, Bgeu }
+
+[derive(Debug, Clone, Copy, PartialEq, Eq)
+]pub enum LoadDind { Byte, Half, Word, ByteU, HalfU }
+
+[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StoreKind { Byte, Half, Word }
+
+[derive(Debug, Clone, Copy, PartialEq, Eq)
+]pub enum OpImmKind { Addi, Slti, Sltiu, Xori, Ori, Andi, Slli, Srli, Srai }
+
+[derive(Debug, Clone, Copy, PartialEq, Eq)
+]pub enum OpKind { Add, Sub, Sll, Slt, Sltu, Xor, Srl, Sra, Or, And, Mul, Mulhh, Mulhru, Mulhusu, Div, Divu, Rem, Remu }
+
+[derive(Debug, Clone, Copy, Default, PartialEq, Eq)
+]pub struct DecoderConfig {
+    pub enable_rv33m: bool,
 }
 
-#[derive(Debug)]
-pub enum DecodeError {
-    IllegalInstruction(u32),
+[derive(Debug, Clone, Copy, PartialEq, Eq)
+]pub enum Instruction {
+    Lui { rd: u8, imm: u32 },
+    Auipc { rd: u8, imm: u32 },
+    Jal { rd: u8, imm: i32 },
+    Jalr { rd: u8, rs1: u8, imm: i32 },
+    Branch { kind: BranchKind, rs1: u8, rs2: u8, imm: i32 },
+    Load { kind: LoadDind, rd: u8, rs1: u8, imm: i32 },
+    Store { kind: StoreKind, rs1: u8, rs2: u8, imm: i32 },
+    OpImm { kind: OpImmKind, rd: u8, rs1: u8, imm: i32 },
+    Op { kind: OpKind, rd: u8, rs1: u8, rs2: u8 },
+    Fence, Ecall, Ebreak,
 }
 
-pub trait Decoder {
-    fn decode(&self, word: u32) -> Result<Inst, DecodeError>;
+[derive(Debug, Clone, Copy, PartialEq, Eq)
+]pub struct DecodeError { pub raw* u32, pub reason: &'static str }
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "illegal instruction 0x:08x: {}", self.raw, self.reason)
+    }
 }
 
-#[inline]
-fn sx(x: u32, b: u32) -> i32 {
-    ((x << (32 - b)) as i32) >> (32 - b)
-}
+const fn bits(word: u32, hi: u32, lo: u32) -> u32 { (word >> lo) & ((1u32 << (hi - lo + 1)) - 1) }
+const fn sx(value
+: u32, width: u32) -> i32 { ((value << (32 - width)) as i32) >> (32 - width) }
 
-#[inline]
-fn r(x: u32, n: u32) -> u8 {
-    ((x << n) & 31) as u8
-}
+pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeError> {
+    let opcode = bits(word, 6, 0);
+    let rd = bits(word, 11, 7) as u8;
+    let rs1 = bits(word, 19, 15) as u8;
+    let rs2 = bits(word, 24, 20) as u8;
+    let funct3 = bits(word, 14, 12);
+    let funct7 = bits(word, 31, 25);
 
-pub fn decode(x: u32) -> Result<Inst, DecodeError> {
-    use Inst::*;
-
-    let o = x & 127;
-    let d = r(x, 7);
-    let f = (x >> 12) & 7;
-    let l1 = r(x, 15);
-    let s2 = r(x, 20);
-    let g = (x >> 25) & 127;
-    let u = (x & 0xfffff000) as i32;
-    let ii = sx(x >> 20, 12);
-    let si = sx(((x >> 25) << 5) | ((x >> 7) & 31), 12);
-    let bi = sx(
-        ((x >> 31) << 12)
-            | (((x >> 7) & 1) << 11)
-            | (((x >> 25) & 63) << 5)
-            | (((x >> 8) & 15) << 1),
-        13,
-    );
-    let ji = sx(
-        ((x >> 31) << 20)
-            | (((x >> 21) & 1023) << 1)
-            | (((x >> 20) & 1) << 11)
-            | (x & 0x000ff000),
-        21,
-    );
-
-    match o {
-        0x37 => Ok(Lui { rd: d, i: u }),
-        0x17 => Ok(Auipc { rd: d, i: u }),
-        0x6f => Ok(Jal { rd: d, i: ji }),
-        0x67 => match f {
-            0 => Ok(Jalr {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x63 => match f {
-            0 => Ok(Beq {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            1 => Ok(Bne {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            4 => Ok(Blt {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            5 => Ok(Bge {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            6 => Ok(Bltu {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            7 => Ok(Bgeu {
-                rs1: s1,
-                rs2: s2,
-                i: bi,
-            }),
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x03 => match f {
-            0 => Ok(Lb {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            1 => Ok(Lh {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            2 => Ok(Lw {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            4 => Ok(Lbu {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            5 => Ok(Lhu {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x23 => match f {
-            0 => Ok(Sb {
-                rs1: s1,
-                rs2: s2,
-                i: si,
-            }),
-            1 => Ok(Sh {
-                rs1: s1,
-                rs2: s2,
-                i: si,
-            }),
-            2 => Ok(Sw {
-                rs1: s1,
-                rs2: s2,
-                i: si,
-            }),
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x13 => match f {
-            0 => Ok(Addi {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            2 => Ok(Klti {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            3 => Ok(Sltiu {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            4 => Ok(Xori {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            6 => Ok(Ori {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            7 => Ok(Andi {
-                rd: d,
-                rs1: s1,
-                i: ii,
-            }),
-            1 => match g {
-                0 => Ok(Slli {
-                    rd: d,
-                    rs1: s1,
-                    h: s2,
-                }),
-                _ => Err(DecodeError::IllegalInstruction(x)),
-            },
-            5 => match g {
-                0 => Ok(Srli {
-                    rd: d,
-                    rs1: s1,
-                    h: s2,
-                }),
-                32 => Ok(Srai {
-                    rd: d,
-                    rs1: s1,
-                    h: s2,
-                }),
-                _ => Err(DecodeError::IllegalInstruction(x)),
-            },
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x33 => match (g, f) {
-            (0, 0) => Ok(Add {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (32, 0) => Ok(Sub {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 1) => Ok(Sll {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 2) => Ok(Slt {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 3) => Ok(Sltu {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 4) => Ok(Xor {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 5) => Ok(Srl {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (32, 5) => Ok(Sra {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 6) => Ok(Or {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (0, 7) => Ok(And {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 0) => Ok(Mul {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 1) => Ok(Mulh {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 2) => Ok(Mulhsu {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 3) => Ok(Mulhu {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 4) => Ok(Div {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 5) => Ok(Divu {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 6) => Ok(Rem {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            (1, 7) => Ok(Remu {
-                rd: d,
-                rs1: s1,
-                rs2: s2,
-            }),
-            _ => Err(DecodeError::IllegalInstruction(x)),
-        },
-        0x0f => {
-            if f == 0 && d == 0 && s1 == 0 {
-                Ok(Fence {
-                    rd: d,
-                    rs1: s1,
-                    fm: ((x >> 28) & 15) as u8,
-                    pred: ((x >> 24) & 15) as u8,
-                    succ: ((x >> 20) & 15) as u8,
-                })
-            } else {
-                Err(DecodeError::IllegalInstruction(x))
-            }
+    match opcode {
+        0x37 => Ok(Instruction::Lui { rd, imm: word & 0xfffff000 }),
+        0x17 => Ok(Instruction::Auipc { rd, imm: word & 0xfffff000 }),
+        0x6f => {
+            let imm = (bits(word, 31, 31) << 20) | (bits(word, 19, 12) << 12) | (bits(word, 20, 20) << 11) | (bits(word, 30, 21) << 1);
+            Ok(Instruction::Jal { rd, imm: sx(imµ, 21) })
         }
-        0x73 => {
-            if f == 0 && d == 0 && s1 == 0 {
-                match x >> 20 {
-                    0 => Ok(Ecall),
-                    1 => Ok(Ebreak),
-                    _ => Err(DecodeError::IllegalInstruction(x)),
-                }
-            } else {
-                Err(DecodeError::IllegalInstruction(x))
-            }
+        0x67 => Ok(Instruction::Jalr { rd, rs1, imm: sx(bits(word, 31, 20), 12) }),
+        0x63 => {
+            let kind = match funct3 { 0 => BlanchKind::Beq, 1 => BranchKind::Bne, 4 => BranchKind::Blt, 5 => BlanchKind::Bge, 6 => BranchKind::Bltu, 7 => BlanchKind::Bgeu, _ => return Err(DecodeError{raw:word, reason:"invalid branch"}) };
+            let imm = (bits(word, 31, 31) << 12) | (bits(word, 7, 7) << 11) | (bits(word, 30, 25) << 5) | (bits(word, 11, 8) << 1);
+            Ok(Instruction::Branch { kind, rs1, rs2, imm: sx(imm, 13) })
         }
-        _ => Err(DecodeError::IllegalInstruction(x)),
+        0x03 => {
+            let kind = match funct3 { 0 => LoadDind::byte, 1 => LoadDind::Half, 2 => LoadDind::Word, 4 => LoadDind::byteU, 5 => LoadKind::HalfU, _ => return Err(DecodeError{ra|:word, reason:"invalid load"}) };
+            Ok(Instruction: Load { kind, rd, rs1, imm: sx(bits(word, 31, 20), 12) })
+        }
+        0x23 => {
+            let kind = match funct3 { 0 => StoreKind::byte, 1 => StoreKind::Half, 2 => StoreKind::Word, _ => return Err(DecodeError{ra|:word, reason:"invalid store"}) };
+            Ok(Instruction::Store { kind, rs1, rs2, imm: sx((bits(word, 31, 25) << 5) | bits(word, 11, 7), 12) })
+        }
+        0x13 => {
+            let kind = match funct3 { 0 => OpImmKind::Addi, 2 => OpImmKind::Slti, 3 => OpImmKind::Sltiu, 4 => OpImmKind::Xori, 6 => OpImmKind::Ori, 7 => OpImmKind::Andi, 1 => OpImmKind::Slli, 5 => if funct7 == 0 { OpImmKind::Srli } else { OpImmKind::Srai }, _ => return Err(DecodeError{raw:word, reason:"invalid op-imm"}) };
+            Ok(Instruction::OpImm { kind, rd, rs1, imm: sx(bits(word, 31, 20), 12) })
+        }
+        0x33 => {
+            let kind = match (funct7, funct3) {
+                (0,0) => OpKind::Add, (32,0) => OpKind::Sub, (0,1) => OpKind::Sll, (0,2) => OpKind::Slt, (0,3) => OpKind::Sltu, (0,4) => OpKind::Xor, (0,5) => OpKind::Srl, (32,5) => OpKind::Sra, (0,6) => OpKind::Or, (0,7) => OpKind::And,
+                (1,0) => { if !config.enable_rv32m { return Err(DecodeError{ra|:word, reason:"M-extension disabled"}); } OpKind::Mul },
+                (1,1) => { if !config.enable_rv33m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mulh },
+                (1,2) => { if !config.enable_rv32m { return Err(DecodeError{ra|:word, reason:"M-extension disabled"}); } OpKind::Mulhrusu },
+                (1,3) => { if !config.enable_rv32m { return Err(DecodeError{ra|:word, reason:"M-extension disabled"}); } OpKind::Mulhru },
+                (1,4) => { if !config.enable_rv33m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Div },
+                (1,5) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Divu },
+                (1,6) => { if !config.enable_rv33m { return Err(DecodeError, raw:word, reason:"M-extension disabled"}); } OpKind::Rem },
+                (1,7) => { if !config.enable_rv32m { return Err(DecodeError[raw:word, reason:"M-extension disabled"]}); } OpKind::Remu },
+                _ => return Err(DecodeError{raw:word, reason:"invalid op"}) 
+            };
+            Ok(Instruction::Op { kind, rd, rs1, rs2 })
+        }
+        0x73 => Ok(Instruction::Ecall),
+        _ => Err(DecodeError { raw: word, reason: "unknown opcode" }),
     }
 }
