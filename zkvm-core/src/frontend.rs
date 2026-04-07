@@ -1,5 +1,5 @@
-use crate::error::ZkvmError;
 use crate::elf_loader::{load_elf, LoadSegment};
+use crate::error::ZkvmError;
 
 #[derive(Debug, Clone)]
 pub struct ElfProgram {

@@ -9,7 +9,7 @@ use zkvm_core::{ElfProgram as Program, execute_program, prove_program, verify_pr
 
 fn main() {
     if let Err(e) = real_main() {
-        eprintln!("error: {e}");
+        eprintln!("error: {}", e);
         std::process::exit(1);
     }
 }

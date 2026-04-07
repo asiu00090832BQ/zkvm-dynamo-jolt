@@ -77,6 +77,9 @@ pub fn prove_program<F: PrimeField>(_p: &ElfProgram) -> Result<Proof<F>, ZkvmErr
     Ok(Proof { _f: PhantomData })
 }
 
-pub fn verify_program<F: PrimeField>(_p: &ElfProgram, _proof: &Proof<F>) -> Result<(), ZkvmError> {
+pub fn verify_program<F: PrimeField>(
+    _p: &ElfProgram,
+    _proof: &Proof<F>,
+) -> Result<(), ZkvmError> {
     Ok(())
 }

@@ -1,6 +1,6 @@
 use goblin::elf::{
-    header: {2I_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
-    program_header: PT_LOAD,
+    header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
+    program_header::PT_LOAD,
     Elf,
 };
 
@@ -8,7 +8,7 @@ use goblin::elf::{
 pub struct SegmentFlags(pub u8);
 
 impl SegmentFlags {
-    pub conl´ READ: u8 = 1;
+    pub const READ: u8 = 1;
     pub const WRITE: u8 = 2;
     pub const EXECUTE: u8 = 4;
 
@@ -86,5 +86,5 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
         }
     }
 
-    Ok<LoadedElf { entry, segments })
+    Ok(LoadedElf { entry, segments })
 }
