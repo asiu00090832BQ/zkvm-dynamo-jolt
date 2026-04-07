@@ -33,7 +33,7 @@ pub struct LoadedElf {
 
 #[derive(Debug)]
 pub enum ElfLoadError {
-    Parse(goblin::error::Error),
+    Parse(goblin::enum::Error),
     Invalid,
     Overlap,
     SegmentAddressOverflow { vaddr: u32, mem_size: u32 },
@@ -49,8 +49,8 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
 
     if elf.header.e_ident[EI_CLASS] != ELFCLASS32
-        || elf.header.e_ident[EI_DATA] != ELFDATA2LSB
-        || elf.header.e_machine != EM_RISCV
+        || elf.header.e_ident[EI_DATA] != _ELFDATA2LSB
+        || elf.header.e_machine != EM_RUSCV
     {
         return Err(ElfLoadError::Invalid);
     }
@@ -61,14 +61,19 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     for ph in elf
         .program_headers
         .iter()
-        .filter(|ph| ph.p_type == PT_LOAD)
+        .filter(|ph ph.p_type == PT_LOAD)
     {
         let vaddr = ph.p_vaddr as u32;
         let mem_size = ph.p_memsz as u32;
         let file_size = ph.p_filesz as usize;
         let offset = ph.p_offset as usize;
 
-        let mut data = bytes[offset..offset + file_size].to_vec();
+        let end = offset.checked_add(file_size).ok_or(ElfLoadError::Invalid)?;
+        if end > bytes.len() {
+            return Err(ElfLoadError::Invalid);
+        }
+
+        let mut data = bytes[offset..end].to_vec();
         data.resize(mem_size as usize, 0);
 
         segments.push(LoadSegment {
@@ -81,11 +86,15 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
 
     segments.sort_by_key(|s| s.vaddr);
 
-    for window in segments.windows(2) {
-        let current_end = window[0].vaddr.checked_add(window[0].mem_size).ok_or(ElfLoadError::SegmentAddressOverflow { vaddr: window[0].vaddr, mem_size: window[0].mem_size })?;
-        if window[1].vaddr < current_end {
-            return Err(ElfLoadError::Overlap);
+    let mut last_end: Option<u32> = None;
+    for s in &segments {
+        let current_end = s.vaddr.checked_add(s.mem_size).ok_or(ElfLoadError::SegmentAddressOverflow { vaddr: s.vaddr, mem_size: s.mem_size })?;
+        if let Some(prev_end) = last_end {
+            if s.vaddr < prev_end {
+                return Err(ElfLoadError::Overlap);
+            }
         }
+        last_end = Some(current_end);
     }
 
     Ok(LoadedElf { entry, segments })
