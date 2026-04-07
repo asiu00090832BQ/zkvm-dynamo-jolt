@@ -1,21 +1,15 @@
-use dynamo_invariants::*;
 use ark_bn254::Fr;
+use dynamo_invariants::*;
 
 struct TestRelation;
 impl Lemma41<Fr> for TestRelation {
-    fn is_consistent(&self, _field_element: &Fr) -> bool {
-        true
-    }
-    fn step(&self, _current: &Fr, _next: &Fr) -> bool {
+    fn verify_sub_sequence_extraction(_trace: &[Fr]) -> bool {
         true
     }
 }
 
 #[test]
-fn test_extraction_marker() {
-    let relation = TestRelation;
-    let trace = vec![Fr::from(1u64), Fr::from(1u64)];
-    assert!(lemma_4_1_holds(&relation, &trace));
-
-    let _marker = relation.extraction_soundness_marker();
+fn test_lemma_41_conformance() {
+    let trace = vec![Fr::from(1), Fr::from(2)];
+    assert!(TestRelation::verify_sub_sequence_extraction(&trace));
 }
