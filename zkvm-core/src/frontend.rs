@@ -1,18 +1,7 @@
-use crate::elf_loader::{load_elf, LoadedProgram};
-use crate::ZkvmError;
+use crate::elf_loader::load_elf;
+use crate::error::Result;
 
-#[derive(Debug, Clone)]
-pub struct ElfProgram {
-    pub entry: u32,
-    pub memory: Vec<u8>,
-}
-
-impl ElfProgram {
-    pub fn parse(bytes: &[u8]) -> Result<Self, ZkvmError> {
-        let p = load_elf(bytes)?;
-        Ok(Self {
-            entry: p.entry,
-            memory: p.memory,
-        })
-    }
+pub struct Frontend;
+impl Frontend {
+    pub fn parse(bytes: &[u8]) -> Result<crate::elf_loader::LoadedElf> { load_elf(bytes) }
 }
