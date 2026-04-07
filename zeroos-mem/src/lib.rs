@@ -1,30 +1,3 @@
-//! ZeroOS memory abstractions: Lemma 4.2 (Canonical Address Mapping).
+pub mod address;
 
-use ark_ff::PrimeField;
-
-pub fn field_supports_64_bit_addresses<F: PrimeField>() -> bool {
-    F::MODULUS_BIT_SIZE > 64
-}
-
-pub fn canonical_addr_to_field<F: PrimeField>(addr: u64) -> F {
-    F::from(addr)
-}
-
-pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
-    let bigint = value.into_bigint();
-    let limbs: &[u64] = bigint.as_ref();
-    if limbs.is_empty() {
-        return None;
-    }
-    // Check if any limb beyond the first one is non-zero
-    if limbs.iter().skip(1).any(|&l| l != 0u64) {
-        return None;
-    }
-    let addr = limbs[0];
-    // Verify that the conversion is canonical
-    if F::from(addr) == value {
-        Some(addr)
-    } else {
-        None
-    }
-}
+pub use address::{canonical_addr_to_field, field_supports_64_bit_addresses, field_to_canonical_addr};
