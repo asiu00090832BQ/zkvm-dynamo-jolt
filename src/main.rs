@@ -1,1 +1,28 @@
-use ark_bn254::Fr;\nuse zkvm_core::{Zkvm, ZkvmConfig, ZkvmError};\n\nfn main() {\n    if let Err(err) = run() {\n        eprintln!(\"error: {err}\");\n        std::process::exit(1);\n    }\n}\n\nfn run() -> Result<(), Box<dyn std::error::Error>> {\n    println!(\"zkvm Dynamo+Jolt initialized.\");\n    \n    let config = ZkvmConfig::default();\n    config.validate()?;\n\n    let mut vm = Zkvm::<Fr>::new(config);\n\n    // Simulation: load placeholder bytes\n    let elf_bytes = vec![0u8; 100];\n    vm.load_elf_bytes(&elf_bytes)?;\n\n    println!(\"Running simulation step...\");\n    vm.step()?;\n\n    println!(\"Execution Successful!\");\n    Ok(())\n}
+use ark_bn254::Fr;
+use zkvm_core::{Zkvm, ZkvmConfig};
+
+fn main() {
+    if let Err(err) = run() {
+        eprintln!("error: {err}");
+        std::process::exit(1);
+    }
+}
+
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    println!("zkvm Dynamo+Jolt initialized.");
+
+    let config = ZkvmConfig::default();
+    config.validate()?;
+
+    let mut vm = Zkvm::<Fr>::new(config);
+
+    // Simulation: load placeholder bytes
+    let elf_bytes = vec![0u8; 100];
+    vm.load_elf_bytes(&elf_bytes)?;
+
+    println!("Running simulation step...");
+    vm.step()?;
+
+    println!("Execution Successful!");
+    Ok(())
+}
