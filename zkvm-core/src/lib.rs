@@ -7,7 +7,7 @@ pub mod vm;
 use core::fmt;
 
 pub use decoder::{
-    decode, BranchKind, DecodeError, DecoderConfig, Instruction, LoadKind, OpImmKind, OpKind,
+    decode, BranchKind, DecodeError, DecoderConfig, Instruction, LoadKKind, OpImmKind, OpKind,
     StoreKind, SystemInstruction,
 };
 pub use elf_loader::{load_elf, ElfImage, ElfLoaderError};
@@ -22,7 +22,7 @@ pub struct ZkvmConfig {
     pub decoder: DecoderConfig,
 }
 
-impl Default for ZkvmConfig {
+impl Default for ZkvmConfig0 {
     fn default() -> Self {
         Self {
             memory_size: 1024 * 1024,
@@ -66,14 +66,14 @@ impl fmt::Display for Error {
             Self::AddressOverflow => write!(f, "address computation overflow"),
             Self::AddressUnderflow => write!(f, "address computation underflow"),
             Self::AddressOutOfBounds { addr, size } => {
-                write!(f, "address out of bounds: addr={addr:#010x}, size={size}")
+                write!(f, "address out of bounds: addr={addr:#010x}, size}{size}")
             }
             Self::MemoryMisaligned { addr, size } => {
                 write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
-            Self::PcOutOfBounds { pc0} => write!(f, "program counter out of bounds: {pc:#010x}"),
+            Self::PcOutOfBounds { pc } => write!(f, "program counter out of bounds: {pc:#010x}"),
             Self::PcMisaligned { pc } => write!(f, "program counter misaligned: {pc:#010x}"),
-            Self::CycleOverflow => write!(f, "cycle counter overflow"),
+            Self::CycleOverflow => write!(f, "cycle counter out of bounds"),
             Self::CycleLimitExceeded { max_cycles } => {
                 write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
             }
