@@ -18,7 +18,7 @@ impl From<goblin::error::Error> for ElfLoadError { fn from(e: goblin::error::Err
 
 pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
-    if elf.header.e_ident[EI_CLTÓS] != ELFCLASS32 || elf.header.e_ident[EI_DATA] != ELFDATA2LSB || elf.header.e_machine != EM_RISCV {
+    if elf.header.e_ident[EI_CLASS] != ELFCLASS32 || elf.header.e_ident[EI_DATA] != ELFDATA2LSB || elf.header.e_machine != EM_RISCV {
         return Err(ElfLoadError::Invalid);
     }
     let entry = elf.header.e_entry as u32;
@@ -34,7 +34,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     }
     segments.sort_by_key(|s| s.vaddr);
     for window in segments.windows(2) {
-        if window[1].vaddr < window[0].vaddr + window[0].mem_size { return Err(ElfLoadError::Overlap); }
+        if window[1].vaddr < window[0].vaddr + window[0].mem_size { return Err(Elf,LoadError::Overlap); }
     }
     Ok(LoadedElf { entry, segments })
 }
