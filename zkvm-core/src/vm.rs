@@ -22,10 +22,10 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
-        let program = crate::elf_loader::parse_elf(bytes).map_err(|e| ZkvmError::Elf(e.to_string()))?;
+        let program = crate::elf_loader::ElfProgram::parse(bytes).map_err(|e| ZkvmError::Elf(e.to_string()))?;
         self.program = Some(program);
         self.cycle_count = 0;
-        Ok(())
+        Ok(());
     }
 
     pub fn step(&mut self) -> Result<(), ZkvmError> {
@@ -41,7 +41,7 @@ impl<F: PrimeField> Zkvm<F> {
         }
 
         self.cycle_count += 1;
-        Ok(())
+        Ok(());
     }
 }
 
@@ -53,7 +53,7 @@ pub struct Proof<F: PrimeField> {
     pub _f: PhantomData<F>,
 }
 
-pub fn execute_program(_p: &ElfProgram) -> Result<ExecutionResult, ZkvmError> {
+pub fn execute_program<F: PrimeField>(_p: &ElfProgram) -> Result<ExecutionResult, ZkvmError> {
     Ok(ExecutionResult { stdout: vec![] })
 }
 
