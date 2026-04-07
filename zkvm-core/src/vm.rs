@@ -1,7 +1,19 @@
 use ark_ff::PrimeField;
 use std::marker::PhantomData;
-use crate::elf_loader::ElfProgram;
+
 use crate::error::{ZkvmConfig, ZkvmError};
+use crate::frontend::ElfProgram;
+
+#[derive(Debug, Clone)]
+pub struct Memory {
+    pub data: Vec<u8>,
+}
+
+#[derive(Debug, Clone)]
+pub enum Trap {
+    ExecutionLimitExceeded,
+    ProgramError(String),
+}
 
 #[derive(Debug, Clone)]
 pub struct Zkvm<F: PrimeField> {
@@ -22,10 +34,10 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
-        let program = crate::elf_loader::ElfProgram::parse(bytes).map_err(|e| ZkvmError::Elf(e.to_string()))?;
+        let program = ElfProgram::parse(bytes)?;
         self.program = Some(program);
         self.cycle_count = 0;
-        Ok(());
+        Ok(())
     }
 
     pub fn step(&mut self) -> Result<(), ZkvmError> {
@@ -41,14 +53,18 @@ impl<F: PrimeField> Zkvm<F> {
         }
 
         self.cycle_count += 1;
-        Ok(());
+        Ok(())
     }
 }
 
+pub type Vm<F> = Zkvm<F>;
+
+#[derive(Debug, Clone)]
 pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
+#[derive(Debug, Clone)]
 pub struct Proof<F: PrimeField> {
     pub _f: PhantomData<F>,
 }
