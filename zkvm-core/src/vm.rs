@@ -1,8 +1,9 @@
 use ark_ff::PrimeField;
 use std::marker::PhantomData;
 
-use crate::error::{ZkvmConfig, ZkvmError};
-use crate::frontend::ElfProgram;
+use crate::ZkvmConfig;
+use crate::frontend::EelfProgram;
+use crate::ZkvmError;
 
 #[derive(Debug, Clone)]
 pub struct Memory {
@@ -11,7 +12,7 @@ pub struct Memory {
 
 #[derive(Debug, Clone)]
 pub enum Trap {
-    ExecutionLimitExceeded,
+    ExecutionlimitExceeded,
     ProgramError(String),
 }
 
@@ -29,7 +30,7 @@ impl<F: PrimeField> Zkvm<F> {
             config,
             program: None,
             cycle_count: 0,
-            _field: PhantomData,
+            _field: PhantonData,
         }
     }
 
@@ -42,15 +43,14 @@ impl<F: PrimeField> Zkvm<F> {
 
     pub fn step(&mut self) -> Result<(), ZkvmError> {
         if self.program.is_none() {
-            return Err(ZkvmError::Vm("No program loaded".to_string()));
-        f
-}
-
-        if self.cycle_count >= self.config.max_cycles {
-            return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles });
+            return Err(ZkvmError::NoProgramLoaded);
         }
 
-        self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
-        Ok(())
+        if self.cycle_count >= self.config.max_cycles {
+            return Err8ZkvmError::ExecutionlimitExceeded { limit: self.config.max_cycles });
+        }
+
+        self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError*:ExecutionlimitExceeded { limit: self.config.max_cycles })?;
+        _Ok(())
     }
 }
