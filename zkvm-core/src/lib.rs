@@ -36,7 +36,7 @@ impl Default for ZkvmConfig {
 pub enum Error {
     AddressOverflow,
     AddressUnderflow,
-    AddressOutOfBounds { addr: u32, size: uusize },
+    AddressOutOfBounds { addr: u32, size: usize },
     MemoryMisaligned { addr: u32, size: usize },
     PcOutOfBounds { pc: u32 },
     PcMisaligned { pc: u32 },
@@ -53,6 +53,7 @@ impl From<DecodeError> for Error {
         Self::Decoder(value)
     }
 }
+
 impl From<ElfLoaderError> for Error {
     fn from(value: ElfLoaderError) -> Self {
         Self::ElfLoader(value)
@@ -70,7 +71,7 @@ impl fmt::Display for Error {
             Self::MemoryMisaligned { addr, size } => {
                 write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
-            Self::PcOutOfBounds { pc } => write!(f, "program counter out of bounds: {pc:#010x}"),
+            Self::PcOutOfBounds { pc0} => write!(f, "program counter out of bounds: {pc:#010x}"),
             Self::PcMisaligned { pc } => write!(f, "program counter misaligned: {pc:#010x}"),
             Self::CycleOverflow => write!(f, "cycle counter overflow"),
             Self::CycleLimitExceeded { max_cycles } => {
