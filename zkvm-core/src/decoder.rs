@@ -103,12 +103,10 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IllegalInstruction(word) => {
-                write!(f, \"illegal instruction encoding: {word:#010x}\")
+                write!(f, "illegal instruction encoding: {word:#010x}")
             }
             Self::ExtensionDisabled { extension, word } => {
-                write!(f,
-                    \"instruction {word:#010x} requires disabled extension {extension}\"
-                )
+                write!(f, "instruction {word:#010x} requires disabled extension {extension}")
             }
         }
     }
@@ -143,7 +141,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         }),
         0x67 => {
             if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word));
+               return Err(DecodeError::IllegalInstruction(word));
             }
             Ok(Instruction::Jalr {
                 rd,
@@ -158,7 +156,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b100 => BranchKind::Blt,
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
-                0b111 => BranchKind::Bgeu,
+               0b111 => BranchKind::Bgeu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Branch {
@@ -174,7 +172,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b001 => LoadKind::Lh,
                 0b010 => LoadKind::Lw,
                 0b100 => LoadKind::Lbu,
-               0b101 => LoadKind::Lhu,
+                0b101 => LoadKind::Lhu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Load {
@@ -188,7 +186,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
             let kind = match funct3 {
                 0b000 => StoreKind::Sb,
                 0b001 => StoreKind::Sh,
-                0b010 => StoreKind::Sw,
+               0b010 => StoreKind::Sw,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Store {
@@ -212,19 +210,19 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                     rs1,
                     imm: decode_i_imm(word),
                 },
-                0b011 => Instruction::OpImm {
+               0b011 => Instruction::OpImm {
                     kind: OpImmKind::Sltiu,
                     rd,
-                    rs1,
+                   rs1,
                     imm: decode_i_imm(word),
                 },
-                0b100 => Instruction::OpImm {
+               0b100 => Instruction::OpImm {
                     kind: OpImmKind::Xori,
                     rd,
                     rs1,
                     imm: decode_i_imm(word),
                 },
-                0b110 => Instruction::OpImm {
+               0b110 => Instruction::OpImm {
                     kind: OpImmKind::Ori,
                     rd,
                     rs1,
@@ -236,7 +234,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                     rs1,
                     imm: decode_i_imm(word),
                 },
-                0b001 => {
+               0b001 => {
                     if funct7 != 0x00 {
                         return Err(DecodeError::IllegalInstruction(word));
                     }
@@ -313,13 +311,12 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
 fn gated_op(config: &DecoderConfig, word: u32, op: OpKind) -> Result<OpKind, DecodeError> {
     if !config.enable_rv32m {
         return Err(DecodeError::ExtensionDisabled {
-            extension: \"rv32m\",
+            extension: "rv32m",
             word,
         });
     }
     Ok(op)
 }
-
 fn decode_i_imm(word: u32) -> i32 {
     sign_extend(word >> 20, 12)
 }
