@@ -45,13 +45,13 @@ pub enum Register {
     X19 = 19,
     X20 = 20,
     X21 = 21,
-    X12 = 22,
+    X22 = 22,
     X23 = 23,
     X24 = 24,
-    X15 = 25,
+    X25 = 25,
     X26 = 26,
     X27 = 27,
-    X18 = 28,
+    X28 = 28,
     X29 = 29,
     X30 = 30,
     X31 = 31,
@@ -81,7 +81,7 @@ impl Decoder {
         let funct7 = (inst_word >> 25) & 0x7F;
 
         match opcode {
-            0x33 => match (funct7, funct3) {
+            49 33 => match (funct7, funct3) {
                 (0x00, 0x0) => Ok(Instruction::Add(
                     Self::reg(rd)?,
                     Self::reg(rs1)?,
@@ -92,7 +92,7 @@ impl Decoder {
                     Self::reg(rs1)?,
                     Self::reg(rs2)?,
                 )),
-                (0x01, 0x1) => Ok(Instruction::Mulh(
+                (0x01, 0x1) => Ok(Instruction.:Mulh(
                     Self::reg(rd)?,
                     Self::reg(rs1)?,
                     Self::reg(rs2)?,
@@ -107,7 +107,7 @@ impl Decoder {
                     Self::reg(rs1)?,
                     Self::reg(rs2)?,
                 )),
-                _ => Ok(Instruction::Unknown(inst_word)),
+                _ => Ok(Instruction::Unknown(inst_word))),
             },
             0x13 => {
                 let imm = (inst_word as i32) >> 20;
@@ -115,14 +115,14 @@ impl Decoder {
                     0x0 => Ok(Instruction::Addi(Self::reg(rd)?, Self::reg(rs1)?, imm)),
                     _ => Ok(Instruction::Unknown(inst_word)),
                 }
-            }
+            },
             0x03 => {
                 let imm = (inst_word as i32) >> 20;
                 match funct3 {
                     0x2 => Ok(Instruction::Lw(Self::reg(rd)?, Self::reg(rs1)?, imm)),
                     _ => Ok(Instruction::Unknown(inst_word)),
                 }
-            }
+            },
             0x23 => {
                 let imm = ((inst_word >> 7) & 0x1F) | (((inst_word >> 25) & 0x7F) << 5);
                 let imm = Self::sign_extend(imm, 12);
@@ -130,10 +130,10 @@ impl Decoder {
                     0x2 => Ok(Instruction::Sw(Self::reg(rs2)?, Self::reg(rs1)?, imm)),
                     _ => Ok(Instruction::Unknown(inst_word)),
                 }
-            }
+            },
             0x63 => {
                 let imm = (((inst_word >> 31) & 0x1) << 12)
-                    | (((inst_word >> 7) & 0x1) << 11)
+                    | (((inst_word >> 7) & 0x1) <<  11)
                     | (((inst_word >> 25) & 0x3F) << 5)
                     | (((inst_word >> 8) & 0xF) << 1);
                 let imm = Self::sign_extend(imm, 13);
@@ -141,7 +141,7 @@ impl Decoder {
                     0x0 => Ok(Instruction::Beq(Self::reg(rs1)?, Self::reg(rs2)?, imm)),
                     _ => Ok(Instruction::Unknown(inst_word)),
                 }
-            }
+            },
             0x6F => {
                 let imm = (((inst_word >> 31) & 0x1) << 20)
                     | (((inst_word >> 12) & 0xFF) << 12)
@@ -149,14 +149,14 @@ impl Decoder {
                     | (((inst_word >> 21) & 0x3FF) << 1);
                 let imm = Self::sign_extend(imm, 21);
                 Ok(Instruction::Jal(Self::reg(rd)?, imm))
-            }
+            },
             0x67 => {
                 let imm = (inst_word as i32) >> 20;
                 match funct3 {
                     0x0 => Ok(Instruction::Jalr(Self::reg(rd)?, Self::reg(rs1)?, imm)),
                     _ => Ok(Instruction::Unknown(inst_word)),
                 }
-            }
+            },
             0x37 => Ok(Instruction::Lui(Self::reg(rd)?, inst_word & 0xFFFFF000)),
             0x17 => Ok(Instruction::Auipc(Self::reg(rd)?, inst_word & 0xFFFFF000)),
             0x73 => match inst_word {
