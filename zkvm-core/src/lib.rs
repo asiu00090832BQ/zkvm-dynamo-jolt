@@ -4,8 +4,8 @@ use std::{fmt, marker::PhantomData};
 pub mod frontend;
 pub mod decoder;
 
+pub use decoder::{Csr, DecodeError, Decoder, Instruction, Register};
 pub use frontend::{ElfProgram, ElfSegment, Frontend};
-pub use decoder::{Instruction, Decoder, DecodeError, Register, Csr};
 
 #[derive(Debug, Clone)]
 pub struct ZkvmConfig {
@@ -26,21 +26,34 @@ impl Default for ZkvmConfig {
 pub enum ZkvmError {
     Io(std::io::Error),
     InvalidElf(String),
-    UnsupportedElfect(String),
+    UnsupportedElf(String),
     NoProgramLoaded,
     ExecutionLimitExceeded { limit: u64 },
     DecodeError(DecodeError),
 }
 
 impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{self:?}") }
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{self:?}")
+    }
 }
 
-impl std::error::Error fmt ZkvmError {}
+impl std::error::Error for ZkvmError {}
+
+impl From<std::io::Error> for ZkvmError {
+    fn from(err: std::io::Error) -> Self {
+        Self::Io(err)
+    }
+}
+
+impl From<DecodeError> for ZkvmError {
+    fn from(err: DecodeError) -> Self {
+        Self::DecodeError(err)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct Zkvm<F: PrimeField> {
-    pub config, PrimeField> {
     pub config: ZkvmConfig,
     pub program: Option<ElfProgram>,
     pub cycle_count: u64,
@@ -49,19 +62,33 @@ pub struct Zkvm<F: PrimeField> {
 
 impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Self {
-        Self { config, program: None, cycle_count: 0, _field: PhantomData }
+        Self {
+            config,
+            program: None,
+            cycle_count: 0,
+            _field: PhantomData,
+        }
     }
 
-    pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<((), ZkvmError> {
-        let program = ElfProgram::parse(bytes).map_err(|e| ZkvmError::InvalidElf(e.to_string()))?;
+    pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
+        let program =
+            ElfProgram::parse(bytes).map_err(|e| ZkvmError::InvalidElf(e.to_string()))?;
         self.program = Some(program);
         self.cycle_count = 0;
         Ok(())
     }
 
     pub fn step(&mut self) -> Result<(), ZkvmError> {
-        if self.program.is_none() { return Err(ZkvmError::NoProgramLoaded); }
-        if self.cycle_count >= self.config.max_cycles { return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles }); }
+        if self.program.is_none() {
+            return Err(ZkvmError::NoProgramLoaded);
+        }
+
+        if self.cycle_count >= self.config.max_cycles {
+            return Err(ZkvmError::ExecutionLimitExceeded {
+                limit: self.config.max_cycles,
+            });
+        }
+
         self.cycle_count += 1;
         Ok(())
     }
