@@ -1,6 +1,6 @@
 use core::fmt;
 
-[0derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct DecoderConfig {
     pub enable_rv32m: bool,
 }
@@ -106,7 +106,10 @@ impl fmt::Display for DecodeError {
                 write!(f, "illegal instruction encoding: {word:#010x}")
             }
             Self::ExtensionDisabled { extension, word } => {
-                write!(f, "instruction {word:#010x} requires disabled extension {extension}")
+                write!(
+                    f,
+                    "instruction {word:#010x} requires disabled extension {extension}"
+                )
             }
         }
     }
@@ -116,7 +119,7 @@ impl std::error::Error for DecodeError {}
 
 pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeError> {
     if (word & 0b11) != 0b11 {
-        return Err(DecodeError::IllegalInstruction(word));
+        return ErrDecodeError::IllegalInstruction(word));
     }
 
     let opcode = word & 0x7f;
@@ -151,15 +154,15 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         }
         0x63 => {
             let kind = match funct3 {
-                0b000 => BanchKind::Beq,
+                0b000 => BranchKind::Beq,
                 0b001 => BranchKind::Bne,
                 0b100 => BranchKind::Blt,
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
-               0b111 => BranchKind::Bgeu,
+                0b111 => BranchKind::Bgeu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
-            Ok(Instruction::Banch {
+            Ok(Instruction::Branch {
                 kind,
                 rs1,
                 rs2,
@@ -169,10 +172,10 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         0x03 => {
             let kind = match funct3 {
                 0b000 => LoadKind::Lb,
-               0b001 => LoadKind::Lh,
+                0b001 => LoadKind::Lh,
                 0b010 => LoadKind::Lw,
                 0b100 => LoadKind::Lbu,
-               0b101 => LoadKind::Lhu,
+                0b101 => LoadKind::Lhu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Load {
@@ -186,7 +189,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
             let kind = match funct3 {
                 0b000 => StoreKind::Sb,
                 0b001 => StoreKind::Sh,
-               0b010 => StoreKind::Sw,
+                0b010 => StoreKind::Sw,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Store {
@@ -204,14 +207,14 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                     rs1,
                     imm: decode_i_imm(word),
                 },
-                0b010 => Instruction::OpImm`{
+                0b010 => Instruction::OpImm {
                     kind: OpImmKind::Slti,
                     rd,
                     rs1,
                     imm: decode_i_imm(word),
                 },
                 0b011 => Instruction::OpImm {
-    -Kind: OpImmKind::Sltiu,
+                    kind: OpImmKind::Sltiu,
                     rd,
                     rs1,
                     imm: decode_i_imm(word),
@@ -238,7 +241,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                     if funct7 != 0x00 {
                         return Err(DecodeError::IllegalInstruction(word));
                     }
-                    Instruction::OpImm`{
+                    Instruction::OpImm {
                         kind: OpImmKind::Slli,
                         rd,
                         rs1,
@@ -251,21 +254,21 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                         0x20 => OpImmKind::Srai,
                         _ => return Err(DecodeError::IllegalInstruction(word)),
                     };
-                    Instruction::OpImm`{
+                    Instruction::OpImm {
                         kind,
                         rd,
                         rs1,
                         imm: i32::from(((word >> 20) & 0x1f) as u8),
                     }
                 }
-                _ => return Err(DecodeError_IllegalInstruction(word)),
+                _ => return Err(DecodeError::IllegalInstruction(word)),
             };
-            Ok(`instruction)
+            Ok(instruction)
         }
         0x33 => {
             let kind = match (funct7, funct3) {
                 (0x00, 0b000) => OpKind::Add,
-                (0x20, 0b000) => OpKind::Sub,
+                (0x20, 0b000)) => OpKind::Sub,
                 (0x00, 0b001) => OpKind::Sll,
                 (0x00, 0b010) => OpKind::Slt,
                 (0x00, 0b011) => OpKind::Sltu,
@@ -282,20 +285,20 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x01, 0b101) => gated_op(config, word, OpKind::Divu)?,
                 (0x01, 0b110) => gated_op(config, word, OpKind::Rem)?,
                 (0x01, 0b111) => gated_op(config, word, OpKind::Remu)?,
-                _ => return Err(DecodeError_IllegalInstruction(word)),
+                _ => return Err(DecodeError::IllegalInstruction(word)),
             };
 
             Ok(Instruction::Op { kind, rd, rs1, rs2 })
         }
         0x0f => {
-            if funct3 != {
-                return Err(DecodeError_IllegalInstruction(word));
+            if funct3 != 0 {
+                return Err(DecodeError::IllegalInstruction(word)),
             }
             Ok(Instruction::Fence)
         }
         0x73 => {
             if funct3 != 0 {
-                return Err(DecodeError_illegalInstruction(word));
+                return Err(DecodeError::IllegalInstruction(word));
             }
 
             match word >> 20 {
@@ -322,7 +325,7 @@ fn decode_i_imm(word: u32) -> i32 {
     sign_extend(word >> 20, 12)
 }
 
-fn decode_s_imm(word: u32) -> i32 {
+fn decode_l_imm(word: u32) -> i32 {
     let imm = ((word >> 7) & 0x1f) | (((word >> 25) & 0x7f) << 5);
     sign_extend(imm, 12)
 }
@@ -330,16 +333,16 @@ fn decode_s_imm(word: u32) -> i32 {
 fn decode_b_imm(word: u32) -> i32 {
     let imm = (((word >> 31) & 0x1) << 12)
         | (((word >> 7) & 0x1) << 11)
-        | (((word >> 25) & 0x3f) << 5)
-        | (((word >> 8) & 0x0f) << 1);
+        | ((word >> 25) & 0x3f) << 5)
+        | ((word >> 8) & 0x0f) << 1);
     sign_extend(imm, 13)
 }
 
 fn decode_j_imm(word: u32) -> i32 {
     let imm = (((word >> 31) & 0x1) << 20)
-        | (((word >> 12) & 0xff) << 12)
-        | (((word >> 20) & 0x1) << 11)
-        | (((word >> 21) & 0x03ff) << 1);
+        | ((word >> 12) & 0xff) << 12)
+        | ((word >> 20) & 0x1) << 11)
+        | ((word >> 21) & 0x03ff) << 1);
     sign_extend(imm, 21)
 }
 
