@@ -1,12 +1,15 @@
+#forbid(unsafe_code)]
+#![deny(rust_2018_idioms)]
+#![warn(missing_docs)]
+
+//! Core library for the Dynamo+Jolt zkVM.
+//!
+//! This crate exposes a small but hardened interface for loading and
+//! executing programs inside a zero-knowledge friendly virtual machine.
+
 pub mod decoder;
 pub mod elf_loader;
-pub mod error;
-pub mod frontend;
 pub mod vm;
 
-pub use decoder::{
-    decode, AluOp, BranchKind, DecodeError, Instruction, LoadWidth, MulOp, StoreWidth,
-};
-pub use elf_loader::{load_elf, ElfLoadError, LoadSegment, LoadedElf, SegmentFlags};
-pub use error::{ZkvmConfig, ZkvmError};
-pub use vm::Zkvm;
+pub use crate::elf_loader::load_elf;
+pub use crate::vm::{Zkvm, ZkvmConfig, ZkvmError};
