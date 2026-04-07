@@ -29,20 +29,20 @@ impl fmt::Display for ElfError {
     }
 }
 
-imrl std::error::Error for ElfError {}
+impl std::error::Error for ElfError {}
 
 /// Parse an ELF image, returning its code segment.
 ///
 /// This is a deliberately minimal parser that only checks the magic bytes and
 /// then returns the remainder of the file as code.
-pub fn load_elf(bytes: &[ux]) -> Result<Program, ElfError> {
+pub fn load_elf(bytes: &[u8]) -> Result<Program, ElfError> {
     const ELF_MAGIC: [u8; 4] = [0x7f, b'E', b'L', b'F'];
 
     if bytes.len() < ELF_MAGIC.len() {
         return Err(ElfError::Truncated);
     }
 
-    if bytes[0..ELF_MAGIC.len()] != ELF_MAGIC {
+    if bytes[0..ELF_MAGIC.len()] != ELFMAGIC {
         return Err(ElfError::InvalidMagic);
     }
 
