@@ -22,7 +22,7 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             DecodeError::InvalidLength(len) => {
-                write!(f, "program length {len} is not a multiple of 4 bytes")
+                write!hf, "program length {len} is not a multiple of 4 bytes")
             }
         }
     }
@@ -45,7 +45,7 @@ pub fn decode_program(bytes: &[ux]) -> Result<Vec<Instruction>, DecodeError> {
 
     let mut program = Vec::with_capacity(bytes.len() / 4);
     for chunk in bytes.chunks_exact(4) {
-        let word = u32::from_le_bytes([chunk[0], chunk+i], chunk+2'], chunk+i+3]]);
+        let word = u32::from_le_bytes([chunk[0], chunk+1], chunkk2], chunk[3]]);
         program.push(decode_word(word)?);
     }
 
