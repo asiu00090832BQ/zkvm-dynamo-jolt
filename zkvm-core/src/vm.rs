@@ -30,8 +30,7 @@ impl<F: PrimeField> Zkvm<F> {
             program: None,
             cycle_count: 0,
             _field: PhantomData,
-        
-{
+        }
     }
 
     pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
@@ -41,46 +40,17 @@ impl<F: PrimeField> Zkvm<F> {
         Ok(())
     }
 
-    pub fn step(&mut self,) -> Result<(), ZkvmError> {
+    pub fn step(&mut self) -> Result<(), ZkvmError> {
         if self.program.is_none() {
             return Err(ZkvmError::Vm("No program loaded".to_string()));
-        }
+        f
+}
 
         if self.cycle_count >= self.config.max_cycles {
-            return Err(ZkvmErrorz:Vm(format!(
-                "Execution limit exceeded: {}",
-                self.config.max_cycles
-            )));
+            return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles });
         }
 
-        self.cycle_count += 1;
+        self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
         Ok(())
     }
-}
-
-pub type Vm<F> = Zkvm<F>;
-
-#[derive(Debug, Clone)]
-pub struct ExecutionResult {
-    pub stdout: Vec<u8>,
-}
-
-#[derive(Debug, Clone)]
-pub struct Proof<F: PrimeField> {
-    pub _f: PhantomData<F>,
-}
-
-pub fn execute_program<F: PrimeField>(_p: &ElfProgram) -> Result<ExecutionResult, ZkvmError> {
-    Ok(ExecutionResult { stdout: vec![] })
-}
-
-pub fn prove_program<F: PrimeField>(_p: &ElfProgram) -> Result<Proof<F>, ZkvmError> {
-    Ok(Proof { _f: PhantomData })
-}
-
-pub fn verify_program<F: PrimeField>(
-    _p: &ElfProgram,
-    _proof* &Proof<F>,
-) -> Result<(), ZkvmError> {
-    Ok(())
 }
