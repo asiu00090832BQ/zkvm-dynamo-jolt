@@ -1,81 +1,65 @@
-//! Error types and configuration for the zkVM.
+use std::fmt;
 
 use crate::decoder::DecodeError;
-use core::fmt;
-use std::error::Error as StdError;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZkvmConfig {
-    pub max_memory: u64,
-    pub entry_pc: u64,
-    pub max_cycles: u64,
-}
-
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            max_memory: 16 * 1024 * 1024,
-            entry_pc: 0,
-            max_cycles: 1_000_000,
-        }
-    }
-}
-
-impl ZkvmConfig {
-    pub fn validate(&self) -> Result<(), ZkvmError> {
-        if self.max_memory == 0 { return Err(ZkvmError::InvalidConfig(\"max_memory must be > 0\".to_string())); }
-        if self.max_cycles == 0 { return Err(ZkvmError::InvalidConfig(\"max_cycles must be > 0\".to_string())); }
-        Ok(())
-    }
-}
 
 #[derive(Debug)]
-pub enum ZkvmError {
-    Io(std::io::Error),
+pub enum Error {
     Decode(DecodeError),
-    ElfLoad(String),
-    InvalidElf(String),
-    NoProgramLoaded,
-    ExecutionLimitExceeded { limit: u64 },
-    MemoryError(String),
-    Trap(String),
-    InvalidConfig(String),
+    MemoryOutOfBounds { addr: u32, size: usize, len: usize },
+    MisalignedAccess { addr: u32, alignment: usize },
+    PcOutOfBounds { pc: u32, len: usize },
+    InvalidRegister(usize),
+    UnsupportedInstruction(String),
+    Halted,
+    StepLimitExceeded(usize),
 }
 
-impl fmt::Display for ZkvmError {
+pub type Result<T> = std::result::Result<T, Error>;
+pub type VmResult<T> = Result<T>;
+pub type VMResult<T> = Result<T>;
+pub type VmError = Error;
+pub type VMError = Error;
+pub type ExecError = Error;
+
+impl Error {
+    pub fn unsupported<M: Into<String>>(message: M) -> Self {
+        Self::UnsupportedInstruction(message.into())
+    }
+}
+
+impl From<DecodeError> for Error {
+    fn from(value: DecodeError) -> Self {
+        Self::Decode(value)
+    }
+}
+
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ZkvmError::Io(err) => write!(f, \"I/O error: {err}\"),
-            ZkvmError::Decode(err) => write!(f, \"decode error: {err}\"),
-            ZkvmError::ElfLoad(msg) => write!(f, \"ELF load error: {msg}\"),
-            ZkvmError::InvalidElf(msg) => write!(f, \"invalid ELF image: {msg}\"),
-            ZkvmError::NoProgramLoaded => write!(f, \"no program loaded\"),
-            ZkvmError::ExecutionLimitExceeded { limit } => write!(f, \"execution limit exceeded: {limit} cycles\"),
-            ZkvmError::MemoryError(msg) => write!(f, \"memory error: {msg}\"),
-            ZkvmError::Trap(msg) => write!(f, \"trap: {msg}\"),
-            ZkvmError::InvalidConfig(msg) => write!(f, \"invalid configuration: {msg}\"),
+            Self::Decode(err) => write!(f, "decode error: {err:?}"),
+            Self::MemoryOutOfBounds { addr, size, len } => {
+                write!(
+                    f,
+                    "memory access out of bounds at 0x{addr:08x} (size {size}, memory len {len})"
+                )
+            }
+            Self::MisalignedAccess { addr, alignment } => {
+                write!(f, "misaligned access at 0x{addr:08x} (alignment {alignment})")
+            }
+            Self::PcOutOfBounds { pc, len } => {
+                write!(
+                    f,
+                    "program counter out of bounds: 0x{pc:08x} (memory len {len})"
+                )
+            }
+            Self::InvalidRegister(index) => write!(f, "invalid register index {index}"),
+            Self::UnsupportedInstruction(message) => {
+                write!(f, "unsupported instruction: {message}")
+            }
+            Self::Halted => write!(f, "virtual machine is halted"),
+            Self::StepLimitExceeded(limit) => write!(f, "step limit exceeded after {limit} steps"),
         }
     }
 }
 
-impl StdError for ZkvmError {
-    fn source(&self) -> Option<&(dyn StdError + 'static)> {
-        match self {
-            ZkvmError::Io(err) => Some(err),
-            ZkvmError::Decode(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-impl From<std::io::Error> for ZkvmError {
-    fn from(err: std::io::Error) -> Self {
-        ZkvmError::Io(err)
-    }
-}
-
-impl From<DecodeError> for ZkvmError {
-    fn from(err: DecodeError) -> Self {
-        ZkvmError::Decode(err)
-    }
-}
+impl std::error::Error for Error {}
