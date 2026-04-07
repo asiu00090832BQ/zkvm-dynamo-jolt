@@ -52,6 +52,7 @@ impl<F: PrimeField> Zkvm<F> {
             return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles });
         }
 
+
         self.cycle_count = self.cycle_count
             .checked_add(1)
             .ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
