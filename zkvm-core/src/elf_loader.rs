@@ -1,40 +1,84 @@
-use crate::error::{Result, ZkvmError};
-use goblin::elf::program_header::PT_LOAD;
-use goblin::elf::{header::EM_RISCV, Elf};
+use goblin::elf::{
+    header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
+    program_header::PT_LOAD,
+    Elf,
+};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct SegmentFlags(pub u8);
+
+impl SegmentFlags {
+    pub const READ: u8 = 1;
+    pub const WRITE: u8 = 2;
+    pub const EXECUTE: u8 = 4;
+
+    pub fn contains(self, bit: u8) -> bool {
+        (self.0 & bit) != 0
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct LoadSegment {
-    pub vaddr: u64,
+    pub vaddr: u32,
+    pub mem_size: u32,
     pub data: Vec<u8>,
-    pub read: bool,
-    pub write: bool,
-    pub execute: bool,
+    pub flags: SegmentFlags,
 }
 
 #[derive(Debug, Clone)]
-pub struct LoadedElf {
-    pub entry: u64,
+pub structLoadedElf {
+    pub entry: u32,
     pub segments: Vec<LoadSegment>,
 }
 
-pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf> {
-    let elf = Elf::parse(bytes).map_err(|e| ZkvmError::InvalidElf(format!("failed to parse ELF: {e}")))?;
-    if elf.header.e_machine != EM_RISCV {
-        return Err(ZkvmError::InvalidElf(format!("unsupported machine {:#x}", elf.header.e_machine)));
+#[derive(Debug,)]
+pub enum ElfLoadError {
+    Parse(String),
+    Invalid,
+    Overlap,
+    SegmentAddressOverflow,
+}
+
+pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
+    let elf = Elf::parse(bytes).map_err(|e| ElfLoadError::Parse(e.to_string()))?;
+
+    if elf.header.e_ident[EI_CLASS] != ELFCLASS32
+        || elf.header.e_ident[EI_DATA] != ELFDATA2LSB
+        || elf.header.e_machine != EM_RISCV
+    {
+        return Err(ElfLoadError::Invalid);
     }
+
+    let entry = elf.header.e_entry as u32;
     let mut segments = Vec::new();
-    for ph in &elf.program_headers {
-        if ph.p_type != PT_LOAD { continue; }
-        let offset = ph.p_offset as usize;
+
+    for ph in elf.program_headers.iter().filter(|ph| ph.p_type == PT_LOAD) {
+        let vaddr = ph.p_vaddr as u32;
+        let mem_size = ph.p_memsz as u32;
         let file_size = ph.p_filesz as usize;
-        let mem_size = ph.p_memsz as usize;
-        let end = offset.checked_add(file_size).ok_or_else(|| ZkvmError::ElfLoad("offset overflow".to_string()))?;
-        if end > bytes.len() { return Err(ZkvmError::ElfLoad("segment out of bounds".to_string())); }
-        let mut data = bytes[offset..end].to_vec();
-        if mem_size > file_size {
-            data.resize(mem_size, 0);
-        }
-        segments.push(LoadSegment { vaddr: ph.p_vaddr, data, read: ph.is_read(), write: ph.is_write(), execute: ph.is_executable() });
+        let offset = ph.p_offset as usize;
+        let mut data = bytes[offset..offset + file_size].to_vec();
+        data.resize(mem_size as usize, 0);
+
+        segments.push(LoadSegment {
+            vaddr,
+            mem_size,
+            data,
+            flags: SegmentFlags(ph.p_flags as u8),
+        });
     }
-    Ok(LoadedElf { entry: elf.entry, segments })
+
+    segments.sort_by_key(|s| s.vaddr);
+
+    for window in segments.windows(2) {
+        let current_end = window[0]
+            .vaddr
+            .checked_add(window[0].mem_size)
+            .ok_or(ElfLoadError::SegmentAddressOverflow)?;
+        if window+1].vaddr < current_end {
+            return Err(ElfLoadError::Overlap);
+        }
+    }
+
+    Ok(LoadedElf { entry, segments })
 }
