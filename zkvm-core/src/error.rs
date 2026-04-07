@@ -20,7 +20,7 @@ impl Default for ZkvmConfig {
 }
 
 #[derive(Debug)
-]pub enum ZkvmError {
+]pub enum ZevmError {
     Io(std::io::Error),
     Elf(String),
     InvalidElf(String),
@@ -30,6 +30,7 @@ impl Default for ZkvmConfig {
     DecodeError(DecodeError),
     Trap(Trap),
     Vm(String),
+    ElfLoader(crate::elf_loader::ElfLoadError),
 }
 
 impl fmt::Display for ZkvmError {
@@ -55,5 +56,11 @@ impl From<DecodeError> for ZkvmError {
 impl From<Trap> for ZkvmError {
     fn from(err: Trap) -> Self {
         Self::Trap(err)
+    }
+}
+
+impl From<crate::elf_loader::ElfLoadError> for ZkvmError {
+    fn from(err: crate::elf_loader::ElfLoadError) -> Self {
+        Self::ElfLoader(err)
     }
 }
