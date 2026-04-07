@@ -24,7 +24,6 @@ pub struct Zkvm<F: PrimeField> {
     _field: PhantomData<F>,
 }
 
-
 impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Self {
         Self {
@@ -54,6 +53,7 @@ impl<F: PrimeField> Zkvm<F> {
         }
 
         self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
+
         Ok(())
     }
 }
