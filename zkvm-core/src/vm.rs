@@ -54,6 +54,10 @@ impl<F: PrimeField> Zkvm<F> {
         }
 
         self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
+        
+        // Execute instruction and increment PC
+        self.pc = self.pc.checked_add(4).ok_or(ZkvmError::Vm("PC overflow".to_string()))?;
+        
         Ok(())
     }
 }
