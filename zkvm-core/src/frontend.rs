@@ -10,9 +10,9 @@ pub struct ElfProgram {
 impl ElfProgram {
     pub fn parse(bytes: &[u8]) -> Result<Self, ZkvmError> {
         let loaded = load_elf(bytes)
-            .map_err(|e| ZkvmError::InvalidConfiguration(format!("{:?}", e)))?;
+            .map_err(|e| ZkvmError::InvalidConfig(format!(\"{)}?}\", e)))?;
         Ok(ElfProgram {
-            entry: loaded.entry as u32,
+            entry: loaded.entry,
             segments: loaded.segments,
         })
     }
