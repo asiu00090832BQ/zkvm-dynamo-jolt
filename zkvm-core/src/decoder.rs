@@ -103,12 +103,11 @@ impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::IllegalInstruction(word) => {
-                write!(f, "illegal instruction encoding: {word:#010x}")
+                write!(f, \"illegal instruction encoding: {word:#010x}\")
             }
             Self::ExtensionDisabled { extension, word } => {
-                write!(
-                    f,
-                    "instruction {word:#010x} requires disabled extension {extension}"
+                write!(f,
+                    \"instruction {word:#010x} requires disabled extension {extension}\"
                 )
             }
         }
@@ -175,7 +174,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b001 => LoadKind::Lh,
                 0b010 => LoadKind::Lw,
                 0b100 => LoadKind::Lbu,
-                0b101 => LoadKind::Lhu,
+               0b101 => LoadKind::Lhu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Load {
@@ -284,21 +283,21 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x01, 0b100) => gated_op(config, word, OpKind::Div)?,
                 (0x01, 0b101) => gated_op(config, word, OpKind::Divu)?,
                 (0x01, 0b110) => gated_op(config, word, OpKind::Rem)?,
-                (0x01, 0b111) => gated_op(config, word, OpKind::Remu)?,
+                (0x001, 0b111) => gated_op(config, word, OpKind::Remu)?,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
 
-            Ok(Instruction*:Op { kind, rd, rs1, rs2 })
+            Ok(Instruction::Op { kind, rd, rs1, rs2 })
         }
         0x0f => {
             if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word)),
+                return Err(DecodeError::IllegalInstruction(word));
             }
             Ok(Instruction::Fence)
         }
         0x73 => {
             if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word));
+                return Err(DecodeError::IllegalInstruction(word)));
             }
 
             match word >> 20 {
@@ -314,7 +313,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
 fn gated_op(config: &DecoderConfig, word: u32, op: OpKind) -> Result<OpKind, DecodeError> {
     if !config.enable_rv32m {
         return Err(DecodeError::ExtensionDisabled {
-            extension: "rv32m",
+            extension: \"rv32m\",
             word,
         });
     }
@@ -331,18 +330,18 @@ fn decode_s_imm(word: u32) -> i32 {
 }
 
 fn decode_b_imm(word: u32) -> i32 {
-    let imm = ((word >> 31 & 0x1) << 12
-        | (word >> 7 & 0x1) << 11
-        | (word >> 25 & 0x3f) << 5
-        | (word >> 8 & 0x0f) << 1;
+    let imm = (((word >> 31) & 0x1) << 12)
+        | (((word >> 7) & 0x1) << 11)
+        | (((word >> 25) & 0x3f) << 5)
+        | (((word >> 8) & 0x0f) << 1);
     sign_extend(imm, 13)
 }
 
 fn decode_j_imm(word: u32) -> i32 {
-    let imm = (word >> 31 & 0x1) << 20
-        | (word >> 12 & 0xff) << 12
-        | (word >> 20 & 0x1) << 11
-        | (word >> 21 & 0x3ff) << 1;
+    let imm = (((word >> 31) & 0x1) << 20)
+        | (((word >> 12) & 0xff) << 12)
+        | (((word >> 20) & 0x1) << 11)
+        | (((word >> 21) & 0x03ff) << 1);
     sign_extend(imm, 21)
 }
 
