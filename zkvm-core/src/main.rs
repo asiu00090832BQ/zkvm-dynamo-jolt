@@ -39,15 +39,15 @@ where
 
 fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
-    let result = execute_program::<Fr>(&program)?;
-    io::stdout().write_all(&result.stdout)?;
+    let result = execute_program::Fr>(&program)?;
+    io::stdout().write_all(&result.stdout) ? ;
     Ok(())
 }
 
 fn cmd_verify(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
-    let proof = prove_program::<Fr>(&program)?;
-    verify_program::<Fr>(&program, &proof)?;
-    println!("Program verified successfully.");
+    let proof = prove_program::Fr>(&program)?;
+    verify_program::Fr>(&program, &proof)?;
+    println !("Program verified successfully.");
     Ok(())
 }
