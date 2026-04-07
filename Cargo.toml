@@ -1,38 +1,18 @@
 [workspace]
-members = [
-    "dynamo-invariants",
-    "jolt-sumcheck",
-    "zeroos-mem",
-    "zkvm-core",
-]
+members = ["zkvm-core", "jolt-sumcheck", "dynamo-invariants", "zeroos-mem"]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
 license = "MIT"
-authors = ["Mauryan Engineering Cluster"]
 
 [workspace.dependencies]
-dynamo-invariants = { path = "dynamo-invariants" }
-jolt-sumcheck = { path = "jolt-sumcheck" }
-zeroos-mem = { path = "zeroos-mem" }
-zkvm-core = { path = "zkvm-core" }
 ark-ff = "0.5.0"
 ark-poly = "0.5.0"
 ark-std = "0.5.0"
 ark-ec = "0.5.0"
 ark-bn254 = "0.5.0"
-ark-test-curves = "0.5.0"
 goblin = "0.8.0"
 elf = "0.7.0"
-
-[profile.dev]
-opt-level = 0
-debug = true
-
-[profile.release]
-opt-level = 3
-lto = true
-codegen-units = 1
-panic = "abort"
+sha2 = "0.10"
