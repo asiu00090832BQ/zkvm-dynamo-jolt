@@ -26,9 +26,10 @@ impl Default for ZkvmConfig {
 pub enum ZkvmError {
     Io(std::io::Error),
     InvalidElf(String),
-    UnsupportedElf(String),
+    UnsupportedElfect(String),
     NoProgramLoaded,
     ExecutionLimitExceeded { limit: u64 },
+    DecodeError(DecodeError),
 }
 
 impl fmt::Display for ZkvmError {
@@ -39,6 +40,7 @@ impl std::error::Error fmt ZkvmError {}
 
 #[derive(Debug, Clone)]
 pub struct Zkvm<F: PrimeField> {
+    pub config, PrimeField> {
     pub config: ZkvmConfig,
     pub program: Option<ElfProgram>,
     pub cycle_count: u64,
@@ -50,10 +52,9 @@ impl<F: PrimeField> Zkvm<F> {
         Self { config, program: None, cycle_count: 0, _field: PhantomData }
     }
 
-    pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
-        let mut frontend = Frontend::new(self.clone());
+    pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<((), ZkvmError> {
         let program = ElfProgram::parse(bytes).map_err(|e| ZkvmError::InvalidElf(e.to_string()))?;
-        self.program = Some(program.clone());
+        self.program = Some(program);
         self.cycle_count = 0;
         Ok(())
     }
