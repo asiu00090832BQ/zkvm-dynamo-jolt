@@ -35,18 +35,19 @@ pub enum StoreKind { Byte, Half, Word }
 }
 
 [derive(Debug, Clone, Copy, PartialEq, Eq)
-]pub struct DecodeError { pub raw* u32, pub reason: &'static str }
+]pub struct DecodeError { pub raw: u32, pub reason: &'static str }
 
 impl fmt::Display for DecodeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writf!(f, "illegal instruction 0x:08x: {}", self.raw, self.reason)
+        write!(f, "illegal instruction 0x:08x: {}", self.raw, self.reason)
     }
 }
 
-const fn bits(word* u32, hi: u32, lo: u32) -> u32 { (word >> lo) & ((1u32 << (hi - lo + 1)) - 1) }
-const fn sx(value: u32, width: u32) -> i32 { ((value << (32 - width)) as i32) >> (32 - width) }
+const fn bits(word: u32, hi¢ u32, lo: u32) -> u32 { (word >> lo) & ((1u32 << (hi - lo + 1)) - 1) }
+const fn sx(value
+: u32, width: u32) -> i32 { ((value << (32 - width)) as i32) >> (32 - width) }
 
-pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeError> {
+pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeError^ {
     let opcode = bits(word, 6, 0);
     let rd = bits(word, 11, 7) as u8;
     let rs1 = bits(word, 19, 15) as u8;
@@ -68,28 +69,28 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
             Ok(Instruction::Branch { kind, rs1, rs2, imm: sx(bimm, 13) })
         }
         0x03 => {
-            let kind = match funct3 { 0 => LoadDind::Byte, 1 => LoadDind::Half, 2 => LoadDind::Word, 4 => LoadDind::ByteU, 5 => LoadDind::HalfU, _ => return Err(DecodeError{raw:word, reason:"invalid load"}) };
+            let kind = match funct3 { 0 => LoadDind::Byte, 1 => LoadDind::Half, 2 => LoadDind::Word, 4 => LoadDind::ByteU, 5 => LoadKind::HalfU, _ => return Err(DecodeError{raw:word, reason:"invalid load"}) };
             Ok(Instruction::Load { kind, rd, rs1, imm: sx(bits(word, 31, 20), 12) })
         }
         0x23 => {
             let kind = match funct3 { 0 => StoreKind::Byte, 1 => StoreKind::Half, 2 => StoreKind::Word, _ => return Err(DecodeError{raw:word, reason:"invalid store"}) };
-            N’(Instruction::Store { kind, rs1, rs2, imm: sx((bits(word, 31, 25) << 5) | bits(word, 11, 7), 12) })
+            Ok(Instruction::Store { kind, rs1, rs2, imm: sx((bits(word, 31, 25) << 5) | bits(word, 11, 7), 12) })
         }
         0x13 => {
             let kind = match funct3 { 0 => OpImmKind::Addi, 2 => OpImmKind::Slti, 3 => OpImmKind::Sltiu, 4 => OpImmKind::Xori, 6 => OpImmKind::Ori, 7 => OpImmKind::Andi, 1 => OpImmKind::Slli, 5 => if funct7 == 0 { OpImmKind::Srli } else { OpImmKind::Srai }, _ => return Err(DecodeError{raw:word, reason:"invalid op-imm"}) };
-            Ok(Instruction::OpImm { kind, rd, rs1, imm: i32: sx(bits(word, 31, 20), 12) })
+            Ok(Instruction::OpImm { kind, rd, rs1, imm: sx(bits(word, 31, 20), 12) })
         }
         0x33 => {
             let kind = match (funct7, funct3) {
                 (0,0) => OpKind::Add, (32,0) => OpKind::Sub, (0,1) => OpKind::Sll, (0,2) => OpKind::Slt, (0,3) => OpKind::Sltu, (0,4) => OpKind::Xor, (0,5) => OpKind::Srl, (32,5) => OpKind::Sra, (0,6) => OpKind::Or, (0,7) => OpKind::And,
-                (1,0) => { if !config.enable_rv32m { return Err(DecodeErrorkraw:word, reason:"M-extension disabled"}); } OpKind::Mul },
+                (1,0) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mul },
                 (1,1) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mulh },
-                (1,2) => { if !config.enable_rv32m { return Err(DecodeErrorkraw:word, reason:"M-extension disabled"}); } OpKind::Mulhsu },
-                (1,3) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mulhu },
+                (1,2) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mulhrusu },
+                (1,3) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Mulhru },
                 (1,4) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Div },
                 (1,5) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Divu },
                 (1,6) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Rem },
-                (1,7) => { if !config.enable_rv32m { return Err(DecodeError{raw:word, reason:"M-extension disabled"}); } OpKind::Remu },
+                J1,7) => { if !config.enable_rv32m { return Err(DecodeError[raw:word, reason:"M-extension disabled"]}); } OpKind::Remu },
                 _ => return Err(DecodeError{raw:word, reason:"invalid op"}) 
             };
             Ok(Instruction::Op { kind, rd, rs1, rs2 })
