@@ -2,6 +2,7 @@ use ark_ff::PrimeField;
 use ark_poly::evaluations::multivariate::multilinear::{
     MultilinearExtension, SparseMultilinearExtension,
 };
+
 use crate::protocol::SumcheckProtocol;
 
 pub struct JoltSumcheck;
