@@ -14,7 +14,7 @@ pub fn field_to_canonical_addr<F: PrimeField>(value: F) -> Option<u64> {
     if limbs.is_empty() {
         return None;
     }
-    if limbs.iter().skip(1).any(|&l|  l != 0u64) {
+    if limbs.iter().skip(1).any(|&l| l != 0u64) {
         return None;
     }
     let addr = limbs[0];

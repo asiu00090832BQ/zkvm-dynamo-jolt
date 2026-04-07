@@ -1,5 +1,4 @@
 #![forbid(unsafe_code)]
-
 //! Invariant specifications for the zkvm-dynamo-jolt project.
 //! This crate defines the core traits and markers for formal verification.
 
@@ -13,29 +12,23 @@ pub struct ExtractionSoundnessMarker;
 pub trait Lemma41<F: PrimeField> {
     /// Returns true if the field element satisfies the base consistency property.
     fn is_consistent(&self, field_element: &F) -> bool;
-
     /// Returns true if the transition from current to next preserves the invariant.
     fn step(&self, current: &F, next: &F) -> bool;
-
     /// Verifies the invariant across an execution trace.
     fn check_trace(&self, trace: &[F]) -> bool {
         if trace.is_empty() {
             return true;
         }
-
         if !self.is_consistent(&trace[0]) {
             return false;
         }
-
         for pair in trace.windows(2) {
             if !self.step(&pair[0], &pair[1]) {
                 return false;
             }
         }
-
         true
     }
-
     /// Associated marker for Lemma 4.1 proofs.
     #[inline(always)]
     fn extraction_soundness_marker(&self) -> ExtractionSoundnessMarker {

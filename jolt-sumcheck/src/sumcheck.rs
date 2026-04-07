@@ -1,5 +1,7 @@
 use ark_ff::PrimeField;
-use ark_poly::evaluations::multivariate::multilinear::{MultilinearExtension, SparseMultilinearExtension};
+use ark_poly::evaluations::multivariate::multilinear::{
+    MultilinearExtension, SparseMultilinearExtension,
+};
 use crate::protocol::SumcheckProtocol;
 
 pub struct JoltSumcheck;
@@ -16,19 +18,16 @@ impl<F: PrimeField> SumcheckProtocol<F> for JoltSumcheck {
     }
 }
 
-pub fn verify_sumcheck<F: PrimeField, M: MultilinearExtension<F>>(
-    claim: F,
-    poly: &M,
-) -> bool {
+pub fn verify_sumcheck<F: PrimeField, M: MultilinearExtension<F>>(claim: F, poly: &M) -> bool {
     let num_vars = poly.num_vars();
     let mut sum = F::zero();
     for i in 0..(1 << num_vars) {
         let mut point = Vec::with_capacity(num_vars);
         for j in 0..num_vars {
             if (i >> j) & 1 == 1 {
-                point.push (F::one());
+                point.push(F::one());
             } else {
-                point.push (F::zero());
+                point.push(F::zero());
             }
         }
         let val = poly.evaluate(&point);
