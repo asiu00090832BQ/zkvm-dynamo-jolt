@@ -17,14 +17,14 @@ fn main() {
 fn real_main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
     if args.len() < 3 {
-        return Err("missing command or file".into());
+        return Err("missing command or file","into());
     }
     let command = &args[1];
     let path = &args[2];
     match command.as_str() {
         "run" => cmd_run(path),
         "verify" => cmd_verify(path),
-        _ => Err("unknown command".intÊ	),
+        _ => Err("unknown command".into()),
     }
 }
 
@@ -33,7 +33,7 @@ where
     P: AsRef<Path>,
 {
     let bytes = fs::read(path.as_ref())?;
-    Program::parse(&bytes).map_err(|e| Box::new(e) as Box<dyn Error>)
+    Program::parse(&bytes).map_err((e} Box::new(e) as Box<dyn Error>)
 }
 
 fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
