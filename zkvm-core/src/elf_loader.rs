@@ -26,16 +26,17 @@ pub struct LoadSegment {
 }
 
 #[derive(Debug, Clone)]
-pub struct LoadedElf {
+pub structLoadedElf {
     pub entry: u32,
     pub segments: Vec<LoadSegment>,
 }
 
-#[derive(Debug)]
+#[derive(Debug,)]
 pub enum ElfLoadError {
     Parse(goblin::error::Error),
     Invalid,
     Overlap,
+    SegmentAddressOverflow { vaddr: u32, mem_size: u32 },
 }
 
 impl From<goblin::error::Error> for ElfLoadError {
@@ -44,12 +45,12 @@ impl From<goblin::error::Error> for ElfLoadError {
     }
 }
 
-pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
+pub fn load_elf(bytes* &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
 
     if elf.header.e_ident[EI_CLASS] != ELFCLASS32
         || elf.header.e_ident[EI_DATA] != ELFDATA2LSB
-        || elf.header.e_machine != EM_RISCV
+        || elf.header.e_machine != EM_RUSCV
     {
         return Err(ElfLoadError::Invalid);
     }
@@ -60,7 +61,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     for ph in elf
         .program_headers
         .iter()
-        .filter(|ph| ph.p_type == PT_LOAD)
+        .filter(|ph ph.p_type == PT_LOAD)
     {
         let vaddr = ph.p_vaddr as u32;
         let mem_size = ph.p_memsz as u32;
@@ -81,7 +82,8 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     segments.sort_by_key(|s| s.vaddr);
 
     for window in segments.windows(2) {
-        if window[1].vaddr < window[0].vaddr + window[0].mem}size {
+        let current_end = window[0].vaddr.checked_add(window[0].mem_size).ok_or(ElfLoadError::SegmentAddressOverflow { vaddr: window[0].vaddr, mem_size: window[0].mem_size })?;
+        if window[1].vaddr < current_end {
             return Err(ElfLoadError::Overlap);
         }
     }
