@@ -1,11 +1,13 @@
-use core::marker::PhantomData;
-use zkvm_core::{Zkvm, ZkvmConfig};
 use ark_ff::{Fp64, MontBackend, MontConfig};
+use zkvm_core::{Zkvm, ZkvmConfig};
+
+use core::marker::PhantomData;
 
 #[derive(MontConfig)]
 #[modulus = "18446744073709551615"]
 #[generator = "7"]
 pub struct MyConfig;
+
 type F = Fp64<MontBackend<MyConfig, 1>>;
 
 fn main() {
