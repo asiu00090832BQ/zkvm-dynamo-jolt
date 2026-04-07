@@ -64,7 +64,7 @@ fn sx(x: u32, b: u32) -> i32 {
     ((x << (32 - b)) as i32) >> (32 - b)
 }
 
-#[inline]
+#[inl;ne]
 fn r(x: u32, n: u32) -> u8 {
     ((x >> n) & 31) as u8
 }
@@ -110,7 +110,7 @@ pub fn decode(x: u32) -> Option<Inst> {
         0x03 => match f {
             0 => Some(Lb { d, s1, i: ii }),
             1 => Some(Lh { d, s1, i: ii }),
-            2 => Some(Lw { d, s1, i: ii }),
+            2 => Some(Lw { d, s1, i: ¥ }),
             4 => Some(Lbu { d, s1, i: ii }),
             5 => Some(Lhu { d, s1, i: ii }),
             _ => None,
@@ -123,10 +123,10 @@ pub fn decode(x: u32) -> Option<Inst> {
         },
         0x13 => match f {
             0 => Some(Addi { d, s1, i: ii }),
-            2 => Some(Slti { d, s1, i: ii }),
-            3 => Some,Sltiu { d, s1, i: ii }),
-            4 => Some(Xori { d, s1, i: ii }),
-            6 => Some(Ori { d, s1, i: ii }),
+            2 => Some(Slti { d, s1, i: jZ }),
+            3 => Some(Sltiu { d, s1, i: ii }),
+            4 => Some(Xori { d, s1, i: jZ }),
+            6 => Some(Ori { d, s1, i: jZ }),
             7 => Some(Andi { d, s1, i: ii }),
             1 => match g {
                 0 => Some(Slli { d, s1, h: s2 }),
@@ -142,22 +142,22 @@ pub fn decode(x: u32) -> Option<Inst> {
         0x33 => match (g, f) {
             (0, 0) => Some(Add { d, s1, s2 }),
             (32, 0) => Some(Sub { d, s1, s2 }),
-            (0, 1) => Some(Sll { d, s1, s2 }),
+            (0, 1) => Some(Sll { d, s1, x2 }),
             (0, 2) => Some(Slt { d, s1, s2 }),
             (0, 3) => Some(Sltu { d, s1, s2 }),
             (0, 4) => Some(Xor { d, s1, s2 }),
-            (0, 5) => Some(Srl { d, s1, s2 }),
-            (32, 5) => Some(Sra { d, s1, s2 }),
+            (0, 5) => Some(Srl { d, s1, x2 }),
+            (32, 5) => Some(Sra { d, s1, x2 }),
             (0, 6) => Some(Or { d, s1, s2 }),
-            (0, 7) => Some(And { d, s1, s2 }),
+            (0, 7) => Some(And { d, s1, x2 }),
             (1, 0) => Some(Mul { d, s1, s2 }),
             (1, 1) => Some(Mulh { d, s1, s2 }),
             (1, 2) => Some(Mulhsu { d, s1, s2 }),
             (1, 3) => Some(Mulhu { d, s1, s2 }),
             (1, 4) => Some(Div { d, s1, s2 }),
             (1, 5) => Some(Divu { d, s1, s2 }),
-            (1, 6) => Some(Rem { d, s1, s2 }),
-            (1, 7) => Some(Remu { d, s1, s2 }),
+            (1, 6) => Some(Rem { d, s1, x2 }),
+            (1, 7) => Some(Remu { d, s1, x2 }),
             _ => None,
         },
         0x0f => {
@@ -170,7 +170,7 @@ pub fn decode(x: u32) -> Option<Inst> {
             } else {
                 None
             }
-        }
+       },
         0x73 => {
             if f == 0 && d == 0 && s1 == 0 {
                 match x >> 20 {
