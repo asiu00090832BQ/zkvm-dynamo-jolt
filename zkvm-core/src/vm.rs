@@ -15,14 +15,15 @@ pub enum Trap {
     ProgramError(String),
 }
 
-#[derive(Debug, Clone)
-]pub struct Zkvm<F: PrimeField> {
+#[derive(Debug, Clone)]
+pub struct Zkvm<F: PrimeField> {
     pub config: ZkvmConfig,
     pub program: Option<ElfProgram>,
     pub cycle_count: u64,
     pub pc: u32,
     _field: PhantomData<F>,
 }
+
 
 impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Self {
@@ -52,11 +53,7 @@ impl<F: PrimeField> Zkvm<F> {
             return Err(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles });
         }
 
-
-        self.cycle_count = self.cycle_count
-            .checked_add(1)
-            .ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
-            
+        self.cycle_count = self.cycle_count.checked_add(1).ok_or(ZkvmError::ExecutionLimitExceeded { limit: self.config.max_cycles })?;
         Ok(())
     }
 }
