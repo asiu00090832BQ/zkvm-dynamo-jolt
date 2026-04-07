@@ -9,7 +9,7 @@ pub struct ElfProgram {
 
 impl ElfProgram {
     pub fn parse(bytes: &[u8]) -> Result<Self, ZkvmError> {
-        let loaded = load_elf(bytes).map_err(|e| ZkvmError::Elf(format!("{:?}", e)))?;
+        let loaded = load_elf(bytes).map_err(|e| ZkvmError::ElfLoader(e))?;
         Ok(Self {
             entry: loaded.entry,
             segments: loaded.segments,
