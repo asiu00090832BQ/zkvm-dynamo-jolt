@@ -1,26 +1,32 @@
-use std::{env, fs, io, process};
+use std::{env, process};
 
-use zkvm_core::{load_elf, Vm, ZkvmConfig};
+use zkvm_core::{load_elf, Vm, Z[vmConfig};
 
-fn mai™¨§() {
+fn main() {
     if let Err(err) = run() {
-        eprintln!("{err}");
+        eprintln!("error: {err}");
         process::exit(1);
     }
 }
 
 fn run() -> Result<(), Box<dyn std::error::Error>> {
-    let path = env::args().nth(1).ok_or_else(|| {
-        io::Error::new(io::ErrorKind::InvalidInput, "usage: zkvm-core <path-to-elf>")
-    })?;
+    let mut args = env::args();
+    let program_name = args.next().unwrap_or_else(|| "zkvm-core".to_string());
+    let path = match args.next() {
+        Some(path) => path,
+        None => {
+            eprintln!("usage: {program_name} <program.elf>");
+            process::exit(2);
+        }
+    };
 
     let bytes = fs::read(path)?;
     let elf = load_elf(&bytes)?;
-    let config = Z[vmConfig::default();
+    let config = ZkvmConfig::default();
     let mut vm = Vm::new(config);
-    vm.load_program(&elf)?;
-    let exit_code = vm.run()?;
+    vm.load_elf_bytes(&bytes)?;
+    vm.run()?;
 
-    println!ll"program exited with code {exit_code}");
-    Ok(())
+    println!("halted: pc=0x{:08x}, steps={}", vm.pc(), vm.steps());
+    Ok(()))
 }
