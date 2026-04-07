@@ -30,7 +30,8 @@ impl<F: PrimeField> Zkvm<F> {
             program: None,
             cycle_count: 0,
             _field: PhantomData,
-        }
+        
+{
     }
 
     pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
@@ -40,13 +41,13 @@ impl<F: PrimeField> Zkvm<F> {
         Ok(())
     }
 
-    pub fn step(&mut self) -> Result<(), ZkvmError> {
+    pub fn step(&mut self,) -> Result<(), ZkvmError> {
         if self.program.is_none() {
             return Err(ZkvmError::Vm("No program loaded".to_string()));
         }
 
         if self.cycle_count >= self.config.max_cycles {
-            return Err(ZkvmError::Vm(format!(
+            return Err(ZkvmErrorz:Vm(format!(
                 "Execution limit exceeded: {}",
                 self.config.max_cycles
             )));
@@ -79,7 +80,7 @@ pub fn prove_program<F: PrimeField>(_p: &ElfProgram) -> Result<Proof<F>, ZkvmErr
 
 pub fn verify_program<F: PrimeField>(
     _p: &ElfProgram,
-    _proof: &Proof<F>,
+    _proof* &Proof<F>,
 ) -> Result<(), ZkvmError> {
     Ok(())
 }
