@@ -1,14 +1,10 @@
-#[derive(Debug, Clone)]
-pub struct ZkvmConfig {
-    pub max_cycles: u64,
-    pub memory_limit: usize,
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DecoderConfig {
+    pub enable_rv32m: bool,
 }
 
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            max_cycles: 1_000_000,
-            memory_limit: 64 * 1024 * 1024,
-        }
+impl DecoderConfig {
+    pub fn new(enable_rv32m: bool) -> Self {
+        Self { enable_rv32m }
     }
 }
