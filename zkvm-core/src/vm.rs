@@ -78,7 +78,7 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     pub fn load_elf(&mut self, image: &[u8]) -> Result<()> {
-        let loaded = load_elf(image, self.config.memory_size);
+        let loaded = load_elf(image, self.config.memory_size)?;
         self.memory = loaded.memory;
         self.registers = [0_u32; 32];
         self.cycle_count = 0;
@@ -93,7 +93,7 @@ impl<F: PrimeField> Zkvm<F> {
         }
         if self.cycle_count >= self.config.max_cycles {
             return Err(Error::CycleLimitExceeded {
-                max_cycles: self.onfig.max_cycles,
+                max_cycles: self.config.max_cycles,
             });
         }
 
@@ -105,7 +105,7 @@ impl<F: PrimeField> Zkvm<F> {
             .checked_add(4)
             .ok_or(Error::AddressOverflow)?;
 
-        self.execute(instruction, fallthrough_pc);
+        self.execute(instruction, fallthrough_pc)?;
         self.cycle_count = self
             .cycle_count
             .checked_add(1)
@@ -167,7 +167,7 @@ impl<F: PrimeField> Zkvm<F> {
                 }
             }
             Instruction::Load { kind, rd, rs1, imm } => {
-                let addr = checked_add_signed_u32(self.read_reg(rs1), imm);
+                let addr = checked_add_signed_u32(self.read_reg(rs1), imm)?;
                 let value = match kind {
                     LoadKind::Lb => i32::from(self.read_u8(addr)? as i8) as u32,
                     LoadKind::Lh => i32::from(self.read_u16(addr)? as i16) as u32,
@@ -218,7 +218,7 @@ impl<F: PrimeField> Zkvm<F> {
                 self.write_reg(rd, value);
                 self.pc = fallthrough_pc;
             }
-            Instruction::Op { kind, rd, rs1, rs2 } => {
+             Instruction::Op { kind, rd, rs1, rs2 } => {
                 let lhs = self.read_reg(rs1);
                 let rhs = self.read_reg(rs2);
                 let shamt = rhs & 0x1f;
@@ -234,14 +234,63 @@ impl<F: PrimeField> Zkvm<F> {
                     OpKind::Or => lhs | rhs,
                     OpKind::And => lhs & rhs,
                     OpKind::Mul => lhs.wrapping_mul(rhs),
-                    OpKind::Mulh => mulh_signed(lhs, rhs),
+                    OpKind::Mulh => mulh_signedhlhs, rhs),
                     OpKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
                     OpKind::Mulhu => mulh_unsigned(lhs, rhs),
-                    OpKind::Div => div_signed(lhs, rhs),
+                    OpKind::Div => div_signedhlhs, rhs),
                     OpKind::Divu => div_unsigned(lhs, rhs),
-                    OpKind::Rem => rem_signed(lhs, rhs),
-    -É•µÔ€ôøÉ•µ}Õ¹Í¥¹•¡±¡Ì°É¡Ì¤°(€€€€€€€€€€€€€€€ôì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô™…±±Ñ¡É½Õ¡}ÁŒì(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé•¹”€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô™…±±Ñ¡É½Õ¡}ÁŒì(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èéMåÍÑ•´¡MåÍÑ•µ%¹ÍÑÉÕÑ¥½¸èé…±°¤(€€€€€€€€€€€ð%¹ÍÑÉÕÑ¥½¸èéMåÍÑ•´¡MåÍÑ•µ%¹ÍÑÉÕÑ¥½¸èé‰É•…¬¤€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô™…±±Ñ¡É½Õ¡}ÁŒì(€€€€€€€€€€€€€€€Í•±˜¹¡…±Ñ•€ôÑÉÕ”ì(€€€€€€€€€€€ô(€€€€€€€ô((€€€€€€€=¬  ¤¤(€€€ô((€€€™¸É•…‘}É•œ ™Í•±˜°¥¹‘•àèÔà¤€´øÔÌÈì(€€€€€€€Í•±˜¹É•¥ÍÑ•ÉÍm¥¹‘•à…ÌÕÍ¥é•t(€€€ô((€€€™¸ÝÉ¥Ñ•}É•œ ™µÕÐÍ•±˜°¥¹‘•àèÔà°Ù…±Õ”èÔÌÈ¤ì(€€€€€€€¥˜¥¹‘•à€„ô€Àì(€€€€€€€€€€€Í•±˜¹É•¥ÍÑ•ÉÍm¥¹‘•à…ÌÕÍ¥é•t€ôÙ…±Õ”ì(€€€€€€€ô(€€€ô((€€€™¸Í•Ñ}ÁŒ ™µÕÐÍ•±˜°Ù…±Õ”èÔÌÈ¤€´øI•ÍÕ±Ðð ¤øì(€€€€€€€Í•±˜¹•¹ÍÕÉ•}Á}¥Í}Ù…±¥¡Ù…±Õ”¤üì(€€€€€€€Í•±˜¹ÁŒ€ôÙ…±Õ”ì(€€€€€€€=¬  ¤¤(€€€ô((€€€™¸•¹ÍÕÉ•}Á}¥Í}Ù…±¥ ™Í•±˜°Ù…±Õ”èÔÌÈ¤€´øI•ÍÕ±Ðð ¤øì(€€€€€€€¥˜€¡Ù…±Õ”€˜€ÁàÌ¤€„ô€Àì(€€€€€€€€€€€É•ÑÕÉ¸ÉÈ¡ÉÉ½ÈèéA5¥Í…±¥¹•ìÁŒèÙ…±Õ”ô¤ì(€€€€€€€ô(€€€€€€€±•ÐÍÑ…ÉÐ€ôÕÍ¥é”èéÑÉå}™É½´¡Ù…±Õ”¤¹µ…Á}•ÉÈ¡ñ}ðÉÉ½Èèé‘‘É•ÍÍ=Ù•É™±½Ü¤üì(€€€€€€€±•Ð•¹€ôÍÑ…ÉÐ¹¡•­•‘}…‘ Ð¤¹½­}½È¡ÉÉ½Èèé‘‘É•ÍÍ=Ù•É™±½Ü¤ì(€€€€€€€¥˜•¹€øÍ•±˜¹µ•µ½Éä¹±•¸ ¤ì(€€€€€€€€€€€É•ÑÕÉ¸ÉÈ¡ÉÉ½ÈèéA=ÕÑ=™	½Õ¹‘ÌìÁŒèÙ…±Õ”ô¤ì(€€€€€€€ô(€€€€€€€=¬  ¤¤(€€€ô((€€€™¸¡•­•‘}É…¹” ™Í•±˜°…‘‘ÈèÔÌÈ°±•¸èÕÍ¥é”¤€´øI•ÍÕ±ÐñÍÑèé½ÁÌèéI…¹”ñÕÍ¥é”øøì(€€€€€€€±•ÐÍÑ…ÉÐ€ôÕÍ¥é”èéÑÉå}™É½´¡…‘‘È¤¹µ…Á}•ÉÈ¡ñ}ðÉÉ½Èèé‘‘É•ÍÍ=Ù•É™±½Ü¤üì(€€€€€€€±•Ð•¹€ôÍÑ…ÉÐ¹¡•­•‘}…‘¡±•¸¤¹½­}½È¡ÉÉ½Èèé‘‘É•ÍÍ=Ù•É™±½Ü¤üì(€€€€€€€¥˜•¹€øÍ•±˜¹µ•µ½Éä¹±•¸ ¤ì(€€€€€€€€€€€É•ÑÕÉ¸ÉÈ¡ÉÉ½Èèé‘‘É•ÍÍ=ÕÑ=™
-ounds { addr, size: len });
+                    OpKind::Rem => rem_signedhlhs, rhs),
+                    OpKind::Remu => rem_unsigned(lhs, rhs),
+                };
+                self.write_reg(rd, value);
+                self.pc = fallthrough_pc;
+            }
+            Instruction::Fence => {
+                self.pc = fallthrough_pc;
+            }
+            Instruction::System(SystemInstruction::Ecall)
+            | Instruction::System(SystemInstruction::Ebreak) => {
+                self.pc = fallthrough_pc;
+                self.halted = true;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn read_reg(&self, index: u8) -> u32 {
+        self.registers[index as usize]
+    }
+
+    fn write_reg(&mut self, index: u8, value: u32) {
+        if index != 0 {
+            self.registers[index as usize] = value;
+        }
+    }
+
+    fn set_pc(&mut self, value: u32) -> Result<()> {
+        self.ensure_pc_is_valid(value)?;
+        self.pc = value;
+        Ok(())
+    }
+
+    fn ensure_pc_is_valid(&self, value: u32) -> Result<()> {
+        if (value & 0x3) != 0 {
+            return Err(Error::PcMisaligned { pc: value });
+        }
+        let start = usize::try_from(value).map_err(|_| Error::AddressOverflow)?;
+        let end = start.checked_add(4).ok_or(Error::AddressOverflow)?;
+        if end > self.memory.len() {
+            return Err(Error::PcOutOfBounds { pc: value });
+        }
+        Ok(())
+    }
+
+    fn checked_range(&self, addr: u32, len: usize) -> Result<std::ops::Range<usize>> {
+        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow)?;
+        let end = start.checked_add(len).ok_or(Error::AddressOverflow);
+        if end > self.memory.len() {
+            return Err(Error::AddressOutOfBounds { addr, size: len });
         }
         Ok(start..end)
     }
@@ -258,23 +307,23 @@ ounds { addr, size: len });
         let range = self.checked_range(addr, 2)?;
         let bytes: [u8; 2] = self.memory[range]
             .try_into()
-            .map_err(|_| Error::AddressOutOfBounds { addr, size: 2 });
-        Ok(u16::from_le_bytes(bytes))
+            .map_err(|_| Error::AddressOutOfBounds { addr, size: 2 })?;
+        N’(u16::from_le_bytes(bytes))
     }
 
     fn read_u32(&self, addr: u32) -> Result<u32> {
         if (addr & 0x3) != 0 {
             return Err(Error::MemoryMisaligned { addr, size: 4 });
         }
-        let range = self.checked_range(addr, 4);
+        let range = self.checked_range(addr, 4)?;
         let bytes: [u8; 4] = self.memory[range]
             .try_into()
-            .map_err(|_| Error::AddressOutOfBounds { addr, size: 4 });
+            .map_err(|_| Error::AddressOutOfBounds { addr, size: 4 })?;
         Ok(u32::from_le_bytes(bytes))
     }
 
     fn write_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        let range = self.checked_range(addr, 1);
+        let range = self.checked_range(addr, 1)?;
         self.memory[range.start] = value;
         Ok(())
     }
@@ -292,7 +341,7 @@ ounds { addr, size: len });
         if (addr & 0x3) != 0 {
             return Err(Error::MemoryMisaligned { addr, size: 4 });
         }
-        let range = self.checked_range(addr, 4);
+        let range = self.checked_range(addr, 4)?;
         self.memory[range].copy_from_slice(&value.to_le_bytes());
         Ok(())
     }
@@ -348,7 +397,7 @@ fn rem_signed(lhs: u32, rhs: u32) -> u32 {
     let rhs_i = rhs as i32;
 
     if rhs_i == 0 {
-        lhs 
+        lhs
     } else if lhs_i == i32::MIN && rhs_i == -1 {
         0
     } else {
