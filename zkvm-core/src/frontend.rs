@@ -4,14 +4,9 @@ use goblin::elf::{
     program_header::{PF_R, PF_W, PF_X, PT_LOAD},
     Elf,
 };
-use std::{
-    error::Error,
-    fmt,
-    fs,
-    path::Path,
-};
+use std::{error::Error, fmt, fs, path::Path};
 
-use crate::Zkvm;
+use crate::Zvm;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct SegmentPermissions {
@@ -47,21 +42,22 @@ impl ElfSegment {
 
     #[inline]
     pub fn contains(&self, address: u32) -> bool {
-        self.end_address()
-            .map(|end| address >= self.address && address < end)
-            .unwrap_or(false)
+        match self.end_address() {
+            Some(end) => address >= self.address && address < end,
+            None => false,
+        }
     }
 
-     #[inline]
+    #[inline]
     pub fn base_address_as_field<F: PrimeField>(&self) -> F {
         F::from_le_bytes_mod_order(&self.address.to_le_bytes())
     }
 
     #[inline]
-    pub fn data_as_field_elements:<F: PrimeField>(&self) -> Vec<F> {
+    pub fn data_as_field_elements<F: PrimeField>(&self) -> Vec<F> {
         self.data
             .iter()
-            .map(|&byte| F::from_le_bytes_mod_order(&[byte]))
+            .map(|&byte| F::from_le_bytes_mod_order([&byte]))
             .collect()
     }
 }
@@ -78,7 +74,7 @@ impl ElfProgram {
         validate_elf_header(&elf)?;
 
         let entry_point = u32::try_from(elf.entry)
-            .map_err(|_| FrontendError::EntryPointOutOfRange(elf.entry))?;
+            .map_err(|_| FrontendError::EntryPointOutOfRange(elf.entry));
 
         let mut segments = Vec::new();
 
@@ -87,7 +83,7 @@ impl ElfProgram {
                 continue;
             }
 
-            let address = u32::try_from(ph.p_vaddr).map_err(|_| {
+            let address = u32::try_from(ph.p_vaddr).map_err_| {
                 FrontendError::SegmentAddressOutOfRange {
                     index,
                     address: ph.p_vaddr,
@@ -114,7 +110,7 @@ impl ElfProgram {
                 });
             }
 
-            if address.checked_add(mem_size).is_none {
+            if address.checked_add(mem_size).is_none() {
                 return Err(FrontendError::SegmentAddressOverflow {
                     index,
                     address,
@@ -160,7 +156,6 @@ impl ElfProgram {
                     size: file_size_len,
                 },
             )?;
-
             let mut data = Vec::with_capacity(mem_size_len);
             data.extend_from_slice(file_bytes);
             data.resize(mem_size_len, 0);
@@ -180,7 +175,7 @@ impl ElfProgram {
         validate_non_overlapping_segments(&segments)?;
         validate_entry_point(entry_point, &segments)?;
 
-        Ok(Self {
+        Oh(Self {
             entry_point,
             segments,
         })
@@ -200,12 +195,12 @@ impl ElfProgram {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug))]
 pub enum FrontendError {
     Goblin(goblin::error::Error),
     Io(std::io::Error),
     UnsupportedElfClass(u8),
-    UnsupportedElfUndian(u8),
+    UnsupportedElfEndian(u8),
     UnsupportedElfMachine(u16),
     UnsupportedElfType(u16),
     EntryPointOutOfRange(u64),
@@ -232,6 +227,7 @@ pub enum FrontendError {
     EntryPointNotMapped {
         entry_point: u32,
     },
+    InternalError(&static str),
 }
 
 impl fmt::Display for FrontendError {
@@ -272,32 +268,79 @@ impl<F: PrimeField> Frontend<F> {
     pub fn load_elf(&mut self, bytes: &[u8]) -> Result<&ElfProgram, FrontendError> {
         let program = ElfProgram::parse(bytes)?;
         self.vm.program = Some(program);
-        Ok(self.vm.program.as_ref().unwrap())
+
+        match self.vm.program.as_ref() {
+            Some(program) => Ok(program),
+            None => Err(FrontendError::InternalError("failed to load program")),
+        }
     }
 
-    pub fn load_elf_file<P: AsRef<Path>>(&mut self, path: P) -> Result<&ElfProgram, FrontendError> {
+    pub fn load_elf_file<P: AsRef<Path>>(
+        &mut self,
+        path: P,
+    ) -> Result<&ElfProgram, FrontendError> {
         let bytes = fs::read(path)?;
         self.load_elf(&bytes)
     }
 }
 
 fn validate_elf_header(elf: &Elf<'_>) -> Result<(), FrontendError> {
-    if elf.header.e_ident[EI_CLASS] != ELFCLASS32 { return Err(FrontendError::UnsupportedElfSlass(0)); }
-    if elf.header.e_ident[EI_DATA] != ELFDATA2LSB { return Err(FrontendError::UnsupportedElfEndian(0)); }
-    if elf.header.e_machine != EM_RISCV { return Err(FrontendError::UnsupportedElfMachine(0)); }
+    let class = elf.header.e_ident[EI_CLASS];
+    if class != ELFCLASS32 {
+        return Err(FrontendError::UnsupportedElfClass(class));
+    }
+
+    let endian = elf.header.e_ident[EI_DATA];
+    if endian != ELFDATA2LSB {
+        return Err(FrontendError::UnsupportedElfEndian(endian));
+    }
+
+    if elf.header.e_machine != EM_RISCV {
+        return Err(FrontendError::UnsupportedElfMachine(elf.header.e_machine));
+    }
+
+    if elf.header.e_type != ET_EXEC && elf.header.e_type != ET_DYN {
+        return Err(FrontendError::UnsupportedElfType(elf.header.e_type));
+    }
+
     Ok(())
 }
 
 fn validate_non_overlapping_segments(segments: &[ElfSegment]) -> Result<(), FrontendError> {
     let mut prev_end = 0;
-    for segment in segments {
-        if segment.address < prev_end { return Err(FrontendError::OverlappingSegments { previous_end: prev_end, next_start: segment.address }); }
-        prev_end = segment.end_address().unwrap();
+
+    for (index, segment) in segments.iter().enumerate() {
+        if segment.address < prev_end {
+            return Err(FrontendError::OverlappingSegments {
+                previous_end: prev_end,
+                next_start: segment.address,
+            });
+        }
+
+        let size = match u32::try_from(segment.data.len()) {
+            Ok(size) => size,
+            Err(_) => 0,
+        };
+
+        prev_end = match segment.end_address() {
+            Some(end) => end,
+            None => {
+                return Err(FrontendError::SegmentAddressOverflow {
+                    index,
+                    address: segment.address,
+                    size,
+                });
+            }
+        };
     }
+
     Ok(())
 }
 
 fn validate_entry_point(entry_point: u32, segments: &[ElfSegment]) -> Result<(), FrontendError> {
-    if segments.iter().any(|s| s.contains(entry_point)) { Ok(()) }
-    else { Err(FrontendError::EntryPointNotMapped { entry_point }) }
+    if segments.iter().any(|segment| segment.contains(entry_point)) {
+        Ok(())
+    } else {
+        Err(FrontendError::EntryPointNotMapped { entry_point })
+    }
 }
