@@ -19,9 +19,9 @@ fn run() -> Result<(), Box<dyn std::error::Error>> {
 
     let bytes = fs::read(path)?;
 
-    let config' = ZkvmConfig::default();
+    let config = ZkvmConfig::default();
     let mut vm = Zkvm::<Fr>::new(config)?;
-    vm.load_elf_(bytes)?;
+    vm.load_elf(&bytes)?;
     vm.run()?;
 
     println!(
