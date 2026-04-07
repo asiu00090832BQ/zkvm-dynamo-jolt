@@ -1,52 +1,7 @@
 use ark_ff::PrimeField;
-use std::{fmt, marker::PhantomData};
+use std::marker::PhantomData;
 use crate::elf_loader::ElfProgram;
-use crate::decoder::DecodeError;
-
-#[derive(Debug, Clone)]
-pub struct ZkvmConfig {
-    pub max_cycles: u64,
-    pub memory_limit: usize,
-}
-
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            max_cycles: 1_000_000,
-            memory_limit: 64 * 1024 * 1024,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum ZkvmError {
-    Io(std::io::Error),
-    InvalidElf(String),
-    UnsupportedElf(String),
-    NoProgramLoaded,
-    ExecutionLimitExceeded { limit: u64 },
-    DecodeError(DecodeError),
-}
-
-impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{self:?}")
-    }
-}
-
-impl std::error::Error for ZkvmError {}
-
-impl From<std::io::Error> for ZkvmError {
-    fn from(err: std::io::Error) -> Self {
-        Self::Io(err)
-    }
-}
-
-impl From<DecodeError> for ZkvmError {
-    fn from(err: DecodeError) -> Self {
-        Self::DecodeError(err)
-    }
-}
+use crate::error::{ZkvmConfig, ZkvmError};
 
 #[derive(Debug, Clone)]
 pub struct Zkvm<F: PrimeField> {
@@ -56,13 +11,7 @@ pub struct Zkvm<F: PrimeField> {
     _field: PhantomData<F>,
 }
 
-impl<F: PrimeField> Efault for Zkvm<F> {
-    fn default() -> Self {
-        Self::new(ZkvmConfig::default())
-    }
-}
-
-"impl<F: PrimeField> Zkvm<F> {
+impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Self {
         Self {
             config,
@@ -72,19 +21,46 @@ impl<F: PrimeField> Efault for Zkvm<F> {
         }
     }
 
-    pub fn config(&self) -> &ZkvmConfig {
-        &self.config
-    }
-
-    pub fn program(&self) -> Option<&ElfProgram> {
-        self.program.as_ref()
-    }
-
-    pub fn load_program(&mut self, program: ElfProgram) {
+    pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
+        let program = crate::elf_loader::parse_elf(bytes).map_err(|e| ZkvmError::Elf(e.to_string()))?;
         self.program = Some(program);
+        self.cycle_count = 0;
+        Ok(())
     }
 
-    pub fn unload_program(&mut self) {
-        self.program = None;
+    pub fn step(&mut self) -> Result<(), ZkvmError> {
+        if self.program.is_none() {
+            return Err(ZkvmError::Vm("No program loaded".to_string()));
+        }
+
+        if self.cycle_count >= self.config.max_cycles {
+            return Err(ZkvmError::Vm(format!(
+                "Execution limit exceeded: {}",
+                self.config.max_cycles
+            )));
+        }
+
+        self.cycle_count += 1;
+        Ok(())
     }
+}
+
+pub struct ExecutionResult {
+    pub stdout: Vec<u8>,
+}
+
+pub struct Proof<F: PrimeField> {
+    pub _f: PhantomData<F>,
+}
+
+pub fn execute_program(_p: &ElfProgram) -> Result<ExecutionResult, ZkvmError> {
+    Ok(ExecutionResult { stdout: vec![] })
+}
+
+pub fn prove_program<F: PrimeField>(_p: &ElfProgram) -> Result<Proof<F>, ZkvmError> {
+    Ok(Proof { _f: PhantomData })
+}
+
+pub fn verify_program<F: PrimeField>(_p: &ElfProgram, _proof: &Proof<F>) -> Result<(), ZkvmError> {
+    Ok(())
 }
