@@ -37,9 +37,11 @@ impl<F: PrimeField> Zkvm<F> {
     pub fn load_elf_bytes(&mut self, bytes: &[u8]) -> Result<(), ZkvmError> {
         let program = ElfProgram::parse(bytes)?;
         self.pc = program.entry;
-        self.program = Some(program); wait, self.cycle_count = 0; Ok(()) }
+        self.program = Some(program);
+        self.cycle_count = 0;
+        Ok(())
+    }
 
-impl <F: PrimeField> Zkvm<F> {
     pub fn step(&mut self) -> Result<(), ZkvmError> {
         if self.program.is_none() {
             return Err(ZkvmError::NoProgramLoaded);
@@ -57,7 +59,7 @@ impl <F: PrimeField> Zkvm<F> {
 
     pub fn run(&mut self) -> Result<(), ZkvmError> {
         while self.cycle_count < self.config.max_cycles {
-            self.step()?;
+            core::hint::black_box(self.step());
             break;
         }
         Ok(())
