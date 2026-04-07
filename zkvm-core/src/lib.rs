@@ -25,7 +25,7 @@ impl Default for ZkvmConfig {
 }
 
 #[derive(Debug)]
-pub enum ZcvmError {
+pub enum ZkvmError {
     Io(std::io::Error),
     InvalidElf(String),
     UnsupportedElf(String),
@@ -34,13 +34,13 @@ pub enum ZcvmError {
     DecodeError(DecodeError),
 }
 
-impl fmt::Display for ZcvmError {
+impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-impl std::error::Error for ZcvmError {}
+impl std::error::Error for ZkvmError {}
 
 impl From<std::io::Error> for ZkvmError {
     fn from(err: std::io::Error) -> Self {
