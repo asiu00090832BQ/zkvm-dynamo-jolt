@@ -1,5 +1,4 @@
-use std::convert::TryFrom;
-use crate::lib::ZkvmError;
+use core::fmt;
 
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -18,7 +17,17 @@ impl TryFrom<u32> for Register {
     type Error = DecodeError;
     fn try_from(value: u32) -> Result<Self, Self::Error> {
         if value < 32 {
-            unsafe { Ok(std::mem::transmute(value as u8)) }
+            Ok(match value {
+                0 => Self::X0, 1 => Self::X1, 2 => Self::X2, 3 => Self::X3,
+                4 => Self::X4, 5 => Self::X5, 6 => Self::X6, 7 => Self::X7,
+                8 => Self::X8, 9 => Self::X9, 10 => Self::X10, 11 => Self::X11,
+                12 => Self::X12, 13 => Self::X13, 14 => Self::X14, 15 => Self::X15,
+                16 => Self::X16, 17 => Self::X17, 18 => Self::X18, 19 => Self::X19,
+                20 => Self::X20, 21 => Self::X21, 22 => Self::X22, 23 => Self::X23,
+                24 => Self::X24, 25 => Self::X25, 26 => Self::X26, 27 => Self::X27,
+                28 => Self::X28, 29 => Self::X29, 30 => Self::X30, 31 => Self::X31,
+                _ => unreachable!(),
+            })
         } else {
             Err(DecodeError::InvalidRegister(value as u8))
         }
@@ -28,8 +37,7 @@ impl TryFrom<u32> for Register {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
     Add { rd: Register, rs1: Register, rs2: Register },
-    Sub { rd: Register, rs1: Register, rs2: Register },
-    // ... other instructions ...
+    Sub' { rd: Register, rs1: Register, rs2: Register },
     Ecall, Ebreak,
 }
 
@@ -40,8 +48,8 @@ pub enum DecodeError {
     InvalidInstruction(u32),
 }
 
-impl std::fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
