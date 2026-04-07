@@ -10,7 +10,7 @@ pub struct Memory {
 }
 
 #[derive(Debug, Clone)]
-pub enum Trap){
+pub enum Trap {
     ExecutionLimitExceeded,
     ProgramError(String),
 }
