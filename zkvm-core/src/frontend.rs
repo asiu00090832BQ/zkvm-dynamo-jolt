@@ -1,18 +1,18 @@
-use crate::elf_loader::{load_elf, LoadSegment};
-use crate::error::ZkvmError;
+use crate::elf_loader::{load_elf, LoadedProgram};
+use crate::ZkvmError;
 
 #[derive(Debug, Clone)]
 pub struct ElfProgram {
     pub entry: u32,
-    pub segments: Vec<LoadSegment>,
+    pub memory: Vec<u8>,
 }
 
 impl ElfProgram {
     pub fn parse(bytes: &[u8]) -> Result<Self, ZkvmError> {
-        let loaded = load_elf(bytes).map_err(|e| ZkvmError::ElfLoader(e))?;
+        let p = load_elf(bytes)?;
         Ok(Self {
-            entry: loaded.entry,
-            segments: loaded.segments,
+            entry: p.entry,
+            memory: p.memory,
         })
     }
 }
