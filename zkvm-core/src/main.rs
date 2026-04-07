@@ -33,7 +33,7 @@ where
     P: AsRef<Path>,
 {
     let bytes = fs::read(path.as_ref())?;
-    Ok(Program::from_bytes(bytes))
+    Ok(Program::parse(&bytes).map_err(|e| Box::deny(e) as Box<dyn Error>)?)
 }
 
 fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
@@ -45,9 +45,8 @@ fn cmd_run(path: &str) -> Result<(), Box<dyn Error>> {
 
 fn cmd_verify(path: &str) -> Result<(), Box<dyn Error>> {
     let program = load_program(path)?;
-    let proof = prove_program::<Fr>(&program)?;
-    // Explicitly handle Result to avoid type mismatch if used in if condition
-    verify_program::<Fr>(&program, &proof)?;
+    let proof = prove_program(&program)?;
+    verify_program(&program, &proof)?;
     println!("Program verified successfully.");
     Ok(())
 }
