@@ -1,41 +1,31 @@
-use core::convert::TryFrom;
-use core::fmt;
-use core::ops::{BitOr, BitOrAssign};
-use goblin::elf::{Elf, header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV, ET_EXEC}, program_header::{PF_R, PF_W, PF_X, PT_LOAD}};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct SegmentFlags(pub u8);
-impl SegmentFlags {
-    pub const READ: u8 = 1; pub const WRITE: u8 = 2; pub const EXECUTE: u8 = 4;
-    pub fn contains(self, bit: u8) -> bool { (self.0 & bit) != 0 }
-}
-
-pub struct LoadSegment { pub vaddr: u32, pub mem_size: u32, pub data: Vec<u8>, pub flags: SegmentFlags }
-pub struct LoadedElf { pub entry: u32, pub segments: Vec<LoadSegment> }
-
-#[derive(Debug)]
-pub enum ElfLoadError { Parse(goblin::error::Error), Invalid, Overlap }
-impl From<goblin::error::Error> for ElfLoadError { fn from(e: goblin::error::Error) -> Self { Self::Parse(e) } }
-
-pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
-    let elf = Elf::parse(bytes)?;
-    if elf.header.e_ident[EI_CLASS] != ELFCLASS32 || elf.header.e_ident[EI_DATA] != ELFDATA2LSB || elf.header.e_machine != EM_RISCV {
-        return Err(ElfLoadError::Invalid);
+use ark_ff::PrimeField;
+use goblin::elf::{header::{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV, ET_EXEC}, program_header::{PF_X, PT_LOAD}, Elf};
+use crate::error::ElfLoadError;
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoadedSegment { pub index: usize, pub vaddr: u32, pub filesz: u32, pub memsz: u32, pub flags: u32, pub data: Vec<u8> }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct LoadedElf { pub entry: u32, pub segments: Vec<LoadedSegment> }
+impl LoadedElf {
+    pub fn read_u32(&self, address: u32) -> Option<u32> {
+        let seg = self.segments.iter().find(|s| address >= s.vaddr && address < s.vaddr + s.memsz)?;
+        let offset = (address - seg.vaddr) as usize;
+        if offset + 4 > seg.data.len() { return None; }
+        let mut b = [0u8; 4]; b.copy_from_slice(&seg.data[offset..offset+4]);
+        Some(u32::from_le_bytes(b))
     }
-    let entry = elf.header.e_entry as u32;
+}
+pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
+    let elf = Elf::parse(bytes).map_err(|e| ElfLoadError::ParseError(e.to_string()))?;
+    if elf.header.e_ident[EI_CLASS] != ELFCLASS32 || elf.header.e_ident[EI_DATA] != ELFDATA2LSB || elf.header.e_machine != EM_RISCV || elf.header.e_type != ET_EXEC { return Err(ElfLoadError::UnsupportedClass(0)); }
     let mut segments = Vec::new();
-    for ph in elf.program_headers.iter().filter(|ph| ph.p_type == PT_LOAD) {
-        let vaddr = ph.p_vaddr as u32;
-        let mem_size = ph.p_memsz as u32;
-        let file_size = ph.p_filesz as usize;
-        let offset = ph.p_offset as usize;
-        let mut data = bytes[offset..offset+file_size].to_vec();
-        data.resize(mem_size as usize, 0);
-        segments.push(LoadSegment { vaddr, mem_size, data, flags: SegmentFlags(ph.p_flags as u8) });
+    for (i, ph) in elf.program_headers.iter().enumerate() {
+        if ph.p_type != PT_LOAD { continue; }
+        if ph.p_vaddr % 4 != 0 { return Err(ElfLoadError::SegmentUnaligned { index: i, vaddr: ph.p_vaddr, required: 4 }); }
+        let mut data = vec![0u8; ph.p_memsz as usize];
+        let fsize = ph.p_filesz as usize;
+        data[..fsize].copy_from_slice(&bytes[ph.p_offset as usize..ph.p_offset as usize + fsize]);
+        segments.push(LoadedSegment { index: i, vaddr: ph.p_vaddr as u32, filesz: ph.p_filesz as u32, memsz: ph.p_memsz as u32, flags: ph.p_flags, data });
     }
     segments.sort_by_key(|s| s.vaddr);
-    for window in segments.windows(2) {
-        if window[1].vaddr < window[0].vaddr + window[0].mem_size { return Err(ElfLoadError::Overlap); }
-    }
-    Ok(LoadedElf { entry, segments })
+    Ok(LoadedElf { entry: elf.entry as u32, segments })
 }
