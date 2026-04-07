@@ -22,7 +22,7 @@ pub struct ZkvmConfig {
     pub decoder: DecoderConfig,
 }
 
-impl Default for ZkvmConfig0 {
+impl Default for ZkvmConfig {
     fn default() -> Self {
         Self {
             memory_size: 1024 * 1024,
@@ -31,6 +31,7 @@ impl Default for ZkvmConfig0 {
         }
     }
 }
+
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
