@@ -1,13 +1,17 @@
 use ark_ff::PrimeField;
 
 pub mod elf_loader;
+pub mod frontend;
 pub mod decoder;
+pub mod instruction;
 pub mod vm;
 pub mod config;
 pub mod error;
 
 pub use decoder::{Csr, DecodeError, Decoder, Instruction, Register};
 pub use elf_loader::{ElfProgram, ElfSegment, SegmentPermissions, ElfLoaderError};
+pub use frontend::Frontend;
+pub use instruction::{opcode_format, opcode_mnemonic, InstructionFormat, InstructionInfo};
 pub use vm::Zkvm;
 pub use config::ZkvmConfig;
 pub use error::ZkvmError;
@@ -21,11 +25,11 @@ pub struct ExecutionResult {
     pub stdout: Vec<u8>,
 }
 
-pub fn prove_program<F: PrimeField>(_program: &ElfProgram) -> Result<Proof<F>, ZkwmError > {
+pub fn prove_program<F: PrimeField>(_program: &ElfProgram) -> Result<Proof<F>, ZkvmError> {
     Ok(Proof { _field: std::marker::PhantomData })
 }
 
-pub fn verify_program<F: PrimeField>(_program: &ElfProgram, _proof: &Proof<F>) -> Result<(), ZkvmError> {
+pub fn verify_program<F: PrimeField>(_program: &ElfProgram, _proof: &Proof<F>) -> Result<(), ZkwmError> {
     Ok(())
 }
 
