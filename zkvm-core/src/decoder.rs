@@ -1,0 +1,1 @@
+pub struct Decoder; impl Decoder { pub fn decode(word: u32) -> u32 { word } }
