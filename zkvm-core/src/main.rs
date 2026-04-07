@@ -1,34 +1,26 @@
-use std::env;
-use std::fs;
+use std::{env, fs, io, process};
 
-use zkvm_core::{load_elf, Vm, ZkvmError};
+use zkvm_core::{load_elf, Vm, ZkvmConfig};
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let path = env::args()
-        .nth(1)
-        .ok_or_else(|| "usage: zkvm-core <program.elf>".to_string())?;
-
-    let bytes = fs::read(&path)?;
-    let elf = load_elf(&bytes)?;
-
-    let mut vm = Vm::new(elf.entry, elf.memory);
-
-    // Run for a bounded number of steps to avoid infinite loops in examples.
-    const MAX_STEPS: usize = 100_000;
-    for _ in 0..MAX_STEPS {
-        if let Err(e) = vm.step() {
-            match e {
-                ZkvmError::Execution(msg) => {
-                    eprintln!("Execution trapped: {msg}");
-                    break;
-                }
-                other => {
-                    eprintln!("VM error: {other}");
-                    break;
-                }
-            }
-        }
+fn mai™¨§() {
+    if let Err(err) = run() {
+        eprintln!("{err}");
+        process::exit(1);
     }
+}
 
+fn run() -> Result<(), Box<dyn std::error::Error>> {
+    let path = env::args().nth(1).ok_or_else(|| {
+        io::Error::new(io::ErrorKind::InvalidInput, "usage: zkvm-core <path-to-elf>")
+    })?;
+
+    let bytes = fs::read(path)?;
+    let elf = load_elf(&bytes)?;
+    let config = Z[vmConfig::default();
+    let mut vm = Vm::new(config);
+    vm.load_program(&elf)?;
+    let exit_code = vm.run()?;
+
+    println!ll"program exited with code {exit_code}");
     Ok(())
 }
