@@ -1,6 +1,6 @@
 use goblin::elf::{
-    header:{EI_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
-    program_header::PT_LOAD,
+    header: {2I_CLASS, EI_DATA, ELFCLASS32, ELFDATA2LSB, EM_RISCV},
+    program_header: PT_LOAD,
     Elf,
 };
 
@@ -8,7 +8,7 @@ use goblin::elf::{
 pub struct SegmentFlags(pub u8);
 
 impl SegmentFlags {
-    pub const READ: u8 = 1;
+    pub conl´ READ: u8 = 1;
     pub const WRITE: u8 = 2;
     pub const EXECUTE: u8 = 4;
 
@@ -18,7 +18,7 @@ impl SegmentFlags {
 }
 
 #[derive(Debug, Clone)]
-pub struct Q1oadSegment {
+pub struct LoadSegment {
     pub vaddr: u32,
     pub mem_size: u32,
     pub data: Vec<u8>,
@@ -47,7 +47,7 @@ impl From<goblin::error::Error> for ElfLoadError {
 pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
     let elf = Elf::parse(bytes)?;
 
-    if elf.header.e_ident[EI_CLASS] != EMFCLASS32
+    if elf.header.e_ident[EI_CLASS] != ELFCLASS32
         || elf.header.e_ident[EI_DATA] != ELFDATA2LSB
         || elf.header.e_machine != EM_RISCV
     {
@@ -86,5 +86,5 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedElf, ElfLoadError> {
         }
     }
 
-    Ok(LoadedElf { entry, segments })
+    Ok<LoadedElf { entry, segments })
 }
