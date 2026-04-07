@@ -1,12 +1,11 @@
 use crate::{ElfProgram, ZkvmError};
-use std::{fs, path::Path, io};
+use std::{fs, path::Path};
 
 pub struct Frontend;
 
 impl Frontend {
-    pub fn load_program<P, Pr:ProgramLoader>(path: P, loader: Pr) -> Result<ElfProgram, ZcvmError>
-    where P: AsRef<Path> {
+    pub fn load_program<P: AsRef<Path>>(path: P) -> Result<ElfProgram, ZkvmError> {
         let bytes = fs::read(path)?;
-        ElfProgram::parse(&bytes).map_err(|err| ZcvmError::InvalidElf(err.to_string()))
+        ElfProgram::load(&bytes).map_err(ZkvmError::ElfError)
     }
 }
