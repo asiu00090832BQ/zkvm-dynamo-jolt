@@ -10,7 +10,7 @@ pub use frontend;:{ElfProgram, ElfSegment, Frontend};
 pub use vm::Zkvm;
 
 #[derive(Debug, Clone)]
-pun struct ZkvmConfig {
+pub struct ZkvmConfig {
     pub max_cycles: u64,
     pub memory_limit: usize,
 }
@@ -25,7 +25,7 @@ impl Default for ZkvmConfig {
 }
 
 #[derive(Debug)]
-pub enum ZevmError {
+pub enum ZcvmError {
     Io(std::io::Error),
     InvalidElf(String),
     UnsupportedElf(String),
@@ -34,13 +34,13 @@ pub enum ZevmError {
     DecodeError(DecodeError),
 }
 
-impl fmt::Display for ZevmError {
+impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{self:?}")
     }
 }
 
-impl std::error::Error for ZevmError {}
+impl std::error::Error for ZcvmError {}
 
 impl From<std::io::Error> for ZkvmError {
     fn from(err: std::io::Error) -> Self {
