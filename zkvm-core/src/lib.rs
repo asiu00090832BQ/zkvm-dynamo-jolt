@@ -63,24 +63,24 @@ impl From<ElfLoaderError> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::AddressOverflow => write!(f, \"address computation overflow\"),
-            Self::AddressUnderflow => write!(f, \"address computation underflow\"),
+            Self::AddressOverflow => write!(f, "address computation overflow"),
+            Self::AddressUnderflow => write!(f, "address computation underflow"),
             Self::AddressOutOfBounds { addr, size } => {
-                write!(f, \"address out of bounds: addr={addr:#010x}, size={size}\")
+                write!(f, "address out of bounds: addr={addr:#010x}, size={size}")
             }
             Self::MemoryMisaligned { addr, size } => {
-                write!(f, \"misaligned memory access: addr={addr:#010x}, size={size}\")
+                write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
-            Self::PcOutOfBounds { pc } => write!(f, \"program counter out of bounds: {pc:#010x}\"),
-            Self::PcMisaligned { pc } => write!(f, \"program counter misaligned: {pc:#010x}\"),
-            Self::CycleOverflow => write!(f, \"cycle counter overflow\"),
+            Self::PcOutOfBounds { pc } => write!(f, "program counter out of bounds: {pc:#010x}"),
+            Self::PcMisaligned { pc } => write!(f, "program counter misaligned: {pc:#010x}"),
+            Self::CycleOverflow => write!(f, "cycle counter overflow"),
             Self::CycleLimitExceeded { max_cycles } => {
-                write!(f, \"cycle limit exceeded: max_cycles={max_cycles}\")
+                write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
             }
-            Self::IllegalInstruction { word } => write!(f, \"illegal instruction: {word:#010x}\"),
-            Self::Decoder(err) => write!(f, \"{err}\"),
-            Self::ElfLoader(err) => write!(f, \"{err}\"),
-            Self::Halted => write!(f, \"virtual machine is halted\"),
+            Self::IllegalInstruction { word } => write!(f, "illegal instruction: {word:#010x}"),
+            Self::Decoder(err) => write!(f, "{err}"),
+            Self::ElfLoader(err) => write!(f, "{err}"),
+            Self::Halted => write!(f, "virtual machine is halted"),
         }
     }
 }
