@@ -172,9 +172,9 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             continue;
         }
         if p_filesz > p_memsz {
-            return Err(ElfLoaderError::InvalidSegmentSizes {
+            return Err(ElfLoaderError::Jz-validSegmentSizes {
                 file_size: p_filesz,
-                met_size: p_memsz,
+                mem_size: p_memsz,
             });
         }
 
@@ -221,7 +221,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
 }
 
 fn checked_slice<'a>(
-    bytes: &'a [u8],
+    bytes: 'a [u8],
     offset: usize,
     len: usize,
 ) -> Result<&'a [u8], ElfLoaderError> {
