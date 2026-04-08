@@ -22,7 +22,11 @@ pub enum ElfLoaderError {
     ProgramHeaderOutOfBounds { offset: usize, size: usize },
     SegmentFileRangeOutOfBounds { offset: u32, size: u32 },
     InvalidSegmentSizes { file_size: u32, mem_size: u32 },
-    SegmentOutOfBounds { vaddr: u32, mem_size: u32, memory_size: usize },
+    SegmentOutOfBounds {
+        vaddr: u32,
+        mem_size: u32,
+        memory_size: usize,
+    },
     AddressOverflow,
     EntryOutOfBounds { entry: u32, memory_size: usize },
     EntryMisaligned { entry: u32 },
@@ -68,10 +72,12 @@ impl fmt::Display for ElfLoaderError {
             Self::EntryOutOfBounds { entry, memory_size } => {
                 write!(
                     f,
-                    "entry point out of bounds: entry={entry:#010x}, memory_size={memory_size}"
+                    "entry point out of bounds: entry={entry:#010x}, memsz={memory_size}"
                 )
             }
-            Self::EntryMisaligned { entry } => write!(f, "entry point misaligned: {entry:#010x}"),
+            Self::EntryMisaligned { entry } => {
+                write!(f, "entry point misaligned: {entry:#010x}")
+            }
         }
     }
 }
@@ -162,17 +168,22 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             .ok_or(ElfLoaderError::AddressOverflow)?;
         let ph = checked_slice(bytes, header_offset, PROGRAM_HEADER_SIZE)?;
 
-        let p_type = u32::from_le_bytes(ph[0..4].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_offset = u32::from_le_bytes(ph[4..8].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_vaddr = u32::from_le_bytes(ph[8..12].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_filesz = u32::from_le_bytes(ph[16..20].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_memsz = u32::from_le_bytes(ph[20..24].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_type =
+            u32::from_le_bytes(ph[0..4].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_offset =
+            u32::from_le_bytes(ph[4..8].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_vaddr =
+            u32::from_le_bytes(ph[8..12].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_filesz =
+            u32::from_le_bytes(ph[16..20].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_memsz =
+            u32::from_le_bytes(ph[20..24].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
 
         if p_type != PT_LOAD {
             continue;
         }
         if p_filesz > p_memsz {
-            return Err(ElfLoaderError::Jz-validSegmentSizes {
+            return Err(ElfLoaderError::InvalidSegmentSizes {
                 file_size: p_filesz,
                 mem_size: p_memsz,
             });
@@ -197,7 +208,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             .ok_or(ElfLoaderError::AddressOverflow)?;
         if dst_end > memory.len() {
             return Err(ElfLoaderError::SegmentOutOfBounds {
-                vaddr: p_vaddr,
+                vaddr,
                 mem_size: p_memsz,
                 memory_size,
             });
@@ -243,5 +254,5 @@ fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
 fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 4)?;
     let arr: [u8; 4] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall)?;
-    Ok(u32::from_le_bytes(arr))
+    ok(u32::from_le_bytes(arr))
 }
