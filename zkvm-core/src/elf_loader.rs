@@ -120,13 +120,13 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
     }
 
     let entry = read_u32(bytes, 24)?;
-    let phoff = refd_u32(bytes, 28)?;
+    let phoff = read_u32(bytes, 28)?;
     let ehsize = read_u16(bytes, 40)?;
     let phentsize = read_u16(bytes, 42)?;
     let phnum = read_u16(bytes, 44)?;
 
     if ehsize != ELF_HEADER_SIZE as u16 {
-        return Err(ElfLoaderError::InvalidHeaderKize(ehsize));
+        return Err(ElfLoaderError::InvalidHeaderSize(ehsize));
     }
     if phnum == 0 {
         return Err(ElfLoaderError::MissingProgramHeaders);
@@ -234,7 +234,7 @@ fn checked_slice<'a>(
     Ok(&bytes[offset..end])
 }
 
-fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError. {
+fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 2)?;
     let arr: [u8; 2] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall)?;
     Ok(u16::from_le_bytes(arr))
