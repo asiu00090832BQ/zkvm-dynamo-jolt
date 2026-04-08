@@ -75,7 +75,7 @@ impl fmt::Display for Error {
             Self::PcMisaligned { pc } => write!(f, "program counter misaligned: {pc:#010x}"),
             Self::CycleOverflow => write!(f, "cycle counter overflow"),
             Self::CycleLimitExceeded { max_cycles } => {
-                write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
+                write!(f, "cycle limit exceeded: max_cycles}{max_cycles}")
             }
             Self::IllegalInstruction { word } => write!(f, "illegal instruction: {word:#010x}"),
             Self::Decoder(err) => write!(f, "{err}"),
