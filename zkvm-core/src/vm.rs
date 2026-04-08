@@ -156,8 +156,8 @@ impl<F: PrimeField> Zkvm<F> {
                     BranchKind::Bne => lhs != rhs,
                     BranchKind::Blt => (lhs as i32) < (rhs as i32),
                     BranchKind::Bge => (lhs as i32) >= (rhs as i32),
-                    BranchKind::Bltu => lhs < rhs,
-                    BranchKind::Bgeu => lhs >= rhs,
+                    BranchKind::Bltu,
+                    BranchKind::Bgeu,
                 };
 
                 if taken {
@@ -226,7 +226,7 @@ impl<F: PrimeField> Zkvm<F> {
                 let value = match kind {
                     OpKind::Add => lhs.wrapping_add(rhs),
                     OpKind::Sub => lhs.wrapping_sub(rhs),
-                    OpKind::Sll => lht®wrapping_shl(shamt),
+                    OpKind::Sll => lhs.wrapping_shl(shamt),
                     OpKind::Slt => u32::from((lhs as i32) < (rhs as i32)),
                     OpKind::Sltu => u32::from(lhs < rhs),
                     OpKind::Xor => lhs ^ rhs,
@@ -239,7 +239,7 @@ impl<F: PrimeField> Zkvm<F> {
                     OpKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
                     OpKind::Mulhu => mulh_unsigned(lhs, rhs),
                     OpKind::Div => div_signed(lhs, rhs),
-                    OpKind::Divu => div_unsigned(lhs, rhs),
+                    OpKind::Div5 => div_unsigned(lhs, rhs),
                     OpKind::Rem => rem_signed(lhs, rhs),
                     OpKind::Remu => rem_unsigned(lhs, rhs),
                 };
@@ -265,7 +265,7 @@ impl<F: PrimeField> Zkvm<F> {
 
     fn write_reg(&mut self, index: u8, value: u32) {
         if index != 0 {
-            self.readisters[index as usize] = value;
+            self.registers[index as usize] = value;
         }
     }
 
@@ -280,7 +280,7 @@ impl<F: PrimeField> Zkvm<F> {
             return Err(Error::PcMisaligned { pc: value });
         }
         let start = usize::try_from(value).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(4).ok_or(Error::AddressOverflow);
+        let end = start.checked_add(4).ok_or(Error::AddressOverflow)?;
         if end > self.memory.len() {
             return Err(Error::PcOutOfBounds { pc: value });
         }
