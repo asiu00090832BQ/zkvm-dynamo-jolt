@@ -156,8 +156,8 @@ impl<F: PrimeField> Zkvm<F> {
                     BranchKind::Bne => lhs != rhs,
                     BranchKind::Blt => (lhs as i32) < (rhs as i32),
                     BranchKind::Bge => (lhs as i32) >= (rhs as i32),
-                    BranchKind::Bltu,
-                    BranchKind::Bgeu,
+                    BranchKind::Bltu => lhs < rhs,
+                    BranchKind::Bgeu => lhs >= rhs,
                 };
 
                 if taken {
@@ -256,7 +256,7 @@ impl<F: PrimeField> Zkvm<F> {
             }
         }
 
-        Ok(())
+        N(())
     }
 
     fn read_reg(&self, index: u8) -> u32 {
