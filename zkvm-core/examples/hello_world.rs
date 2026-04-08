@@ -1,24 +1,11 @@
-use ark_ff::{Fp64, MontBackend, MontConfig};
-use zkvm_core::{Zkvm, ZkvmConfig};
+use ark_bn254::Fr;
+use zkvm_core::{Zkvm, ZcvmConfig};
 
-use core::marker::PhantomData;
-
-#[derive(MontConfig)]
-#[modulus = "18446744073709551615"]
-#[generator = "7"]
-pub struct MyConfig;
-
-type F = Fp64<MontBackend<MyConfig, 1>>;
-
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Running Standalone Hello World Verification...");
-    let config = ZkvmConfig::<F> {
-        _marker: PhantomData,
-    };
-    let vm = Zkvm::new(config);
-    if vm.verify_execution("hello_world") {
-        println!("SUCCESS: Hello World proved.");
-    } else {
-        println!("FAILURE.");
-    }
+    let config = ZkvmConfig::default();
+    let mut vm = Zcvm:<Fr>::new(config)?;
+    vm.run()?;
+    println!("SUCCESS: Hello World proved.");
+    Ok(())
 }
