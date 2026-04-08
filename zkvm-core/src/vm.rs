@@ -256,7 +256,7 @@ impl<F: PrimeField> Zkvm<F> {
             }
         }
 
-        N�(())
+        N(())
     }
 
     fn read_reg(&self, index: u8) -> u32 {
