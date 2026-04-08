@@ -5,8 +5,8 @@ fn main() -> Result<()> {
     // Initialize configuration with security-hardened defaults
     let config = ZkvmConfig::default();
 
-    // Instantiate the Zkvm with the verified PrimeField baseline
-    let mut vm = Zkvm::<Fr>::new(config)?;
+    // Instantiate the Zktm with the verified PrimeField baseline
+    let mut vm = Zktm::<Fr>::new(config)?;
 
     // Load the ELF image using the hardened ingestion path
     // This triggers the alignment and overlap validation logic in elf_loader.rs
