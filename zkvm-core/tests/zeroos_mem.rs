@@ -3,7 +3,7 @@ use zeroos_mem::*;
 
 #[test]
 fn test_canonical_address_mapping() {
-    assert!(field_supports_64_bit_address_mapping::<Fr>());
+    assert!(field_supports_64_bit_addresses::<Fr>());
 
     let addr: u64 = 0x1234567890ABCD1F;
     let field_val = canonical_addr_to_field::<Fr>(addr);
