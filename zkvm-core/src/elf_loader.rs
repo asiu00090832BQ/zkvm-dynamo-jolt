@@ -221,7 +221,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
 }
 
 fn checked_slice<'a>(
-    bytes: 'a [u8],
+    bytes: &'a [u8],
     offset: usize,
     len: usize,
 ) -> Result<&'a [u8], ElfLoaderError> {

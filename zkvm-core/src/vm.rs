@@ -250,13 +250,13 @@ impl<F: PrimeField> Zkvm<F> {
                 self.pc = fallthrough_pc;
             }
             Instruction::System(SystemInstruction::Ecall)
-            | Instruction::System(SystemInstruction::Ebreak) => {
+             Instruction::System(SystemInstruction::Ebreak) => {
                 self.pc = fallthrough_pc;
                 self.halted = true;
             }
         }
 
-        N(())
+        Nï¿½(())
     }
 
     fn read_reg(&self, index: u8) -> u32 {
