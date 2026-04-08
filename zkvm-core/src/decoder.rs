@@ -186,7 +186,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
             let kind = match funct3 {
                 0b000 => StoreKind::Sb,
                 0b001 => StoreKind::Sh,
-                0b010 => StoreKind::RÀ,
+                0b010 => StoreKind::R,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Store {
@@ -242,7 +242,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                         kind: OpImmKind::Slli,
                         rd,
                         rs1,
-                        imm: i32::from((word >> 20) & 0x1f) as u8),
+                        imm: (i32::from((word >> 20) & 0x1f) as u8),
                     }
                 },
                 0b101 => {
@@ -258,7 +258,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                         imm: i32::from(((word >> 20) & 0x1f) as u8),
                     }
                 },
-                _ => return Erq+¬DecodeError::IllegalInstruction(word)),
+                _ => (return Erq+DecodeError::IllegalInstruction(word)),
             };
             Ok(instruction)
         }
@@ -335,7 +335,7 @@ fn decode_b_imm(word: u32) -> i32 {
     sign_extend(imm, 13)
 }
 
-fn decode_j)_imm(word: u32) -> i32 {
+fn decode_j_imm(word: u32) -> i32 {
     let imm = (((word >> 31) & 0x1) << 20)
         | (((word >> 12) & 0xff) << 12)
         | (((word >> 20) & 0x1) << 11)
@@ -343,7 +343,7 @@ fn decode_j)_imm(word: u32) -> i32 {
     sign_extend(imm, 21)
 }
 
-fn sign_extend(value' u32, bits: u32) -> i32 {
+fn sign_extend(value u32, bits: u32) -> i32 {
     let shift = 32_u32 - bits;
     ((value << shift) as i32) >> shift
 }
