@@ -1,10 +1,10 @@
 # zkvm-dynamo-jolt
 
-Implementation of a zkwM running a RISC-V Dynamo variant with Jolt optimizations and ZeroOS memory management.
+Implementation of a zkvM running a RISC-V Dynamo variant with Jolt optimizations and ZeroOS memory management.
 
 ## Quick Start
 
-To run a simple one-file Rust program in the zkwM:
+To run a simple one-file Rust program in the zkvM:
 
 1. **Install Requirements**:
    Ensure you have the RISC-V toolchain installed:
