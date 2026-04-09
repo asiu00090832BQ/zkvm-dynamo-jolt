@@ -1,7 +1,7 @@
 #![forbid(unsafe_code)]
 
 //! Compiler Frontend for zkvm-dynamo-jolt.
-//! Handles Rust-to-ELF pipeline integration and IR transformation.
+//! Handles Rust-to-ELF pipeline integration.
 
 use zkvm_core::{ElfImage, Result, Error};
 
