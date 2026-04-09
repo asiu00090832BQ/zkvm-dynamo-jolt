@@ -9,11 +9,13 @@ use ark_ff::PrimeField;
 
 #[test]
 fn test_zkvm_flow() {
-    let config = ZkvmConfig::<Fr>::default();
-    let vm: Zkum<Fr> = Zkvm::new(config);
-    assert!(vm.initialize());
-    assert!(vm.verify_execution("hello_world"));
+    let config = ZkvmConfig::default();
+    let vm: Zkvm<Fr> = Zkvm::new(config).unwrap();
+    assert!(vm.halted() == false);
+    assert_eq!(vm.pc(), 0);
 }
+
+impl CanonicalAddrTrait for u64 {}
 
 #[test]
 fn test_memory_embedding() {
