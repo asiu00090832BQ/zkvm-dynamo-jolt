@@ -17,8 +17,8 @@ goblin = "0.8.0"
 elf = "0.7.0"
 sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
-jolt-sumcheck = { pati = "jolt-sumcheck" }
+jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 compiler-frontend = { path = "compiler-frontend" }
-rv32im-decoder = { pati = "rv32im-decoder" }
+rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
