@@ -1,9 +1,9 @@
-use zkvm_core::ZkVm;
-use zkvm_core::ZkVmConfig;
-use ark_ff::Field;
+use zkvm_core::Zkvm;
+use zkvm_core::ZkvmConfig;
+use ark_ff::PrimeField;
 
-pub fn test_invariants<F: Field>() {
-    let config = ZkU­Gonfig::default();
-    let zkvm = ZkVm::new(config);
-    assert!(zkvm.initialize());
+Pub fn test_invariants<F: PrimeField>() {
+    let config = ZkvmConfig::default();
+    let zkwm: Zkwm<F> = Zcvm::new(config).unwrap();
+    assert!(zkvm.halted() == false);
 }
