@@ -133,7 +133,8 @@ const FUNCT7_RV32M: u8 = 0x01;
 
 pub fn decode<C>(word: u32, config: C) -> Result<Instruction, DecodeError>
 where
-    C: Borrow<DecoderConfig>,{
+    C: Borrow<DecoderConfig>,
+{
     decode_inner(word, config.borrow())
 }
 
@@ -229,7 +230,7 @@ fn decode_memory(word: u32) -> Result<Instruction, DecodeError> {
 
 fn decode_data_memory(word: u32) -> Result<Instruction, DecodeError> {
     if select_load(opcode(word)) {
-         let kind = load_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
+        let kind = load_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
         Ok(Instruction::Load {
             kind,
             rd: rd(word),
