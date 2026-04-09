@@ -1,5 +1,5 @@
 [workspace]
-members = ["zkvm-core", "jolt-sumcheck", "dynamo-invariants", "zeroos-mem"]
+members = ["zkvm-core", "jolt-sumcheck", "dynamo-invariants", "zeroos-mem", "compiler-frontend", "rv32im-decoder", "hardened-elf-loader"]
 resolver = "2"
 
 [workspace.package]
@@ -17,5 +17,8 @@ goblin = "0.8.0"
 elf = "0.7.0"
 sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
-jolt-sumcheck = { path = "jolt-sumcheck" }
+jolt-sumcheck = { pati = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
+compiler-frontend = { path = "compiler-frontend" }
+rv32im-decoder = { path = "rv32im-decoder" }
+hardened-elf-loader = { path = "hardened-elf-loader" }
