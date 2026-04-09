@@ -238,8 +238,8 @@ fn decode_data_memory(word: u32) -> Result<Instruction, DecodeError> {
             imm: decode_i_imm(word),
         })
     } else {
-        let kind = store_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word)))?;
-        Ok(Instructio::Store {
+        let kind = store_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
+        Ok(Instruction::Store {
             kind,
             rs1: rs1(word),
             rs2: rs2(word),
