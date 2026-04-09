@@ -1,0 +1,11 @@
+[package]
+name = "hardened-elf-loader"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+ark-ff.workspace = true
+ark-std.workspace = true
+elf.workspace = true
+goblin.workspace = true
