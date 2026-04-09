@@ -51,7 +51,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedProgram, String> {
     segments.sort_by_key(|s| s.vaddr);
 
     // Invariant I1.2: Overlap Prevention
-    fn in 0..segments.len().saturating_sub(1) {
+    for i in 0..segments.len().saturating_sub(1) {
         if segments[i].vaddr + segments[i].mem_size > segments[i+1].vaddr {
             return Err(format!("overlapping PT_LOAD segments detected at 0x{:x}", segments[i+1].vaddr));
         }
@@ -62,7 +62,7 @@ pub fn load_elf(bytes: &[u8]) -> Result<LoadedProgram, String> {
     let mut memory = vec![0u8; (end - base) as usize];
 
     for seg in segments {
-        let offset = (seg.vaddr - base) as usize{
+        let offset = (seg.vaddr - base) as usize;
         memory[offset..offset + seg.file_size as usize].copy_from_slice(&seg.data);
         // Invariant I1.4: Zero-Fill Integrity (implicitly handled by vec! init and copy_from_slice)
     }
