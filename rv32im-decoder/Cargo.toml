@@ -4,6 +4,6 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 
-[many-dependencies]
+[dependencies]
 ark-ff.workspace = true
 ark-std.workspace = true
