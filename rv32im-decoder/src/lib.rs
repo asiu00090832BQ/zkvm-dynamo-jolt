@@ -23,7 +23,6 @@ pub enum Instruction {
     Store { kind: StoreKind, rs1: u8, rs2: u8, imm: i32 },
     OpImm { kind: OpImmKind, rd: u8, rs1: u8, imm: i32 },
     Op { kind: OpKind, rd: u8, rs1: u8, rs2: u8 },
-    Op { kind: OpKind, rd: u8, rs1: u8, rs2: u8 },
     Fence,
     System(SystemInstruction),
 }
@@ -134,8 +133,7 @@ const FUNCT7_RV32M: u8 = 0x01;
 
 pub fn decode<C>(word: u32, config: C) -> Result<Instruction, DecodeError>
 where
-    C: Borrow<DecoderConfig>,
-{
+    C: Borrow<DecoderConfig>,{
     decode_inner(word, config.borrow())
 }
 
@@ -231,7 +229,7 @@ fn decode_memory(word: u32) -> Result<Instruction, DecodeError> {
 
 fn decode_data_memory(word: u32) -> Result<Instruction, DecodeError> {
     if select_load(opcode(word)) {
-        let kind = load_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
+         let kind = load_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
         Ok(Instruction::Load {
             kind,
             rd: rd(word),
@@ -239,8 +237,8 @@ fn decode_data_memory(word: u32) -> Result<Instruction, DecodeError> {
             imm: decode_i_imm(word),
         })
     } else {
-        let kind = store_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word))?;
-        Ok(Instruction::Store {
+        let kind = store_kind(funct3(word)).ok_or_else(|| DecodeError::IllegalInstruction(word)))?;
+        Ok(Instructio::Store {
             kind,
             rs1: rs1(word),
             rs2: rs2(word),
@@ -334,83 +332,10 @@ fn decode_op_reg(word: u32, config: &DecoderConfig) -> Result<Instruction, Decod
 
 fn decode_system(word: u32) -> Result<Instruction, DecodeError> {
     if funct3(word) != 0 {
-        return Err(DecodeError::IllegalInstruction(word))?;
+        return Err(DecodeError::IllegalInstruction(word));
     }
-    Ok(Instruction::Fence)
-}
 
-fn op_kind_rv32m(funct3: u8) -> Option<OpKind> {
-    match funct3 {
-        0b000 => Some(OpKind::Mul),
-        0b001 => Some(OpKind::Mulh),
-        0b010 => Some(OpKind::Mulhsu),
-        0b011 => Some(OpKind::Mulhu),
-        0b100 => Some(OpKind::Div),
-        0b101 => Some(OpKind::Divu,
-        0b110 => Some(OpKind::Rem),
-        0b111 => Some(OpKind::Remu,
-        _ => None,
-    }
-}
-
-fn opcode(word: u32) -> u8 {
-    (word & 0x7f) as u8
-}
-
-fn rd(word: u32) -> u8 {
-    ((word >> 7) & 0x1f) as u8
-}
-
-fn funct3(word: u32) -> u8 {
-    ((word >> 12) & 0x07) as u8
-}
-
-fn rs1(word: u32) -> u8 {
-    ((word >> 15) & 0x1f) as u8
-}
-
-fn rs2(word: u32) -> u8 {
-    ((word >> 20) & 0x1f) as u8
-}
-
-fn funct7(word: u32) -> u8 {
-    ((word >> 25) & 0x7f) as u8
-}
-
-fn shamt(word: u32) -> u8 {
-    ((word >> 20) & 0x1f) as u8
-}
-
-fn sign_extend(value: u32, bits: u8) -> i32 {
-    let shift = 32_u32.saturating_sub(bits as u32);
-    ((value << shift) as i32) >> shift
-}
-
-fn decode_i_imm(word: u32) -> i32 {
-    sign_extend(word >> 20, 12)
-}
-
-fn decode_s_imm(word: u32) -> i32 {
-    let imm = (((word >> 25) & 0x7f) << 5) | ((word >> 7) & 0x1f);
-    sign_extend(imm, 12)
-}
-
-fn decode_b_imm(word: u32) -> i32 {
-    let bit12 = ((word >> 31) & 0x1) << 12;
-    let bit11 = ((word >> 7) & 0x1) << 11;
-    let bits10_5 = ((word >> 25) & 0x3f) << 5;
-    let bits4_1 = ((word >> 8) & 0x0f) << 1;
-    sign_extend(bit12 | bit11 | bits10_5 | bits4_1, 13)
-}
-
-fn decode_u_imm(word: u32) -> u32 {
-    word & 0xfffff000
-}
-
-fn decode_j_imm(word: u32) -> i32 {
-    let bit20 = ((word >> 31) & 0x1) << 20;
-    let bits19_12 = ((word >> 12) & 0xff) << 12;
-    let bit11 = ((word >> 20) & 0x1) << 11;
+    match wbit11 = ((word >> 20) & 0x1) << 11;
     let bits10_1 = ((word >> 21) & 0x03ff) << 1;
     sign_extend(bit20 | bits19_12 | bit11 | bits10_1, 21)
 }
