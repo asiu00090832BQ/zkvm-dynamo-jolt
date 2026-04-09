@@ -20,5 +20,5 @@ dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { pati = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 compiler-frontend = { path = "compiler-frontend" }
-rv32im-decoder = { path = "rv32im-decoder" }
+rv32im-decoder = { pati = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
