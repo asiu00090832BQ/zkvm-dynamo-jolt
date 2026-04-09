@@ -1,80 +1,33 @@
 use ark_ff::PrimeField;
-use core::marker::PhantomData;
+use crate::decoder::{decode, Instruction};
+use crate::elf_loader::LoadedProgram;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Trap {
-    Halt,
-    InvalidOpcode(u8),
-    StepLimitExceeded,
-    ProgramOutOfBounds,
-}
+pub struct Memory { pub base: u32, pub bytes: Vec<u8> }
+#[derive(Debug)]
+pub enum Trap { IllegalInstruction(u32), LoadAccessFault(u32) }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Halt,
-    Nop,
-}
-
-impl Instruction {
-    pub fn decode(byte: u8) -> Result<Self, Trap> {
-        match byte {
-            0x00 => Ok(Instruction::Halt),
-            0x01 => Ok(Instruction::Nop),
-            other => Err(Trap::InvalidOpcode(other)),
-        }
+impl Memory {
+    pub fn read_u32(&self, addr: u32) -> Result<u32, Trap> {
+        let off = addr.checked_sub(self.base).ok_or(Trap::LoadAccessFault(addr))? as usize;
+        if off + 4 > self.bytes.len() { return Err(Trap::LoadAccessFault(addr)); }
+        Ok(u32::from_le_bytes([self.bytes[off], self.bytes[off+1], self.bytes[off+2], self.bytes[off+3]]))
     }
 }
 
-pub struct Vm<F: PrimeField> {
-    pc: usize,
-    memory: Vec<u8>,
-    step_limit: usize,
-    steps: usize,
-    _field: PhantomData<F>,
-}
+pub struct Vm<F: PrimeField> { pub regs: [u32; 32], pub pc: u32, pub memory: Memory, _f: core::marker::PhantomData<F> }
 
 impl<F: PrimeField> Vm<F> {
-    pub fn new(memory: Vec<u8>, step_limit: usize) -> Self {
-        Vm {
-            pc: 0,
-            memory,
-            step_limit,
-            steps: 0,
-            _field: PhantomData,
-        }
-    }
-
-    pub fn load_program(&mut self, program: &[u8]) {
-        self.memory.clear();
-        self.memory.extend_from_slice(program);
-        self.pc = 0;
-        self.steps = 0;
+    pub fn new(p: LoadedProgram) -> Self { 
+        Self { regs: [0; 32], pc: p.entry, memory: Memory { base: p.base, bytes: p.memory }, _f: Default::default() } 
     }
 
     pub fn step(&mut self) -> Result<(), Trap> {
-        if self.steps >= self.step_limit {
-            return Err(Trap::StepLimitExceeded);
-        }
-        if self.pc >= self.memory.len() {
-            return Err(Trap::ProgramOutOfBounds);
-        }
-        let opcode = self.memory[self.pc];
-        let instr = Instruction::decode(opcode)?;
-        self.pc += 1;
-        self.steps += 1;
-        match instr {
-            Instruction::Halt => Err(Trap::Halt),
-            Instruction::Nop => Ok(()),
-        }
-    }
+        let word = self.memory.read_u32(self.pc)?;
+        let inst = decode(word, &Default::default()).map_err(|_| Trap::IllegalInstruction(word))?;
 
-    pub fn run(&mut self) -> Result<(), Trap> {
-        loop {
-            match self.step() {
-                Ok(()) => {}
-                Err(Trap::Halt) => return Ok(()),
-                Err(e) => return Err(e),
-            }
-        }
+        self.pc += 4;
+        self.regs[0] = 0;
+
+        Ok(())
     }
 }
