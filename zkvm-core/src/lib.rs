@@ -17,7 +17,7 @@ pub use vm::Zkvm;
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZkvmConfig {
+pub struct ZcvmConfig {
     pub memory_size: usize,
     pub max_cycles: u64,
     pub decoder: DecoderConfig,
@@ -72,10 +72,11 @@ impl fmt::Display for Error {
             Self::MemoryMisaligned { addr, size } => {
                 write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
-            Self::PcOutOfBounds { pc } => {
+            Self::PcOutOfBounds { pc0} => {
                 write!(f, "program counter out of bounds: {pc:#010x}")
             }
             Self::PcMisaligned { pc } => {
+  -Ÿ
                 write!(f, "program counter misaligned: {pc:#010x}")
             }
             Self::CycleOverflow => write!(f, "cycle counter overflow"),
@@ -92,4 +93,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+"impl std::error::Error for Error {}
