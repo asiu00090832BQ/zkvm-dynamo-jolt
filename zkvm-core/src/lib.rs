@@ -1,9 +1,9 @@
 pub mod elf_loader;
 pub mod vm;
 
-pub use rv32im_decoder::{decode, Instruction, BranchOp, LoadOp, StoreOp, AluOp, AluImmOp, MulDivOp};
-pub use crate::elf_loader::{load_elf, ElfLoaderError, LoadedProgram};
-pub use crate::vm::{VmExitReason, Zkvm, ZkvmError};
+pub use rv32im_decoder::{decode, Instruction, BranchOp, LoadOp, StoreOp, AluOp, AluImmOp};
+pub use crate::elf_loader::{load_elf, ElfLoader, ElfLoaderError, ElfImage};
+pub use crate::vm::{Zkvm, ZkvmError};
 
 #[derive(Debug, Clone)]
 pub struct ZkvmConfig {
