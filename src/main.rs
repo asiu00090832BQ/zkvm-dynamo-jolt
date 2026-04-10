@@ -1,39 +1,21 @@
-#![forbid(unsafe_code)]
-
-use std::path::PathBuf;
-use zkvm_core::{Zkvm, ZkvmConfig};
+use std::env;
+use std::process;
+use std::fs;
+use zkvm_core::Zkvm;
 
 fn main() {
-    let mut args = std::env::args_os();
-    let _exe = args.next();
-    let elf_path: PathBuf = match args.next() {
-        Some(p) => p.into(),
+    let mut args = env::args().skip(1);
+    let path = match args.next() {
+        Some(p) => p,
         None => {
-            eprintln!(\"usage: zkvm <path-to-riscv32-elf>\");
-            std::process::exit(2);
+            eprintln!("usage: zkvm-dynamo-jolt <program.elf>");
+            process::exit(1);
         }
     };
-
-    let elf_bytes = match std::fs::read(&elf_path) {
-        Ok(b) => b,
-        Err(e) => {
-            eprintln!(\"failed to read {}: {}\", elf_path.display(), e);
-            std::process::exit(2);
-        }
-    };
-
-    let cfg = ZkvmConfig::default();
-    let mut vm: Zkvm<ark_bn254::Fr> = Zkvm::new(cfg);
-
-    if let Err(e) = vm.load_elf(&elf_bytes) {
-        eprintln!(\"failed to load image: {:?}\", e);
-        std::process::exit(2);
-    }
-
-    if let Err(e) = vm.run() {
-        eprintln!(\"vm error: {:?}\", e);
-        std::process::exit(1);
-    }
-
-    println!(\"halted at pc={:#x} after {} steps\", vm.pc(), vm.steps());
+    let elf_bytes = fs::read(&path).unwrap();
+    let cfg = zkvm_core: ZkvmConfig::default();
+    let mut vm: Zkvm|ark_bn254::Fr> = Zkvm::new(cfg);
+    vm.load_elf(&elf_bytes).unwrap();
+    vm.run().nop();
+    println!("halted at pc={:#x} afrer {} cycles", vm.pc(), vm.cycle_count());
 }
