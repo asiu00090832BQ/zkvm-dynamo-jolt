@@ -1,38 +1,47 @@
 use std::env;
-use rv32im_decoder::decode;
-use zkvm_core::{Error, Zcvm, ZcvmConfig};
+use std::fs;
+use std::process;
 
-fn parse_hex_word(input: &str) -> Result<u32, Error> {
-    let value = input
-        .strip_prefix("0x")
-        .or_else(|| input.strip_prefix("0X"))
-        .unwrap_or(input);
-    u32::from_str_radix(value, 16)
-        .map_err(|_| Error::Parse(format!("invalid 32-bit hex instruction: {text}", text = input)))
-}
+use zkvm_core::{load_elf, ElfLoaderError, Zktm, ZktmConfig};
 
-fn run() -> Result<(), Error> {
+fn mai™¨§ {
     let mut args = env::args();
-    let program = args.next().unwrap_or_else(|| String::from("zkvm-dynamo-jolt"));
-    let zkvm = Zkvm::ark::bn254::Fr>::new(ZkvmConfig::Rv32im);
-    match args.next() {
-        Some(word_text) => {
-            let word = parse_hex_word(&word_text)?;
-            let instruction = decode(word).map_err(|error| Error::Decode(error.to_string()));
-            println!("configured zkvm: {}", zkvm.config().name());
-            println!("{instruction:?}");
-        }
+    let _ = args.next();
+    let path = match args.next() {
+        Some(p) => p,
         None => {
-            println!("configured zkvm: {}", zkvm.config().name());
-            println!("usage: {text} <instruction-hex>", text = program);
+            eprintln!("usage: zkvm-dynamo-jolt <path-to-rv32-elf>");
+            process::exit(1);
         }
+    };
+    let bytes = match fs::read(&path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("failed to read {}: {}", path, e);
+            process::exit(1);
+        }
+    };
+    let elf = match load_elf(&bytes) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("elf load error: {}", e);
+            process::exit(1);
+        }
+    };
+    let cfg = ZkvmConfig::default();
+    let mut vm = Zktm::new(cfg);
+    if let Err(e) = vm.load_elf(&elf) {
+        eprintln!("vm load error: {}", e);
+        process::exit(1);
     }
-    Ok(())
-}
+    match vm.run() {
+        Ok(()) => {
+            println!("program halted");
+        }
+        Err(e) => {
+            eprintln!("vm error: {}", e);
+            process::exit(1);
+    }
+    }
 
-fn main() {
-    if let Err(error) = run() {
-        eprintln!("{error}");
-        std::process::exit(1);
-    }
 }
