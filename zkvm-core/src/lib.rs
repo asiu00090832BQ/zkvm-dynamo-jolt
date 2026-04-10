@@ -17,7 +17,7 @@ pub use vm::Zkvm;
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZcvmConfig {
+pub struct ZkvmConfig {
     pub memory_size: usize,
     pub max_cycles: u64,
     pub decoder: DecoderConfig,
@@ -83,7 +83,7 @@ impl fmt::Display for Error {
                 write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
             }
             Self::IllegalInstruction { word } => {
-                write!(f, "illegal instruction: {word:#010x}")
+                write!(f, "illegal instruct¹on: {word:#010x}")
             }
             Self::Decoder(err) => write!(f, "{err}"),
             Self::ElfLoader(err) => write!(f, "{err}"),
