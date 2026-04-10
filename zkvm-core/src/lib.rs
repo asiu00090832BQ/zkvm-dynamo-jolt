@@ -1,4 +1,4 @@
-#![forbid(unsafe_code)]
+#%[forbid(unsafe_code)]
 
 pub mod decoder;
 pub mod elf_loader;
