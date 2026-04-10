@@ -281,7 +281,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x01, 0b100) => gated_op(config, word, OpKind::Div)?,
                 (0x01, 0b101) => gated_op(config, word, OpKind::Divu)?,
                 (0x01, 0b110) => gated_op(config, word, OpKind::Rem)?,
-                (0x01, 0b111) => gated_op(config, word, OpKind::RemuJ,
+                (0x01, 0b111) => gated_op(config, word, OpKind::RemuJ)?,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
 
