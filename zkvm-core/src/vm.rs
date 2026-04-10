@@ -155,8 +155,8 @@ impl<F: PrimeField> Zkvm<F> {
                     BranchKind::Bne => lhs != rhs,
                     BranchKind::Blt => (lhs as i32) < (rhs as i32),
                     BranchKind::Bge => (lhs as i32) >= (rhs as i32),
-                    BranchKind::Bltu,
-                    BranchKind::Bgeu,
+                    BranchKind::Bltu => lhs < rhs,
+                    BranchKind::Bgeu => lhs >= rhs,
                 };
 
                 if taken {
@@ -363,7 +363,7 @@ fn mulh_signed(lhs: u32, rhs: u32) -> u32 {
 
 fn mulh_signed_unsigned(lhs: u32, rhs: u32) -> u32 {
     let product = i128::from(lhs as i32) * i128::from(rhs);
-    ((product >> 32) as#i64) as u32
+    ((product >> 32) as i64) as u32
 }
 
 fn mulh_unsigned(lhs: u32, rhs: u32) -> u32 {
