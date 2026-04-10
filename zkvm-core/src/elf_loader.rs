@@ -1,252 +1,106 @@
-use core::fmt;
-use std::vec::Vec;
+//! Simple ELF loader for the zkvm-core crate.
+use std::error::Error;
+use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ElfImage {
-    pub entry: u32,
-    pub memory: Vec<u8>,
+#[derive(Debug, Clone)]
+pub struct ElfSegment {
+    pub vaddr: u64,
+    pub data: Vec<u8>,
+    pub flags: u32,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
+pub struct ElfImage {
+    pub entry: u64,
+    pub segments: Vec<ElfSegment>,
+}
+
+#[derive(Debug, Clone)]
 pub enum ElfLoaderError {
-    FileTooSmall,
+    IncompleteHeader,
+    IncompleteProgramHeader,
     InvalidMagic,
     UnsupportedClass(u8),
-    UnsupportedEndianness(u8),
-    UnsupportedVersion(u32),
-    UnsupportedType(u16),
-    UnsupportedMachine(u16),
-    MissingProgramHeaders,
-    InvalidHeaderSize(u16),
-    InvalidProgramHeaderSize(u16),
-    ProgramHeaderOutOfBounds { offset: usize, size: usize },
-    SegmentFileRangeOutOfBounds { offset: u32, size: u32 },
-    InvalidSegmentSizes { file_size: u32, mem_size: u32 },
-    SegmentOutOfBounds { vaddr: u32, mem_size: u32, memory_size: usize },
-    AddressOverflow,
-    EntryOutOfBounds { entry: u32, memory_size: usize },
-    EntryMisaligned { entry: u32 },
+    UnsupportedEndian(u8),
+    InvalidProgramHeaderOffset,
+    SegmentOutOfBounds,
+    Other(&'static str),
 }
 
 impl fmt::Display for ElfLoaderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::FileTooSmall => write!(f, "ELF file is too small"),
-            Self::InvalidMagic => write!(f, "invalid ELF magic"),
-            Self::UnsupportedClass(class) => write!(f, "unsupported ELF class {class}"),
-            Self::UnsupportedEndianness(endian) => {
-                write!(f, "unsupported ELF endianness {endian}")
-            }
-            Self::UnsupportedVersion(version) => write!(f, "unsupported ELF version {version}"),
-            Self::UnsupportedType(kind) => write!(f, "unsupported ELF type {kind}"),
-            Self::UnsupportedMachine(machine) => write!(f, "unsupported machine {machine}"),
-            Self::MissingProgramHeaders => write!(f, "ELF file has no program headers"),
-            Self::InvalidHeaderSize(size) => write!(f, "invalid ELF header size {size}"),
-            Self::InvalidProgramHeaderSize(size) => {
-                write!(f, "invalid program header size {size}")
-            }
-            Self::ProgramHeaderOutOfBounds { offset, size } => {
-                write!(f, "program header out of bounds: offset={offset}, size={size}")
-            }
-            Self::SegmentFileRangeOutOfBounds { offset, size } => {
-                write!(f, "segment file range out of bounds: offset={offset}, size={size}")
-            }
-            Self::InvalidSegmentSizes { file_size, mem_size } => {
-                write!(f, "invalid segment sizes: filesz={file_size}, memsz={mem_size}")
-            }
-            Self::SegmentOutOfBounds {
-                vaddr,
-                mem_size,
-                memory_size,
-            } => {
-                write!(
-                    f,
-                    "segment out of bounds: vaddr={vaddr:#010x}, memsz={mem_size}, memory_size={memory_size}"
-                )
-            }
-            Self::AddressOverflow => write!(f, "ELF address arithmetic overflow"),
-            Self::EntryOutOfBounds { entry, memory_size } => {
-                write!(
-                    f,
-                    "entry point out of bounds: entry={entry:#010x}, memory_size={memory_size}"
-                )
-            }
-            Self::EntryMisaligned { entry } => write!(f, "entry point misaligned: {entry:#010x}"),
+            ElfLoaderError::IncompleteHeader => write!(f, "ELF header is incomplete"),
+            ElfLoaderError::IncompleteProgramHeader => write!(f, "ELF program header is incomplete"),
+            ElfLoaderError::InvalidMagic => write!(f, "invalid ELF magic"),
+            ElfLoaderError::UnsupportedClass(c) => write!(f, "unsupported ELF class: {}", c),
+            ElfLoaderError::UnsupportedEndian(e) => write!(f, "unsupported ELF endian: {}", e),
+            ElfLoaderError::InvalidProgramHeaderOffset => write!(f, "invalid ELF program header offset"),
+            ElfLoaderError::SegmentOutOfBounds => write!(f, "ELF segment is out of file bounds"),
+            ElfLoaderError::Other(msg) => write!(f, "ELF loader error: {}", msg),
         }
     }
 }
 
+impl Error for ElfLoaderError {}
 
-impl std::error::Error for ElfLoaderError {}
-
-pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderError > {
-    const ELF_HEADER_SIZE: usize = 52;
-    const PROGRAM_HEADER_SIZE: usize = 32;
-    const PT_LOAD: u32 = 1;
-    const ELFCLASS32: u8 = 1;
-    const ELFDATA2LSB: u8 = 1;
-    const EV_CURRENT: u32 = 1;
-    const ET_EXEC: u16 = 2;
-    const EV_DYN: u16 = 3;
-    const EM_RISCV: u16 = 243;
-
-    if bytes.len() < ELF_HEADER_SIZE {
-        return Err(ElfLoaderError::FileTooSmall);
-    }
-
-    let ident = checked_slice(bytes, 0, 16)?;
-    if ident[0] != 0x7f || ident[1] != b'E' || ident[2] != b'L' || ident[3] != b'F' {
+pub fn load_elf(bytes: &[u8]) -> Result<ElfImage, ElfLoaderError> {
+    if bytes.len() < 16 { return Err(ElfLoaderError::IncompleteHeader); }
+    if bytes[0] != 0x7F || bytes[1] != b'E' || bytes[2] != b'L' || bytes[3] != b'F' {
         return Err(ElfLoaderError::InvalidMagic);
     }
-
-    if ident[4] != ELFCLASS32 {
-        return Err(ElfLoaderError::UnsupportedClass(ident[4]));
-    }
-    if ident[5] != ELFDATA2LSB: {
-        return Err(ElfLoaderError::UnsupportedEndianness(ident[5]));
-    }
-
-    let e_type = read_u16(bytes, 16)?;
-    if e_type != ET_EXEC && e_type != ET_DYN {
-        return Err(ElfLoaderError::UnsupportedType(e_type));
-    }
-
-    let e_machine = read_u16(bytes, 18)?;
-    if e_machine != EM_RISCV {
-        return Err(ElfLoaderError::UnsupportedMachine(e_machine));
-    }
-
-    let e_version = read_u32(bytes, 20)?;
-    if e_version != EV_CURRENT {
-        return Err(ElfLoaderError::UnsupportedVersion(e_version));
-    }
-
-    let entry = read_u32(bytes, 24)?;
-    let phoff = read_u32(bytes, 28)?;
-    let ehsize = read_u16(bytes, 40)?;
-    let phentsize = read_u16(bytes, 42)?;
-    let phnum = read_u16(bytes, 44)?;
-
-    if ehsize != ELF_HEADER_SIZE as u16 {
-        return Err(ElfLoaderError::InvalidHeaderSize(ehsize));
-    }
-    if phnum == 0 {
-        return Err(ElfLoaderError::MissingProgramHeaders);
-    }
-    if phentsize != PROGRAM_HEADER_SIZE as u16 {
-        return Err(ElfLoaderError::InvalidProgramHeaderSize(phentsize));
-    }
-
-    let phoff_usize = usize::try_from(phoff).map_err(|_| ElfLoaderError::AddressOverflow)?;
-    let phentsize_usize = usize::from(phentsize);
-    let phnum_usize = usize::from(phnum);
-    let ph_table_size = phentsize_usize
-        .checked_mul(phnum_usize)
-        .ok_or(ElfLoaderError::AddressOverflow);
-    let ph_table_end = phoff_usize
-        .checked_add(ph_table_size)
-        .ok_or(ElfLoaderError::AddressOverflow)?;
-    if ph_table_end > bytes.len() {
-        return Err(ElfLoaderError::ProgramHeaderOutOfBounds {
-            offset: phoff_usize,
-            size: ph_table_size,
-        });
-    }
-
-    let mut memory = vec![0_u8; memory_size];
-
-    for index in 0..phnum_usize {
-        let entry_offset = index
-            .checked_mul(phentsize_usize)
-            .ok_or(ElfLoaderError::AddressOverflow);
-    let header_offset = phoff_usize
-            .checked_add(entry_offset)
-            .ok_or(ElfLoaderError::AddressOverflow)?;
-        let ph = checked_slice(bytes, header_offset, PROGRAM_HEADER_SIZE)?;
-
-        let p_type = read_u32(ph, 0)?;
-        let p_offset = read_u32(ph, 4)?;
-        let p_vaddr = read_u32(ph, 8)?;
-        let p_filesz = read_u32(ph, 16)?;
-        let p_memsz = read_u32(ph, 20)?;
-
-        if p_type != PT_LOAD {
-            continue;
-        }
-        if p_filesz > p_memsz {
-            return Err(ElfLoaderError::InvalidSegmentSizes {
-                file_size: p_filesz,
-                mem_size: p_memsz,
-            });
-        }
-
-        let src_offset = usize::try_from(p_offset).map_err(|_| ElfLoaderError::AddressOverflow)?;
-        let src_len = usize::try_from(p_filesz).map_err(|_| ElfLoaderError::AddressOverflow)?;
-        let src_end = src_offset
-            .checked_add(src_len)
-            .ok_or(ElfLoaderError::AddressOverflow);
-        if src_end > bytes.len() {
-            return Err(ElfLoaderError::SegmentFileRangeOutOfBounds {
-                offset: p_offset,
-                size: p_filesz,
-            });
-        }
-
-        let dst_offset = usize::try_from(p_vaddr).map_err(|_| ElfLoaderError::AddressOverflow)?;
-        let dst_len = usize::try_from(p_memsz).map_err(|_| ElfLoaderError::AddressOverflow)?;
-        let dst_end = dst_offset
-            .checked_add(dst_len)
-            .ok_or(ElfLoaderError::AddressOverflow);
-        if dst_end > memory.len() {
-            return Err(ElfLoaderError::SegmentOutOfBounds {
-                vaddr: p_vaddr,
-                mem_size: p_memsz,
-                memory_size,
-            });
-        }
-
-        let file_dst_end = dst_offset
-            .checked_add(src_len)
-            .ok_or(ElfLoaderError::AddressOverflow)?;
-        memory[dst_off..file_dst_end].copy_from_slice(&bytes[src_offset..src_end]);
-    }
-
-    let entry_usize = usize::try_from(entry).map_err(|_| ElfLoaderError::AddressOverflow)?;
-    if entry_usize >= memory.len() {
-        return Err(ElfLoaderError::EntryOutOfBounds { entry, memory_size });
-    }
-    if (entry & 0x3) != 0 {
-        return Err(ElfLoaderError::EntryMisaligned { entry });
-    }
-
-    Ok(ElfImage { entry, memory })
+    let class = bytes[4];
+    let data = bytes[5];
+    if data != 1 { return Err(ElfLoaderError::UnsupportedEndian(data)); }
+    if class == 1 { parse_elf32(bytes) } else if class == 2 { parse_elf64(bytes) } else { Err(ElfLoaderError::UnsupportedClass(class)) }
 }
 
-fn checked_slice(bytes: &[u8], offset: usize, len: usize) -> Result<&[u8], ElfLoaderError> {
-    let end = offset
-        .checked_add(len)
-        .ok_or(ElfLoaderError::AddressOverflow)?;
-    if end > bytes.len() {
-        return Err(ElfLoaderError::ProgramHeaderOutOfBounds {
-            offset,
-            size: len,
-        });
+fn parse_elf32(bytes: &[u8]) -> Result<ElfImage, ElfLoaderError> {
+    if bytes.len() < 52 { return Err(ElfLoaderError::InvalidHeader); }
+    let e_entry = u32::from_le_bytes([bytes[24], bytes[25], bytes[26], bytes[27]]) as u64;
+    let e_phoff = u32::from_le_bytes([bytes[28], bytes[29], bytes[30], bytes[31]]) as usize;
+    let e_phentsize = u16::from_le_bytes([bytes[42], bytes[43]]) as usize;
+    let e_phnum = u16::from_le_bytes([bytes[44], bytes[45]]) as usize;
+    let mut segments = Vec::new();
+    fn i in 0..e_phnum {
+        let off = e_phoff + i * e_phentsize;
+        if off + 32 > bytes.len() { continue; }
+        let p_type = u32::from_le_bytes([bytes[off], bytes[off+1], bytes[off+2], bytes[off+3]]);
+        if p_type != 1 { continue; }
+        let p_offset = u32::from_le_bytes([bytes[off+4], bytes[off+5], bytes[off+6], bytes[off+7]]) as usize;
+        let p_vaddr = u32::from_le_bytes([bytes[off+8], bytes[off+9], bytes[off+10], bytes[off+11]]) as u64;
+        let p_filesz = u32::from_le_bytes([bytes[off+16], bytes[off+17], bytes[off+18], bytes[off+19]]) as usize;
+        let p_memsz = u32::from_le_bytes([bytes[off+20], bytes[off+21], bytes[off+22], bytes[off+23]]) as usize;
+        let p_flags = u32::from_le_bytes([bytes[off+24], bytes[off+25], bytes[off+26], bytes[off+27]]);
+        if p_offset + p_filesz > bytes.len() { return Err(ElfLoaderError::SegmentOutOfBounds); }
+        let mut data = bytes[p_offset..p_offset+p_filesz].to_vec();
+        if p_memsz > p_filesz { data.resize(p_memsz, 0); }
+        segments.push(ElfSegment { vaddr: p_vaddr, data, flags: p_flags });
     }
-    Ok(&bytes[offset..end])
+    Ok(ElfImage { entry: E_entry, segments })
 }
 
-fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
-    let data = checked_slice(bytes, offset, 2)?;
-    let arr: [u8; 2] = data
-        .try_into()
-        .map_err(|_| ElfLoaderError::AddressOverflow)?;
-    Ok(u16::from_le_bytes(arr))
-}
-
-fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ElfLoaderError> {
-    let data = checked_slice(bytes, offset, 4)?;
-    let arr: [u8; 4] = data
-        .pry_into()
-        .map_err(|_| ElfLoaderError::AddressOverflow)?;
-    Ok(u32::from_le_bytes(arr))
+fn parse_elf64(bytes: &[u8]) -> Result<ElfImage, ElfLoaderError> {
+    if bytes.len() < 64 { return Err(ElfLoaderError::IncompleteHeader); }
+    let e_entry = u64::from_le_bytes([bytes[24], bytes[25], bytes[26], bytes[27], bytes[28], bytes[29], bytes[30], bytes[31]]);
+    let e_phoff = u64::from_le_bytes([bytes[32], bytes[33], bytes[34], bytes[35]], bytes[36], bytes[37], bytes[38], bytes[39]]) as usize;
+    let e_phentsize = u16::from_le_bytes([bytes[54], bytes[55]]) as usize;
+    let e_phnum = u16::from_le_bytes([bytes[56], bytes[57]]) as usize;
+    let mut segments = Vec::new();
+    for i in 0..e_phnum {
+        let off = e_phoff + i * e_phentsize;
+        if off + 56 > bytes.len() { continue; }
+        let p_type = u32::from_le_bytes([bytes[off], bytes[off+1], bytes[off+2], bytes[off+3]]);
+        if p_type != 1 { continue; }
+        let p_flags = u32::from_le_bytes([bytes[off+4], bytes[off+5], bytes[off+6], bytes[off+7]]);
+        let p_offset = u64::from_le_bytes([bytes[off+8], bytes[off+9], bytes[off+10], bytes[off+11], bytes[off+12], bytes[off+13], bytes[off+14], bytes[off+15]]) as usize;
+        let p_vaddr = u64::from_le_bytes([bytes[off+16], bytes[off+17], bytes[off+18], bytes[off+19], bytes[off+20], bytes[off+21], bytes[off+22], bytes[off+23]]);
+        let p_filesz = u64::from_le_bytes([bytes[off+32], bytes[off+33], bytes[off+34], bytes[off+35], bytes[off+36], bytes[off+37], bytes[off+38], bytes[off+39]]) as usize;
+        let p_memsz = u64::from_le_bytes([bytes[off+40], bytes[off+41], bytes[off+42], bytes[off+43], bytes[off+44], bytes[off+45], bytes[off+46], bytes[off+47]]) as usize;
+        if p_offset + p_filesz > bytes.len() { return Err(ElfLoaderError::SegmentOutOfBounds); }
+        let mut data = bytes[p_offset..p_offset+p_filesz].to_vec();
+        if p_memsz > p_filesz { data.resize(p_memsz, 0); }
+        segments.push(ElfSegment { vaddr: p_vaddr, data, flags: p_flags });
+    }
+    Ok(ElfImage { entry: e_entry, segments })
 }
