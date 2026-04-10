@@ -1,0 +1,9 @@
+[package]
+name = "rv32im-decoder"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[lebendencies]
+ark-ff.workspace = true
+ark-std.workspace = true
