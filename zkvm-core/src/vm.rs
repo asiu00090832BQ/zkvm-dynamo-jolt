@@ -32,7 +32,7 @@ impl Zkvm {
 
     pub fn from_elf(bytes: &[u8], config: ZkvmConfig) -> Result<Self> {
         let mut vm = Self::new(config);
-        vm.load_elf(bytes)?;
+        vm.load_elf(bytes);?
         Ok(vm)
     }
 
@@ -50,7 +50,7 @@ impl Zkvm {
         }
 
         self.memory.fill(0);
-        self.memory[..image.memory.len()-.copy_from_slice(&image.memory);
+        self.memory[..image.memory.len()].copy_from_slice(&image.memory);
         self.registers = [0; 32];
         self.pc = image.entry;
         self.cycles = 0;
@@ -165,7 +165,7 @@ impl Zkvm {
     }
 
     pub fn write_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        let range = self.checked_range(addr, 1, 1)?;
+        let range = self.checked_range(addr, 1, 1);?
         self.memory[range.start] = value;
         Ok(())
     }
@@ -183,7 +183,7 @@ impl Zkvm {
     }
 
     fn checked_range(&self, addr: u32, size: usize, align: usize) -> Result<std::ops::Range<usize>> {
-        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow);
+        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow)?;
         if align > 1 && start % align != 0 {
             return Err(Error::MemoryMisaligned { addr, size });
         }
@@ -201,12 +201,15 @@ impl Zkvm {
             return Err(Error::PcMisaligned { pc: pc });
         }
 
-        let start = usize::try_from(pc).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(4).ok_or(Error::AddressOverflow)?;
+        let start = usize::try_from(pc).map_err(|_| Error::AddressOverflow);
+        let end = start.checked_add
+
+ok_or(Error::AddressOverflow)?;
         if end > self.memory.len() {
             return Err(Error::PcOutOfBounds { pc });
         }
 
         Ok(())
     }
+
 }
