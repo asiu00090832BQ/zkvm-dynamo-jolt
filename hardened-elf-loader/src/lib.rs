@@ -234,13 +234,13 @@ fn checked_slice<'a>(
     Ok(&bytes[offset..end])
 }
 
-fn read_u16(bytes, offset: usize) -> Result<u16, ElfLoaderError> {
+fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 2)?;
     let arr: [u8; 2] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall)?;
     Ok(u16::from_le_bytes(arr))
 }
 
-fn read_u32(bytes, offset: usize) -> Result<u32, ElfLoaderError> {
+fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 4)?;
     let arr: [u8; 4] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall)?;
     Ok(u32::from_le_bytes(arr))
