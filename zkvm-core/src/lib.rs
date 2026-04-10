@@ -3,17 +3,31 @@
 
 //! Core components for the Zkvm project.
 //!
-//! The crate is intentionally structured into four modules:
-//! - `decoder`: Instruction decoding.
-//! - `elf_loader`: Hardened ELF parsing and segment extraction.
-//! - `vm`: A small VM that can execute a subset of RV64 instructions.
-//! - `proof`: Proof-system integration (defined elsewhere in the repository).
+//! The crate is intentionally structured into three primary runtime modules:
+//! - [`decoder`]: Instruction decoding.
+//! - [`elf_loader`]: Hardened ELF parsing and segment extraction.
+//! - [`vm`]: A small VM that can execute a subset of RV64 instructions.
+//!
+//! A proof-system integration module may also exist elsewhere in the repository.
 
+/// Instruction decoding support.
 pub mod decoder;
+/// Hardened ELF parsing and segment extraction.
 pub mod elf_loader;
+/// Proof-system integration.
 pub mod proof;
+/// Virtual-machine execution support.
 pub mod vm;
 
-pub use decoder::{DecodeError, DecodedInstruction};
-pub use elf_loader::{ElfError, ElfImage, ElfSegment, ElfLoader};
-pub use vm::{VmError, Zkvm, ZkvmConfig};
+/// Canonical decoder exports.
+pub use decoder::{DecodeError, DecoderConfig, Instruction};
+/// Backward-compatible decoder alias.
+pub use decoder::DecodedInstruction;
+/// Canonical ELF loader exports.
+pub use elf_loader::{ElfImage, ElfLoaderError};
+/// Backward-compatible ELF loader exports.
+pub use elf_loader::{ElfError, ElfLoader, ElfSegment};
+/// Canonical VM exports.
+pub use vm::{Error, Zkvm, ZkvmConfig};
+/// Backward-compatible VM error alias.
+pub use vm::VmError;
