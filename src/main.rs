@@ -1,21 +1,49 @@
-use ark_bn254::Fr;
-use zkvm_core::{Zkvm, ZkvmConfig, Result};
+#![forbid(unsafe_code)]
 
-fn main() -> Result<()> {
-    // Initialize configuration with security-hardened defaults
-    let config = ZkvmConfig::default();
+use std::path::PathBuf;
 
-    // Instantiate the Zkvm with the verified PrimeField baseline
-    let mut vm = Zkvm::<Fr>::new(config)?;
+use zkvm_core::{ElfLoader, Zkvm, ZkvmConfig};
 
-    // Load the ELF image using the hardened ingestion path
-    // This triggers the alignment and overlap validation logic in elf_loader.rs
-    let elf_bytes = include_bytes!("../examples/hello_world.elf");
-    vm.load_elf(elf_bytes)?;
+fn main() {
+    let mut args = std::env::args_os();
+    let _exe = args.next();
+    let elf_path: PathBuf = match args.next() {
+        Some(p) => p.into(),
+        None => {
+            eprintln!("usage: zkvm <path-to-riscv64-elf>");
+            std::process::exit(2);
+        }
+    };
 
-    // Execute the program until halt or trap
-    vm.run()?;
+    let elf_bytes = match std::fs::read(&elf_path) {
+        Ok(b) => b,
+        Err(e) => {
+            eprintln!("failed to read {}: {}", elf_path.display(), e);
+            std::process::exit(2);
+        }
+    };
 
-    println!("Execution verified. Total cycles: {}", vm.cycle_count());
-    Ok(())
+    let image = match ElfLoader::load(&elf_bytes) {
+        Ok(img) => img,
+        Err(e) => {
+            eprintln!("ELF validation failed: {}", e);
+            std::process::exit(2);
+        }
+    };
+
+    let cfg = ZkvmConfig::default();
+
+    let mut vm: Zkvm<ark_bn254::Fr> = Zkvm::new(cfg);
+
+    if let Err(e) = vm.load_elf(&image) {
+        eprintln!("failed to load image: {}", e);
+        std::process::exit(2);
+    }
+
+    if let Err(e) = vm.run() {
+        eprintln!("vm error: {}", e);
+        std::process::exit(1);
+    }
+
+    println!("halted at pc={:#x} after {} steps", vm.pc(), vm.steps());
 }
