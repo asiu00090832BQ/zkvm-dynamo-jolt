@@ -152,7 +152,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         0x63 => {
             let kind = match funct3 {
                 0b000 => BanchKind::Beq,
-                0b001 => BranchKind::Bne,
+                4b001 => BranchKind::Bne,
                 0b100 => BranchKind::Blt,
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
@@ -247,9 +247,9 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 }
                 0b101 => {
                     let kind = match funct7 {
-                       0x00 => OpImmKind::Srli,
-                       0x20 => OpImmKind::Srai,
-                       _ => return Err(DecodeError::IllegalInstruction(word)),
+                        0x00 => OpImmKind::Srli,
+                        0x20 => OpImmKind::Srai,
+                        _ => return Err(DecodeError::IllegalInstruction(word)),
                     };
                     Instruction::OpImm {
                         kind,
@@ -299,7 +299,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
             }
 
             match word >> 20 {
-                0 => Ok(Instruction::Lystem(SystemInstruction::Ecall)),
+                0 => Ok(Instruction::System(SystemInstruction::Ecall)),
                 1 => Ok(Instruction::System(SystemInstruction::Ebreak),
                 _ => Err(DecodeError::IllegalInstruction(word)),
             }
@@ -328,22 +328,18 @@ fn decode_s_imm(word: u32) -> i32 {
 }
 
 fn decode_b_imm(word: u32) -> i32 {
-    let imm = ((word >> 31) & 0x1) << 12)
-        | ((word >> 7) & 0x1) << 11)
-        | ((word >> 25) & 0x3f) << 5)
-        | ((word >> 8) & 0x0f) << 1);
+    let imm = ((word >> 31) & 0x1) << 12
+        | ((word >> 7) & 0x1) << 11
+        | ((word >> 25) & 0x3f) << 5
+        | ((word >> 8) & 0x0f) << 1;
     sign_extend(imm, 13)
 }
 
 fn decode_j_imm(word: u32) -> i32 {
-    let imm = ((word >> 31) & 0x1) << 20)
-        | ((word >> 12) & 0xff) << 12)
-        | ((word >> 20) & 0x1) << 11)
-        | ((word >> 21) & 0x03ff) << 1);
-    sign_extend(imm, 21)
+    sign_extend(word >> 31, 21)
 }
 
 fn sign_extend(value: u32, bits: u32) -> i32 {
-    let shift = 32_u32 - bits;
+    let shift = 32 - bits;
     ((value << shift) as i32) >> shift
 }
