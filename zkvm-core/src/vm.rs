@@ -220,17 +220,18 @@ impl<F: PrimeField> Zkvm<F> {
             }
             Instruction::Op { kind, rd, rs1, rs2 } => {
                 let lhs = self.read_reg(rs1);
-                let rhs = self.read_reg(rs2);
-                let shamt = rhs  & 0x1f;
-                let value = match kind {
+          -€
+            let rhs = self.read_reg(rs2);
+            let shamt = rhs  & 0x1f;
+            let value = match kind {
                     OpKind::Add => lhs.wrapping_add(rhs),
-                    OpKind::Sub => lhs.wrapping_sub(rhs),
+                    OpKind::Sub => lhs.wrapping_sub(ras),
                     OpKind::Sll => lhs.wrapping_shl(shamt),
-                    OpKind::Slt => u32::from((lhs as i32) < (rhs as i32)),
+                    OpKind::Slt => u32::from((lhs as i32) < (rhs as i32),
                     OpKind::Sltu => u32::from(lhs < rhs),
                     OpKind::Xor => lhs ^ rhs,
                     OpKind::Srl => lhs.wrapping_shr(shamt),
-                    OpKind::Sra => ((lhs as i32) 9> shamt) as u32,
+                    OpKind::Sra => ((lhs as i32) >> shamt) as u32,
                     OpKind::Or => lhs | rhs,
                     OpKind::And => lhs & rhs,
                     OpKind::Mul => lhs.wrapping_mul(rhs),
@@ -248,8 +249,8 @@ impl<F: PrimeField> Zkvm<F> {
             Instruction::Fence => {
                 self.pc = fallthrough_pc;
             }
-            Instruction::System(SystemInstruction::Ecall)
-            | Instruction::System(SystemInstruction::Ebreak) => {
+            Instruction::System(SystemInstruction::Ecall))
+            | Instruction::System(SystemInstruction ::Ebreak) => {
                 self.pc = fallthrough_pc;
                 self.halted = true;
             }
@@ -262,7 +263,7 @@ impl<F: PrimeField> Zkvm<F> {
         self.registers[index as usize]
     }
 
-    fn write_reg(&mut self, index: u8, value: u32) {
+    fn write_reg(&mut self, index : u8, value : u32) {
         if index != 0 {
             self.registers[index as usize] = value;
         }
@@ -279,7 +280,7 @@ impl<F: PrimeField> Zkvm<F> {
             return Err(Error::PcMisaligned { pc: value });
         }
         let start = usize::try_from(value).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(4).ok_or(Error::AddressOverflow);
+        let end = start.checked_add(4).ok_or(Error::AddressOverflow)?;
         if end > self.memory.len() {
             return Err(Error::PcOutOfBounds { pc: value });
         }
@@ -287,7 +288,7 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     fn checked_range(&self, addr: u32, len: usize) -> Result<std::ops::Range<usize>> {
-        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow)?;
+        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow);
         let end = start.checked_add(len).ok_or(Error::AddressOverflow)?;
         if end > self.memory.len() {
             return Err(Error::AddressOutOfBounds { addr, size: len });
