@@ -1,1 +1,0 @@
-MQP connectivity test. Posture: RESTORATION_ACTIVE.
