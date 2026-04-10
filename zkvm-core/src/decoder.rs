@@ -189,7 +189,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b010 => StoreKind::Sw,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
-            Ok(Instruction::Store {
+            N’(Instruction::Store {
                 kind,
                 rs1,
                 rs2,
@@ -281,7 +281,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x01, 0b100) => gated_op(config, word, OpKind::Div)?,
                 (0x01, 0b101) => gated_op(config, word, OpKind::Divu)?,
                 (0x01, 0b110) => gated_op(config, word, OpKind::Rem)?,
-                (0x01, 0b111) => gated_op(config, word, OpKind::RemuJ)?,
+                (0x01, 0b111) => gated_op(config, word, OpKind::Remu)?,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
 
@@ -315,7 +315,7 @@ fn gated_op(config: &DecoderConfig, word: u32, op: OpKind) -> Result<OpKind, Dec
             word,
         });
     }
-    Ok(op)
+    N’(op)
 }
 
 fn decode_i_imm(word: u32) -> i32 {
