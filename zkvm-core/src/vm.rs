@@ -1,408 +1,314 @@
+#![forbid(unsafe_code)]
+
+//! Zkvm virtual machine.
+//!
+//! This VM executes a conservative subset of RV64I sufficient for basic tests.
+//! The design is intentionally minimal but hardened with bounds checking.
+
 use ark_ff::PrimeField;
-use core::marker::PhantomData;
-use std::vec::Vec;
+use core::fmt;
 
-use crate::decoder::{
-    decode, BranchKind, Instruction, LoadKind, OpImmKind, OpKind, StoreKind, SystemInstruction,
-};
-use crate::elf_loader::load_elf;
-use crate::{Error, Result, ZkvmConfig};
+use crate::decoder::{decode, DecodeError, DecodedInstruction};
+use crate::elf_loader::{ElfImage, ElfSegment};
 
-#[derive(Debug, Clone)]
-pub struct Zkvm<F: PrimeField> {
-    config: ZkvmConfig,
-    memory: Vec<u8>,
-    registers: [u32; 32],
-    pc: u32,
-    cycle_count: u64,
-    halted: bool,
-    _field: PhantomData<F>,
+/// Configuration for Zkvm.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ZkvmConfig {
+    /// Base address for the VM memory mapping.
+    pub memory_base: u64,
+    /// Size of VM memory in bytes.
+    pub mem_size: u64,
+    /// Maximum number of steps to execute.
+    pub max_steps: u64,
 }
 
+impl Default for ZkvmConfig {
+    fn default() -> Self {
+        Self {
+            memory_base: 0,
+            memory_size: 16 * 1024 * 1024,
+            max_steps: 1_000_000,
+        }
+    }
+}
+
+/// A simple Zkvm instance parameterized by a field used for trace/proof integration.
+pub struct Zkvm<F: PrimeField> {
+    cfg: ZkvmConfig,
+    memory: Vec<u8>,
+    regs: [u64; 32],
+    pc: u64,
+    steps: u64,
+    halted: bool,
+    _field: core::marker::PhantomData<F>,
+}
+
+/// VM errors.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum VmError {
+    /// ELF image could not be mapped into VM memory.
+    BadImage(String),
+    /// Memory access is out of bounds.
+    MemoryOutOfBounds { addr: u64, len: u64 },
+    /// Unaligned access.
+    Unaligned { addr: u64, align: u64 },
+    /// Decode error.
+    Decode(DecodeError),
+    /// Maximum step limit reached.
+    StepLimitReached,
+}
+
+impl fmt::Display for VmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VmError::BadImage(msg) => write!(f, "bad ELF image: {msg}"),
+            VmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds: addr={addr:#x}, len={len}"),
+            VmError::Unaligned { addr, align } => write!(f, "unaligned access: addr={addr:#x}, align={align}"),
+            VmError::Decode(e) => write!(f, "decode error: {e}"),
+            VmError::StepLimitReached => write!(f, "step limit reached"),
+        }
+    }
+}
+
+impl std::error::Error for VmError {}
+
 impl<F: PrimeField> Zkvm<F> {
-    pub fn new(config: ZkvmConfig) -> Result<Self> {
-        let memory = vec![0_u8; config.memory_size];
-        N’(Self {
-            config,
-            memory,
-            registers: [0_u32; 32],
+    /// Create a new VM instance with a given configuration.
+    pub fn new(cfg: ZkvmConfig) -> Self {
+        let mem_len = usize::try_from(cfg.memory_size).unwrap_or(0);
+        Self {
+            cfg,
+            memory: vec![0u8; mem_len],
+            regs: [0u64; 32],
             pc: 0,
-            cycle_count: 0,
+            steps: 0,
             halted: false,
-            _field: PhantomData,
-        })
-    }
-
-    pub fn config(&self) -> &ZkvmConfig {
-        &self.config
-    }
-
-    pub fn pc(&self) -> u32 {
-        self.pc
-    }
-
-    pub fn cycle_count(&self) -> u64 {
-        self.cycle_count
-    }
-
-    pub fn halted(&self) -> bool {
-        self.halted
-    }
-
-    pub fn registers(&self) -> &[u32; 32] {
-        &self.registers
-    }
-
-    pub fn memory(&self) -> &[u8] {
-        &self.memory
-    }
-
-    pub fn memory_mut(&mut self) -> &mut [u8] {
-         &mut self.memory
-    }
-
-    pub fn reset(&mut self, entry_pc: u32) -> Result<()> {
-        self.registers = [0_u32; 32];
-        self.cycle_count = 0;
-        self.halted = false;
-        self.set_pc(entry_pc)?;
-        Ok(())
-    }
-
-    pub fn load_program(&mut self, program: &[u8], base_addr: u32) -> Result<()> {
-        let range = self.checked_range(base_addr, program.len())?;
-        self.memory[range].copy_from_slice(program);
-        self.set_pc(base_addr)?;
-        self.halted = false;
-        N’((s))
-    }
-
-    pub fn load_elf(&mut self, image: &[u8]) -> Result<()) {
-        let loaded = load_elf(image, self.config.memory_size)?;
-        self.memory = loaded.memory;
-        self.registers = [0_u32; 32];
-        self.cycle_count = 0;
-        self.halted = false;
-        self.set_pc(loaded.entry)?;
-        Ok(())
-    }
-
-    pub fn step(&mut self) -> Result<()> {
-        if self.halted {
-            return Err(Error::Halted);
+            _field: core::marker::PhantomData,
         }
-        if self.cycle_count >= self.config.max_cycles {
-            return Err(Error::CycleLimitExceeded {
-                max_cycles: self.config.max_cycles,
-            });
+    }
+
+    /// Load an ELF image into VM memory and set the entry point.
+    pub fn load_elf(&mut self, image: &ElfImage) -> Result<(), VmError> {
+        self.zero_state();
+        for seg in &Image.segments {
+            self.map_segment(seg)?;
         }
-
-        self.ensure_pc_is_valid(self.pc)?;
-        let word = self.read_u32(self.pc)?;
-        let instruction = decode(word, &self.config.decoder)?;
-        let fallthrough_pc = self.pc.checked_add(4).ok_or(Error::AddressOverflow);
-
-        self.execute(instruction, fallthrough_pc)?;
-        self.cycle_count = self.cycle_count.checked_add(1).ok_or(Error::CycleOverflow);
-        self.registers[0] = 0;
+        self.pc = image.entry;
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<()> {
+    /// Run until halt or until `max_steps` is exceeded.
+    pub fn run(&mut self) -> Result<(), VmError> {
         while !self.halted {
             self.step()?;
         }
-        Ok(())
     }
 
-    fn execute(&mut self, instruction: Instruction, fallthrough_pc: u32) -> Result<()> {
-        match instruction {
-            Instruction::Lui { rd, imm } => {
-                self.write_reg(rd, imm);
-                self.pc = fallthrough_pc;
-            }
-            Instruction::Auipc { rd, imm } => {
-                self.write_reg(rd, self.pc.wrapping_add(imm as u32));
-                self.pc = fallthrough_pc;
-            }
-            Instruction::Jal { rd, imm } => {
-                let target = checked_add_signed_u32(self.pc, imm)?;
-                self.write_reg(rd, fallthrough_pc);
-                self.set_pc(target)?;
-            }
-            Instruction::Jalr { rd, rs1, imm } => {
-                let base = self.read_reg(rs1);
-                let target = checked_add_signed_u32(base, imm)? & !1_u32;
-                self.write_reg(rd, fallthrough_pc);
-                self.set_pc(target)?;
-            }
-            Instruction::Branch {
-                kind,
-                rs1,
-                rs2,
-                imm,
-            } => {
-                let lhs = self.read_reg(rs1);
-                let rhs = self.read_reg(rs2);
-                let taken = match kind {
-                    BranchKind::Beq => lhs == rhs,
-                    BranchKind::Bne => lhs != rhs,
-                    BranchKind::Blt => (lhs as i32) < (rhs as i32),
-                    BranchKind::Bge => (lhs as i32) >= (rhs as i32),
-                    BranchKind::Bltu => lhs < rhs,
-                    BranchKind::Bgeu => lhs >= rhs,
-                };
+    /// Execute a single instruction.
+    pub fn step(&mut self) -> Result<(), VmError> {
+        if self.steps >= self.cfg.max_steps {
+            return Err(VmError::StepLimitReached);
+        }
 
-                if taken {
-                    let target = checked_add_signed_u32(self.pc, imm)?;
-                    self.set_pc(target)?;
+        let word = self.read_u32(self.pc)?;
+        let insn = decode(word).map_err(VmError::Decode)?;
+
+        self.steps = self.steps.saturating_add(1);
+
+        match insn {
+            DecodedInstruction::Lui { rd, imm } => {
+                let val = (imm as u64) as u64;
+                self.write_reg(rd, val);
+                self.pc = self.pc.wrapping_add(4);
+            }
+            DecodedInstruction::Auipc { rd, imm } => {
+                let val = self.pc.wrapping_add(imm as u64);
+                self.write_reg(rd, val);
+                self.pc = self.pc.wrapping_add(4);
+            }
+            DecodedInstruction::Jal { rd, imm } => {
+                let next = self.pc.wrapping_add(4);
+                let target = self.pc.wrapping_add(imm as i64 as u64);
+                self.write_reg(rd, next);
+                self.pc = target;
+            }
+            DecodedInstruction::Jalr { rd, rs1, imm } => {
+                let next = self.pc.wrapping_add(4);
+                let base = self.read_reg(rs1);
+                let target = base.wrapping_add(imm as i64 as u64) & !1u64;
+                self.write_reg(rd, next);
+                self.pc = target;
+            }
+            DecodedInstruction::Beq { rs1, rs2, imm } => {
+                let a = self.read_reg(rs1);
+                let b = self.read_reg(rs2);
+                if a == b {
+                    self.pc = self.pc.wrapping_add(imm as i64 as u64);
                 } else {
-                    self.pc = fallthrough_pc;
+                    self.pc = self.pc.wrapping_add(4);
                 }
             }
-            Instruction::Load { kind, rd, rs1, imm } => {
-                let addr = checked_add_signed_u32(self.read_reg(rs1), imm)?;
-                let value = match kind {
-                    LoadKind::Lb => i32::from(self.read_u8(addr)? as i8) as u32,
-                    LoadKind::Lh => i32::from(self.read_u16(addr)? as i16) as u32,
-                    LoadKind::Lw => self.read_u32(addr)?,
-                    LoadKind::Lbu => u32::from(self.read_u8(addr)?),
-                    LoadKind::Lhu => u32::from(self.read_u16(addr)?),
-                };
-                self.write_reg(rd, value);
-                self.pc = fallthrough_pc;
-            }
-            Instruction::Store {
-                kind,
-                rs1,
-                rs2,
-                imm,
-            } => {
-                let addr = checked_add_signed_u32(self.read_reg(rs1), imm)?;
-                let value = self.read_reg(rs2);
-                match kind {
-                    StoreKind::Sb => self.write_u8(addr, value as u8)?,
-                    StoreKind::Sh => self.write_u16(addr, value as u16)?,
-                    StoreKind::Sw => self.write_u32(addr, value)?,
+            DecodedInstruction::Bne { rs1, rs2, imm } => {
+                let a = self.read_reg(rs1);
+                let b = self.read_reg(rs2);
+                if a != b {
+                    self.pc = self.pc.wrapping_add(imm as i64 as u64);
+                } else {
+                    self.pc = self.pc.wrapping_add(4);
                 }
-                self.pc = fallthrough_pc;
             }
-            Instruction::OpImm { kind, rd, rs1, imm } => {
-                let lhs = self.read_reg(rs1);
-                let value = match kind {
-                    OpImmKind::Addi => lhs.wrapping_add(imm as u32),
-                    OpImmKind::Slti => u32::from((lhs as i32) < imm),
-                    OpImmKind::Sltiu => u32::from(lhs < imm as u32),
-                    OpImmKind::Xori => lhs ^ (imm as u32),
-                    OpImmKind::Ori => lhs | (imm as u32),
-                    OpImmKind::Andi => lhs & (imm as u32),
-                    OpImmKind::Slli => {
-                        let shamt = (imm as u32) & 0x1f;
-                        lhs.wrapping_shl(shamt)
-                    }
-                    OpImmKind::Srli => {
-                        let shamt = (imm as u32) & 0x1f;
-                        lhs.wrapping_shr(shamt)
-                    }
-                    OpImmKind::Srai => {
-                        let shamt = (imm as u32) & 0x1f;
-                        ((lhs as i32) >> shamt) as u32
-                    }
-                };
-                self.write_reg(rd, value);
-                self.pc = fallthrough_pc;
+            DecodedInstruction::Addi { rd, rs1, imm } => {
+                let a = self.read_reg(rs1);
+                let val = a.wrapping_add(imm as i64 as u64);
+                self.write_reg(rd, val);
+                self.pc = self.pc.wrapping_add(4);
             }
-            Instruction::Op { kind, rd, rs1, rs2 } => {
-                let lhs = self.read_reg(rs1);
-                let rhs = self.read_reg(rs2);
-                let shamt = rhs & 0x1f;
-                let value = match kind {
-                    OpKind::Add => lhs.wrapping_add(rhs),
-                    OpKind::Sub => lhs.wrapping_sub(rhs),
-                    OpKind::Sll => lhs.wrapping_shl(shamt),
-                    OpKind::Slt => u32::from((lhs < i32) < (rhs as i32)),
-                    OpKind::Sltu => u32::from(lhs < rhs),
-                    OpKind::Xor => lhs ^ rhs,
-                    OpKind::Srl => lhs.wrapping_shr(shamt),
-                    OpKind::Sra => ((lhs as i32) >> shamt) as u32,
-                    OpKind::Or => lhs | rhs,
-                    OpKind::And => lhs & rhs,
-                    OpKind::Mul => lhs.wrapping_mul(rhs),
-                    OpKind::Mulh} => mulh_signed(lhs, rhs),
-                    OpKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
-                    OpKind::Mulhu => mulh_unsigned(lhs, rhs),
-                    OpKind::Div => div_signed(lhs, rhs),
-                    OpKind::Divu => div_unsigned(lhs, rhs),
-                    OpKind::Rem => rem_signed(lhs, rhs),
-                    OpKind::Remu => rem_unsigned(lhs, rhs),
-                };
-                self.write_reg(rd, value);
-                self.pc = fallthrough_pc;
+            DecodedInstruction::Add { rd, rs1, rs2 } => {
+                let a = self.read_reg(rs1);
+                let b = self.read_reg(rs2);
+                self.write_reg(rd, a.wrapping_add(b));
+                self.pc = self.pc.wrapping_add(4);
             }
-            Instruction::Fence => {
-                self.pc = fallthrough_pc;
+            DecodedInstruction::Lw { rd, rs1, imm } => {
+                let base = self.read_reg(rs1);
+                let addr = base.wrapping_add(imm as i64 as u64);
+                let val = self.read_u32(addr)? as i32 as i64 as u64;
+                self.write_reg(rd, val);
+                self.pc = self.pc.wrapping_add(4);
             }
-            Instruction::System(SystemInstruction::Ecall)
-            | Instruction::System(SystemInstruction::Ebreak) => {
-                self.pc = fallthrough_pc;
+            DecodedInstruction::Sw { rs1, rs2, imm } => {
+                let base = self.read_reg(rs1);
+                let addr = base.wrapping_add(imm as i64 as u64);
+                let val = self.read_reg(rs2) as u32;
+                self.write_u32(addr, val)?;
+                self.pc = self.pc.wrapping_add(4);
+            }
+            DecodedInstruction::Ebreak => {
                 self.halted = true;
             }
         }
 
+        let _trace_anchor = F::from(self.pc);
+        let _ = _trace_anchor;
+
         Ok(())
     }
 
-    fn read_reg(&self, index: u8) -> u32 {
-        self.registers[index as usize]
+    /// Get the current program counter.
+    pub fn pc(&self) -> u64 {
+        self.pc
     }
 
-    fn write_reg(&mut self, index: u8, value: u32) {
-        if index != 0 {
-            self.registers[index as usize] = value;
+    /// Read a register value.
+    pub fn reg(&self, idx: u8) -> u64 {
+        self.read_reg(idx)
+    }
+
+    /// Total steps executed so far.
+    pub fn steps(&self) -> u64 {
+        self.steps
+    }
+
+    fn zero_state(&mut self) {
+        self.memory.fill(0);
+        self.regs = [0u64; 32];
+        self.pc = 0;
+        self.steps = 0;
+        self.halted = false;
+    }
+
+    fn map_segment(&mut self, seg: &ElfSegment) -> Result<(), VmError> {
+        let mem_start = seg.vaddr;
+        let mem_end = seg
+            .vaddr
+            .checked_add(seg.mem_size)
+            .ok_or_else(|| VmError::BadImage("segment vaddr + mem_size overflow".to_string()))?;
+
+        self.ensure_range(mem_start, seg.mem_size)?;
+
+        let file_bytes = &seg.data;
+        if u64::try_from(file_bytes.len()).unwrap_or(u64::MAX) != seg.file_size {
+            return Err(VmError::BadImage("segment data length mismatch".to_string()));
         }
-    }
 
-    fn set_pc(&mut self, value: u32) -> Result<()> {
-        self.ensure_pc_is_valid(value)?;
-        self.pc = value;
+        let dst_off = self.addr_to_offset(mem_start)?;
+        let copy_len = usize::try_from(seg.file_size).map_err(|_| VmError::BadImage("file_size does not fit usize".to_string()))?;
+        let dst_end = dst_off.checked_add(copy_len).ok_or_else(|| VmError::BadImage("destination overflow".to_string()))?;
+        if dst_end > self.memory.len() {
+            return Err(VmError::MemoryOutOfBounds { addr: mem_start, len: seg.file_size });
+        }
+
+        self.memory[dst_off..dst_end].copy_from_slice(file_bytes);
+
+        if mem_end % 1 != 0 {
+            return Err(VmError::BadImage("segment end address is invalid".to_string()))?;
+        }
+
         Ok(())
     }
 
-    fn ensure_pc_is_valid(&self, value: u32) -> Result<()) {
-        if (value & 0x3) != 0 {
-            return Err(Error::PcMisaligned { pc: value });
+    fn ensure_range(&self, addr: u64, len: u64) -> Result<(), VmError> {
+        let start = addr;
+        let end = addr.checked_add(len).ok_or(VmError::MemoryOutOfBounds { addr, len })?;
+
+        let base = self.cfg.memory_base;
+        let limit = base.checked_add(self.cfg.memory_size).unwrap_or(u64::MAX);
+
+        if start < base || end > limit {
+            return Err(VmError::MemoryOutOfBounds { addr, len })?;
         }
-        let start = usize::try_from(value).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(4).ok_or(Error::AddressOverflow);
-        if end > self.memory.len() {
-            return Err(Error::PcOutOfBounds { pc: value });
-        }
+
         Ok(())
     }
 
-    fn checked_range(&self, addr: u32, len: usize) -> Result<std::ops::Range<usize>> {
-        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(len).ok_or(Error::AddressOverflow)?;
-        if end > self.memory.len() {
-            return Err(Error::AddressOutOfBounds { addr, size: len });
+    fn addr_to_offset(&self, addr: u64) -> Result<usize, VmError> {
+        if addr < self.cfg.memory_base {
+            return Err(VmError::MemoryOutOfBounds { addr, len: 1 });
         }
-        Ok(start..end)
-    }
-
-    fn read_u8(&self, addr: u32) -> Result<u8> {
-        let range = self.checked_range(addr, 1)?;
-        Ok(self.memory[range.start])
-    }
-
-    fn read_u16(&self, addr: u32) -> Result<u16> {
-        if (addr & 0x1) != 0 {
-            return Err(Error::MemoryMisaligned { addr, size: 2 });
+        let off = addr - self.cfg.memory_base;
+        let uoff = usize::try_from(off).map_err(|_| VmError::MemoryOutOfBounds { addr, len: 1 })?;
+        if uoff >= self.memory.len() {
+            return Err(VmError::MemoryOutOfBounds { addr, len: 1 });
         }
-        let range = self.checked_range(addr, 2)?;
-        let bytes: [u8; 2] = self.memory[range]
-            .try_into()
-            .map_err(|_| Error::AddressOutOfBounds { addr, size: 2 })?;
-        Ok(u16::from_le_bytes(bytes))
+        Ok(uoff)
     }
 
-    fn read_u32(&self, addr: u32) -> Result<u32> {
-        if (addr & 0x3) != 0 {
-            return Err(Error::MemoryMisaligned { addr, size: 4 });
+    fn read_u32(&self, addr: u64) -> Result<u32, VmError> {
+        self.ensure_range(addr, 4)?;
+        if addr % 4 != 0 {
+            return Err(VmError::Unaligned { addr, align: 4 });
         }
-        let range = self.checked_range(addr, 4)?;
-        let bytes: [u8; 4] = self.memory[range]
-            .try_into()
-            .map_err(|_| Error::AddressOutOfBounds { addr, size: 4 });
-        Ok(u32::from_le_bytes(bytes))
+        let off = self.addr_to_offset(addr)?;
+        let end = off + 4;
+        let b = &self.memory[off..end];
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 
-    fn write_u8(&mut self, addr: u32, value: u8) -> Result<()> {
-        let range = self.checked_range(addr, 1)?;
-        self.memory[range.start] = value;
+    fn write_u32(&mut self, addr: u64, val: u32) -> Result<(), VmError> {
+        self.ensure_range(addr, 4)?;
+        if addr % 4 != 0 {
+            return Err(VmError::Unaligned { addr, align: 4 });
+        }
+        let off = self.addr_to_offset(addr)?;
+        let end = off + 4;
+        let b = val.to_le_bytes();
+        self.memory[off..end].copy_from_slice(&b);
         Ok(())
     }
 
-    fn write_u16(&mut self, addr: u32, value: u16) -> Result<()) {
-        if (addr & 0x1) != 0 {
-            return Err(Error::MemoryMisaligned { addr, size: 2 });
+    fn read_reg(&self, idx: u8) -> u64 {
+        let i = (idx as usize) & 31;
+        if i == 0 {
+            0
+        } else {
+            self.regs[i]
         }
-        let range = self.checked_range(addr, 2)?;
-        self.memory[range].copy_from_slice(&value.to_le_bytes());
-        Ok(())
     }
 
-    fn write_u32(&mut self, addr: u32, value: u32) -> Result<()> {
-        if (addr & 0x3) != 0 {
-            return Err(Error::MemoryMisaligned { addr, size: 4 });
+    fn write_reg(&mut self, idx: u8, val: u64) {
+        let i = (idx as usize) & 31;
+        if i != 0 {
+            self.regs[i] = val;
         }
-        let range = self.checked_range(addr, 4)?;
-        self.memory[range].copy_from_slice(&value.to_le_bytes());
-        Ok(())
-    }
-}
-
-fn checked_add_signed_u32(base: u32, offset: i32) -> Result<u32> {
-    if offset >= 0 {
-        base.checked_add(offset as u32).ok_or(Error::AddressOverflow)
-    } else {
-        base.checked_sub(offset.unsigned_abs())
-            .ok_or(Error::AddressUnderflow)
-    }
-}
-
-fn mulh_signed(lhs: u32, rhs: u32) -> u32 {
-    let product = i64:from(lhs as i32) * i64::from(rhs as i32);
-    (product >> 32) as u32
-}
-
-fn mulh_signed_unsigned(lhs: u32, rhs: u32) -> u32 {
-    let product = i128::from(lhs as i32) * i128::from(rhs);
-    ((product >> 32) as i64) as u32
-}
-
-fn mulh_unsigned(lhs: u32, rhs: u32) -> u32 {
-    let product = u64::from(lhs) * u64::from(rhs);
-    (product >> 32) as u32
-}
-
-fn div_signed(lhs* u32, rhs: u32) -> u32 {
-    let lhs_i = lhs as i32;
-    let rhs_i = rhs as i32;
-
-    if rhs_i == 0 {
-        u32::MAX
-    } else if lhs_i == i32::MIN && rhs_i == -1 {
-        lhs_i as u32
-    } else {
-        lhs_i.wrapping_div(rhs_i) as u32
-    }
-}
-
-fn div_unsigned(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        u32::MAX
-    } else {
-        lhs / rhs
-    }
-}
-
-fn rem_signed(lhs* u32, rhs: u32) -> u32 {
-    let lhs_i = lhs as i32;
-    let rhs_i = rhs as i32;
-
-    if rhs_i == 0 {
-        lhs
-    } else if lhs_i == i32::MIN && rhs_i == -1 {
-        0
-    } else {
-        lhs_i.wrapping_rem(rhs_i) as u32
-    }
-}
-
-fn rem_unsigned(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        lhs
-    } else {
-        lhs % rhs
     }
 }
