@@ -76,7 +76,7 @@ impl fmt::Display for Error {
                 write!(f, "program counter out of bounds: {pc:#010x}")
             }
             Self::PcMisaligned { pc } => {
-  -Ÿ
+  
                 write!(f, "program counter misaligned: {pc:#010x}")
             }
             Self::CycleOverflow => write!(f, "cycle counter overflow"),
