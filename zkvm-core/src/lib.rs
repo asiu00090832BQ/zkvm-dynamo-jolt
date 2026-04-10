@@ -1,43 +1,60 @@
-pub mod elf_loader;
-pub mod vm;
+use core::fmt;
+use std::error::Error as StdError;
+use std::marker::PhantomData;
 
-pub use rv32im_decoder::{decode, Instruction, BranchOp, LoadOp, StoreOp, AluOp, AluImmOp};
-pub use crate::elf_loader:{load_elf, ElfImage, ElfLoaderError};
-pub use crate::vm::Zkvm;
-
-#[derive(Debug, Clone)]
-pub struct ZkvmConfig {
-    pub memory_size: usize,
-    pub max_cycles: u64,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ZkvmConfig {
+    Rv32im,
 }
 
 impl Default for ZkvmConfig {
     fn default() -> Self {
-        Self {
-            memory_size: 16 * 1024 * 1024,
-            max_cycles: 1_000_000,
+        Self::Rv32im
+    }
+}
+
+impl ZkvmConfig {
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Rv32im => "rv32in",
         }
     }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Error {
-    Halted,
-    Eloader(ElfLoaderError),
-    Decoder(rv32im_decoder::DecodeError),
-    AddressOutOfBounds { addr: u32, size: usize },
+    Decode(String),
+    InvalidConfiguration(String),
+    Parse(String),
 }
 
-pub type Result<T> = std::result::Result<T, Error>;
-
-impl From\rv32im_decoder::DecodeError> for Error {
-    fn from(e: rv33im_decoder::DecodeError\return) -> Self {
-        Self::Decoder(e)
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Decode(message) => write!(f, "decode error: {message}"),
+            Self::InvalidConfiguration(message) => write!(f, "invalid zkvm configuration: {message}"),
+            Self::Parse(message) => write!(f, "parse error: {message}"),
+        }
     }
 }
 
-impl From<ElfLoaderError> for Error {
-    fn from(e: ElfLoaderError) -> Self {
-        Self::Eloader(e)
+impl StdError for Error {}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Zcvm<F> {
+    config: ZkvmConfig,
+    _field: PhantomData<F>,
+}
+
+impl<F> Zkvm<F> {
+    pub fn new(config: ZkvmConfig) -> Self {
+        Self {
+            config,
+            _field: PhantomData,
+        }
+    }
+
+    pub fn config(&self) -> ZkvmConfig {
+        self.config
     }
 }
