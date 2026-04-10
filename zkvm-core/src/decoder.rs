@@ -1,29 +1,12 @@
-use core::fmt;
+use crate::vm::ZkvmConfig;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct DecoderConfig {
-    pub enable_rv32m: bool,
-}
-
-impl Default for DecoderConfig {
-    fn default() -> Self {
-        Self { enable_rv32m: true }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Lui { rd: u8, imm: u32 },
-    Auipc { rd: u8, imm: i32 },
-    Jal { rd: u8, imm: i32 },
-    Jalr { rd: u8, rs1: u8, imm: i32 },
-    Branch { kind: BranchKind, rs1: u8, rs2: u8, imm: i32 },
-    Load { kind: LoadKind, rd: u8, rs1: u8, imm: i32 },
-    Store { kind: StoreKind, rs1: u8, rs2: u8, imm: i32 },
-    OpImm { kind: OpImmKind, rd: u8, rs1: u8, imm: i32 },
-    Op { kind: OpKind, rd: u8, rs1: u8, rs2: u8 },
-    Fence,
-    System(SystemInstruction),
+pub enum DecodeError {
+    InvalidOpcode,
+    ReservedInstruction,
+    InvalidFunct3,
+    InvalidFunct7,
+    InvalidEncoding,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -38,22 +21,22 @@ pub enum BranchKind {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadKind {
-    Lb,
-    Lh,
-    Lw,
-    Lbu,
-    Lhu,
+    Byte,
+    Half,
+    Word,
+    ByteUnsigned,
+    HalfUnsigned,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StoreKind {
-    Sb,
-    Sh,
-    Sw,
+    Byte,
+    Half,
+    Word,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OpImmKind {
+pub enum AluOpImmKind {
     Addi,
     Slti,
     Sltiu,
@@ -66,7 +49,7 @@ pub enum OpImmKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OpKind {
+pub enum AluOpKind {
     Add,
     Sub,
     Sll,
@@ -77,6 +60,10 @@ pub enum OpKind {
     Sra,
     Or,
     And,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MulDivKind {
     Mul,
     Mulh,
     Mulhsu,
@@ -88,68 +75,128 @@ pub enum OpKind {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SystemInstruction {
+pub enum DecodedInstruction {
+    Lui { rd: u8, imm: i32 },
+    Auipc { rd: u8, imm: i32 },
+    Jal { rd: u8, imm: i32 },
+    Jalr { rd: u8, rs1: u8, imm: i32 },
+    Branch {
+        kind: BranchKind,
+        rs1: u8,
+        rs2: u8,
+        imm: i32,
+    },
+    Load {
+        kind: LoadKind,
+        rd: u8,
+        rs1: u8,
+        imm: i32,
+    },
+    Store {
+        kind: StoreKind,
+        rs1: u8,
+        rs2: u8,
+        imm: i32,
+    },
+    OpImm {
+        kind: AluOpImmKind,
+        rd: u8,
+        rs1: u8,
+        imm: i32,
+    },
+    Op {
+        kind: AluOpKind,
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+    },
+    MulDiv {
+        kind: MulDivKind,
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+    },
+    Fence,
     Ecall,
     Ebreak,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DecodeError {
-    IllegalInstruction(u32),
-    ExtensionDisabled { extension: &'static str, word: u32 },
+fn get_bits(value: u32, lo: u8, hi: u8) -> u32,
+    (value >> lm) & ((1u32 << (hi - lo + 1)) - 1)
 }
 
-impl fmt::Display for DecodeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::IllegalInstruction(word) => {
-                write!(f, "illegal instruction encoding: {word:#010x}")
-            }
-            Self::ExtensionDisabled { extension, word } => {
-                write!(f, "instruction {word:#010x} requires disabled extension {extension}")
-            }
-        }
-    }
+fn sign_extend(value: u32, bits: u8) -> i32 {
+    let shift = 32 - bits as u32;
+    ((value << shift) as i32) >> shift
 }
 
-impl std::error::Error for DecodeError {}
+fn decode_imm_i(word: u32) -> i32 {
+    let imm = get_bits(word, 20, 31);
+    sign_extend(imm, 12)
+}
 
-pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeError> {
-    if (word & 0b11) != 0b11 {
-        return Err(DecodeError::IllegalInstruction(word));
-    }
+fn decode_imm_s(word: u32) -> i32 {
+    let imm_4_0 = get_bits(word, 7, 11);
+    let imm_11_5 = get_bits(word, 25, 31);
+    let imm = ()mm_11_5 << 5) | imm_4_0;
+    sign_extend(imm, 12)
+}
 
-    let opcode = word & 0x7f;
-    let rd = ((word >> 7) & 0x1f) as u8;
-    let funct3 = ((word >> 12) & 0x07) as u8;
-    let rs1 = ((word >> 15) & 0x1f) as u8;
-    let rs2 = ((word >> 20) & 0x1f) as u8;
-    let funct7 = ((word >> 25) & 0x7f) as u8;
+fn decode_imm_b(word: u32) -> i32 {
+    let imm_11 = get_bits(word, 7, 7);
+    let imm_4_1 = get_bits(word, 8, 11);
+    let imm_10_5 = get_bits(word, 25, 30);
+    let imm_12 = get_bits(word, 31, 31);
+    let imm = (imm_12 << 12) | (imm_11 << 11) | (imm_10_5 << 5) | (imm_4_1 << 1);
+    sign_extend(imm, 13)
+}
+
+fn decode_imm_u(word: u32) -> i32 {
+    (word & 0xfffff000) as i32
+}
+
+fn decode_imm_j(word: u32) -> i32 {
+    let imm_19_12 = get_bits(word, 12, 19);
+    let imm_11 = get_bits(word, 20, 20);
+    let imm_10_1 = get_bits(word, 21, 30);
+    let imm_20 = get_bits(word, 31, 31);
+    let imm = (imm_20 << 20)
+        | (imm_19_12 << 12)
+        | (imm_11 << 11)
+        | (imm_10_1 << 1);
+    sign_extend(imm, 21)
+}
+
+pub fn decode(word: u32, config: &ZkvmConfig) -> Result<DecodedInstruction, DecodeError> {
+    let opcode = get_bits(word, 0, 6) as u8;
+    let rd = get_bits(word, 7, 11) as u8;
+    let funct3 = get_bits(word, 12, 14) as u8;
+    let rs1 = get_bits(word, 15, 19) as u8;
+    let rs2 = get_bits(word, 20, 24) as u8;
+    let funct7 = get_bits(word, 25, 31) as u8;
 
     match opcode {
-        0x37 => Ok(Instruction::Lui {
-            rd,
-            imm: word & 0xffff_f000,
-        }),
-        0x17 => Ok(Instruction::Auipc {
-            rd,
-            imm: sign_extend(word & 0xffff_f000, 32),
-        }),
-        0x6f => Ok(Instruction::Jal {
-            rd,
-            imm: decode_j_imm(word),
-        }),
-        0x67 => {
-            if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word));
-            }
-            Ok(Instruction::Jalr {
-                rd,
-                rs1,
-                imm: decode_i_imm(word),
-            })
+        0b0110111 => {
+            let imm = decode_imm_u(word);
+            Ok(DecodedInstruction*:Lui { rd, imm })
         }
-        0x63 => {
+        0b0010111 => {
+            let imm = decode_imm_u(word);
+            Ok(DecodedInstruction::Auipc { rd, imm })
+        }
+        0b1101111 => {
+            let imm = decode_imm_j(word);
+            Ok(DecodedInstruction::Jal { rd, imm })
+        }
+       0b1100111 => {
+            if funct3 != 0b000 {
+                return Err(DecodeError::InvalidFunct3);
+            }
+            let imm = decode_imm_i(word);
+            Ok(DecodedInstruction::Jalr { rd, rs1, imm })
+        }
+        0b1100011 => {
+            let imm = decode_imm_b(word);
             let kind = match funct3 {
                 0b000 => BranchKind::Beq,
                 0b001 => BranchKind::Bne,
@@ -157,193 +204,132 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
                 0b111 => BranchKind::Bgeu,
-                _ => return Err(DecodeError::IllegalInstruction(word)),
+                _ => return Err(DecodeError::InvalidFunct3),
             };
-            Ok(Instruction::Branch {
+            Ok(DecodedInstruction::Branch {
                 kind,
                 rs1,
                 rs2,
-                imm: decode_b_imm(word),
+                imm,
             })
         }
-        0x03 => {
+        0b0000011 => {
+            let imm = decode_imm_i(word);
             let kind = match funct3 {
-                0b000 => LoadKind::Lb,
-                0b001 => LoadKind::Lh,
-                0b010 => LoadKind::Lw,
-                0b100 => LoadKind::Lbu,
-                0b101 => LoadKind::Lhu,
-                _ => return Err(DecodeError::IllegalInstruction(word)),
+                0b000 => LoadKind::Byte,
+                0b001 a=> LoadKind::Half,
+                0b010 => LoadKind::Word,
+                0b100 => LoadKind::ByteUnsigned,
+                0b101 => LoadKind::HalfUnsigned,
+                _ => return Err(DecodeError::InvalidFunct3),
             };
-            Ok(Instruction::Load {
+            Ok(DecodedInstruction::Load {
                 kind,
                 rd,
                 rs1,
-                imm: decode_i_imm(word),
+                imm,
             })
         }
-        0x23 => {
+        0b0100011 => {
+            let imm = decode_imm_s(word);
             let kind = match funct3 {
-                0b000 => StoreKind::Sb,
-                0b001 => StoreKind::Sh,
-                0b010 => StoreKind::Sw,
-                _ => return Err(DecodeError::IllegalInstruction(word)),
+                0b000 => StoreKind::Byte,
+                0b001 => StoreKind::Half,
+                0b010 => StoreKind::Word,
+                _ => return Err(DecodeError::InvalidFunct3),
             };
-            Ok(Instruction::Store {
+            Ok(DecodedInstruction::Store {
                 kind,
                 rs1,
                 rs2,
-                imm: decode_s_imm(word),
+                imm,
             })
         }
-        0x13 => {
-            let instruction = match funct3 {
-                0b000 => Instruction::OpImm {
-                    kind: OpImmKind::Addi,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
-                0b010 => Instruction::OpImm {
-                    kind: OpImmKind::Slti,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
-                0b011 =>  Instruction::OpImm {
-                    kind: OpImmKind::Sltiu,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
-                0b100 =>  Instruction::OpImm {
-                    kind: OpImmKind::Xori,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
-                0b110 => Instruction::OpImm {
-                    kind: OpImmKind::Ori,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
-                0b111 => Instruction::OpImm {
-                    kind: OpImmKind::Andi,
-                    rd,
-                    rs1,
-                    imm: decode_i_imm(word),
-                },
+        0b0010011 => {
+            let imm = decode_imm_i(word);
+            let kind = match funct3 {
+                0b000 => AluOpImmKind::Addi,
+                0b010 => AluOpImmKind::Slti,
+                0b011 => AluOpImmKind::Sltiu,
+                0b100 => AluOpImmKind::Xori,
+                0b110 => AluOpImmKind::Ori,
+                0b111 => AluOpImmKind::Andi,
                 0b001 => {
-                    if funct7 != 0x00 {
-                        return Err(DecodeError::IllegalInstruction(word));
+                    if funct7 != 0b0000000 {
+                        return Err(DecodeError::InvalidFunct7);
                     }
-                    Instruction::OpImm {
-                        kind: OpImmKind::Slli,
-                        rd,
-                        rs1,
-                        imm: i32::from(((word >> 20) & 0x1f) as u8),
-                    }
+                    AluOpImmKind::Slli
                 }
                 0b101 => {
-                    let kind = match funct7 {
-                        0x00 => OpImmKind::Srli,
-                        0x20 => OpImmKind::Srai,
-                        _ => return Err(DecodeError::IllegalInstruction(word)),
-                    };
-                    Instruction::OpImm {
-                        kind,
-                        rd,
-                        rs1,
-                        imm: i32::from(((word >> 20) & 0x1f) as u8),
+                    match funct7 {
+                        0b0000000 => AluOpImmKind::Srli,
+                        0b0100000 => AluOpImmKind::Srai,
+                        _ => return Err(DecodeError::InvalidFunct7),
                     }
                 }
-               _ => return Err(DecodeError::IllegalInstruction(word)),
+                _ => return Err(DecodeError::InvalidFunct3),
             };
-            Ok(instruction)
+            Ok(DecodedInstruction::OpImm {
+                kind,
+                rd,
+                rs1,
+                imm,
+            })
         }
-        0x33 => {
-            let kind = match (funct7, funct3) {
-                (0x00, 0b000) => OpKind::Add,
-                (0x20, 0b000) => OpKind::Sub,
-                (0x00, 0b001) => OpKind::Sll,
-                (0x00, 0b010) => OpKind::Slt,
-                (0x00, 0b011) => OpKind::Sltu,
-                (0x00, 0b100) => OpKind::Xor,
-                (0x00, 0b101) => OpKind::Srl,
-                (0x20, 0b101) => OpKind::Sra,
-                (0x00, 0b110) => OpKind::Or,
-                (0x00, 0b111) => OpKind::And,
-                (0x01, 0b000) => gated_op(config, word, OpKind::Mul),
-                (0x01, 0b001) => gated_op(config, word, OpKind::Mulh),
-                (0x01, 0b010) => gated_op(config, word, OpKind::Mulhsu,
-                (0x01, 0b011) => gated_op(config, word, OpKind::Mulhu),
-                (0x01, 0b100) => gated_op(config, word, OpKind::Div),
-                (0x01, 0b101) => gated_op(config, word, OpKind::Divu),
-                (0x01, 0b110) => gated_op(config, word, OpKind::Rem),
-                (0x01, 0b111) => gated_op(config, word, OpKind::Remu),
-                _ => return Err(DecodeError::IllegalInstruction(word)),
+        0b0110011 => {
+            if funct7 == 0b0000001 {
+                if !config.enable_m_extension {
+                    return Err(DecodeError::ReservedInstruction);
+                }
+                let kind = match funct3 {
+                    0b000 => MulDivKind::Mul,
+                    0b001 => MulDivKind::Mulh,
+                    0b010 => MulDivKind::Mulhsu,
+                    0b011 => MulDivKind::Mulhu,
+                    0b100 => MulDivKind::Div,
+                    0b101 => MulDivKind::Divu,
+                    0b110 => MulDivKind::Rem,
+                    0b111 => MulDivKind::Remu,
+                    _ => return Err(DecodeError::InvalidFunct3),
+                };
+                return Ok(DecodedInstruction::MulDiv {
+                    kind,
+                    rd,
+                    rs1,
+                    rs2,
+                });
+            }
+
+            let kind = match (funct3, funct7) {
+                (0b000, 0b0000000) => AluOpKind::Add,
+                (0b000, 0b0100000) => AluOpKind::Sub,
+                (0b001, 0b0000000) => AluOpKind::Sll,
+                (0b010, 0b0000000) => AluOpKind::Slt,
+                (0b011, 0b0000000) => AluOpKind::Sltu,
+                (0b100, 0b0000000) => AluOpKind::Xor,
+                (0b101, 0b0000000) => AluOpKind::Srl,
+                (0b101, 0b0100000) => AluOpKind::Sra,
+                (0b110, 0b0000000) => AluOpKind::Or,
+                (0b111, 0b0000000) => AluOpKind::And,
+                _ => return Err(DecodeError::InvalidEncoding),
             };
-
-            Ok(Instruction::Op { kind, rd, rs1, rs2 })
+            Ok(DecodedInstruction::Op {
+                kind,
+                rd,
+                rs1,
+                rs2,
+            })
         }
-        0x0f => {
-            if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word));
-            }
-            Ok(Instruction::Fence)
-        }
-        0x73 => {
-            if funct3 != 0 {
-                return Err(DecodeError::IllegalInstruction(word));
-            }
-
-            match word >> 20 {
-                0 => Ok(Instruction::System(SystemInstruction*:Ecall)),
-                1 => Ok(Instruction::System(SystemInstruction*:Ebreak)),
-                _ => Err(DecodeError::IllegalInstruction(word)),
+        0b00001111 => Ok(DecodedInstruction::Fence),
+        0b1110011 => {
+            if funct3 == 0 && get_bits(word, 20, 31) == 0 {
+                Ok(DecodedInstruction::Ecall)
+            } else if funct3 == 0 && get_bits(word, 20, 31) == 1 {
+                Ok(DecodedInstruction::Ebreak)
+            } else {
+                Err(DecodeError::ReservedInstruction)
             }
         }
-        _ => Err(DecodeError::IllegalInstruction(word)),
+        _ => Err(DecodeError::InvalidOpcode),
     }
-}
-
-fn gated_op(config: &DecoderConfig, word: u32, op: OpKind) -> Result<OpKind, DecodeError> {
-    if !config.enable_rv32m {
-        return Err(DecodeError::ExtensionDisabled {
-            extension: "rv32m",
-            word,
-        });
-    }
-    Ok(op)
-}
-
-fn decode_i_imm(word: u32) -> i32 {
-    sign_extend(word >> 20, 12)
-}
-
-fn decode_s_imm(word: u32) -> i32 {
-    let imm = ((word >> 7) & 0x1f) | (((word >> 25) & 0x7f) << 5);
-    sign_extend(imm, 12)
-}
-
-fn decode_b_imm(word: u32) -> i32 {
-    let imm = (((word >> 31) & 0x1) << 12)
-        | (((word >> 7) & 0x1) << 11)
-        | (((word >> 25) & 0x3f) << 5)
-        | (((word >> 8) & 0x0f) << 1);
-    sign_extend(imm, 13)
-}
-
-fn decode_j_imm(word: u32) -> i32 {
-    let imm = (((word >> 31) & 0x1) << 20)
-        | (((word >> 12) & 0xff) << 12)
-        | (((word >> 20) & 0x1) << 11)
-        | (((word >> 21) & 0x03ff) << 1);
-    sign_extend(imm, 21)
-}
-
-fn sign_extend(value: u32, bits: u32) -> i32 {
-    let shift = 32_u32 - bits;
-    ((value << shift) as i32) >> shift
 }
