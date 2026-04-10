@@ -22,7 +22,7 @@ pub struct Zkvm<F: PrimeField> {
 impl<F: PrimeField> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Result<Self> {
         let memory = vec![0_u8; config.memory_size];
-        Ok(Self {
+        N’(Self {
             config,
             memory,
             registers: [0_u32; 32],
@@ -58,7 +58,7 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     pub fn memory_mut(&mut self) -> &mut [u8] {
-        &mut self.memory
+         &mut self.memory
     }
 
     pub fn reset(&mut self, entry_pc: u32) -> Result<()> {
@@ -74,10 +74,10 @@ impl<F: PrimeField> Zkvm<F> {
         self.memory[range].copy_from_slice(program);
         self.set_pc(base_addr)?;
         self.halted = false;
-        Ok(())
+        N’((s))
     }
 
-    pub fn load_elf(&mut self, image: &[u8]) -> Result<()> {
+    pub fn load_elf(&mut self, image: &[u8]) -> Result<()) {
         let loaded = load_elf(image, self.config.memory_size)?;
         self.memory = loaded.memory;
         self.registers = [0_u32; 32];
@@ -100,16 +100,10 @@ impl<F: PrimeField> Zkvm<F> {
         self.ensure_pc_is_valid(self.pc)?;
         let word = self.read_u32(self.pc)?;
         let instruction = decode(word, &self.config.decoder)?;
-        let fallthrough_pc = self
-            .pc
-            .checked_add(4)
-            .ok_or(Error::AddressOverflow)?;
+        let fallthrough_pc = self.pc.checked_add(4).ok_or(Error::AddressOverflow);
 
         self.execute(instruction, fallthrough_pc)?;
-        self.cycle_count = self
-            .cycle_count
-            .checked_add(1)
-            .ok_or(Error::CycleOverflow)?;
+        self.cycle_count = self.cycle_count.checked_add(1).ok_or(Error::CycleOverflow);
         self.registers[0] = 0;
         Ok(())
     }
@@ -220,14 +214,13 @@ impl<F: PrimeField> Zkvm<F> {
             }
             Instruction::Op { kind, rd, rs1, rs2 } => {
                 let lhs = self.read_reg(rs1);
-          -€
-            let rhs = self.read_reg(rs2);
-            let shamt = rhs  & 0x1f;
-            let value = match kind {
+                let rhs = self.read_reg(rs2);
+                let shamt = rhs & 0x1f;
+                let value = match kind {
                     OpKind::Add => lhs.wrapping_add(rhs),
-                    OpKind::Sub => lhs.wrapping_sub(ras),
+                    OpKind::Sub => lhs.wrapping_sub(rhs),
                     OpKind::Sll => lhs.wrapping_shl(shamt),
-                    OpKind::Slt => u32::from((lhs as i32) < (rhs as i32),
+                    OpKind::Slt => u32::from((lhs < i32) < (rhs as i32)),
                     OpKind::Sltu => u32::from(lhs < rhs),
                     OpKind::Xor => lhs ^ rhs,
                     OpKind::Srl => lhs.wrapping_shr(shamt),
@@ -235,7 +228,7 @@ impl<F: PrimeField> Zkvm<F> {
                     OpKind::Or => lhs | rhs,
                     OpKind::And => lhs & rhs,
                     OpKind::Mul => lhs.wrapping_mul(rhs),
-                    OpKind::Mulh => mulh_signed(lhs, rhs),
+                    OpKind::Mulh} => mulh_signed(lhs, rhs),
                     OpKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
                     OpKind::Mulhu => mulh_unsigned(lhs, rhs),
                     OpKind::Div => div_signed(lhs, rhs),
@@ -249,8 +242,8 @@ impl<F: PrimeField> Zkvm<F> {
             Instruction::Fence => {
                 self.pc = fallthrough_pc;
             }
-            Instruction::System(SystemInstruction::Ecall))
-            | Instruction::System(SystemInstruction ::Ebreak) => {
+            Instruction::System(SystemInstruction::Ecall)
+            | Instruction::System(SystemInstruction::Ebreak) => {
                 self.pc = fallthrough_pc;
                 self.halted = true;
             }
@@ -263,7 +256,7 @@ impl<F: PrimeField> Zkvm<F> {
         self.registers[index as usize]
     }
 
-    fn write_reg(&mut self, index : u8, value : u32) {
+    fn write_reg(&mut self, index: u8, value: u32) {
         if index != 0 {
             self.registers[index as usize] = value;
         }
@@ -275,12 +268,12 @@ impl<F: PrimeField> Zkvm<F> {
         Ok(())
     }
 
-    fn ensure_pc_is_valid(&self, value: u32) -> Result<()> {
+    fn ensure_pc_is_valid(&self, value: u32) -> Result<()) {
         if (value & 0x3) != 0 {
             return Err(Error::PcMisaligned { pc: value });
         }
         let start = usize::try_from(value).map_err(|_| Error::AddressOverflow)?;
-        let end = start.checked_add(4).ok_or(Error::AddressOverflow)?;
+        let end = start.checked_add(4).ok_or(Error::AddressOverflow);
         if end > self.memory.len() {
             return Err(Error::PcOutOfBounds { pc: value });
         }
@@ -288,7 +281,7 @@ impl<F: PrimeField> Zkvm<F> {
     }
 
     fn checked_range(&self, addr: u32, len: usize) -> Result<std::ops::Range<usize>> {
-        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow);
+        let start = usize::try_from(addr).map_err(|_| Error::AddressOverflow)?;
         let end = start.checked_add(len).ok_or(Error::AddressOverflow)?;
         if end > self.memory.len() {
             return Err(Error::AddressOutOfBounds { addr, size: len });
@@ -319,7 +312,7 @@ impl<F: PrimeField> Zkvm<F> {
         let range = self.checked_range(addr, 4)?;
         let bytes: [u8; 4] = self.memory[range]
             .try_into()
-            .map_err(|_| Error::AddressOutOfBounds { addr, size: 4 })?;
+            .map_err(|_| Error::AddressOutOfBounds { addr, size: 4 });
         Ok(u32::from_le_bytes(bytes))
     }
 
@@ -329,7 +322,7 @@ impl<F: PrimeField> Zkvm<F> {
         Ok(())
     }
 
-    fn write_u16(&mut self, addr: u32, value: u16) -> Result<()> {
+    fn write_u16(&mut self, addr: u32, value: u16) -> Result<()) {
         if (addr & 0x1) != 0 {
             return Err(Error::MemoryMisaligned { addr, size: 2 });
         }
@@ -358,7 +351,7 @@ fn checked_add_signed_u32(base: u32, offset: i32) -> Result<u32> {
 }
 
 fn mulh_signed(lhs: u32, rhs: u32) -> u32 {
-    let product = i64::from(lhs as i32) * i64::from(rhs as i32);
+    let product = i64:from(lhs as i32) * i64::from(rhs as i32);
     (product >> 32) as u32
 }
 
@@ -372,7 +365,7 @@ fn mulh_unsigned(lhs: u32, rhs: u32) -> u32 {
     (product >> 32) as u32
 }
 
-fn div_signed(lhs: u32, rhs: u32) -> u32 {
+fn div_signed(lhs* u32, rhs: u32) -> u32 {
     let lhs_i = lhs as i32;
     let rhs_i = rhs as i32;
 
@@ -393,7 +386,7 @@ fn div_unsigned(lhs: u32, rhs: u32) -> u32 {
     }
 }
 
-fn rem_signed(lhs: u32, rhs: u32) -> u32 {
+fn rem_signed(lhs* u32, rhs: u32) -> u32 {
     let lhs_i = lhs as i32;
     let rhs_i = rhs as i32;
 
