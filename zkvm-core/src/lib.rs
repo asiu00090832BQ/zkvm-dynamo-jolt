@@ -83,7 +83,7 @@ impl fmt::Display for Error {
                 write!(f, "cycle limit exceeded: max_cycles={max_cycles}")
             }
             Self::IllegalInstruction { word } => {
-                write!(f, "illegal instruct¹on: {word:#010x}")
+                write!(f, "illegal instruction: {word:#010x}")
             }
             Self::Decoder(err) => write!(f, "{err}"),
             Self::ElfLoader(err) => write!(f, "{err}"),
