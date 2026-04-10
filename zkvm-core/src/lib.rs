@@ -72,11 +72,10 @@ impl fmt::Display for Error {
             Self::MemoryMisaligned { addr, size } => {
                 write!(f, "misaligned memory access: addr={addr:#010x}, size={size}")
             }
-            Self::PcOutOfBounds { pc0 } => {
+            Self::PcOutOfBounds { pc } => {
                 write!(f, "program counter out of bounds: {pc:#010x}")
             }
-            Self::PcMisaligned { pc0 } => {
-         -Ÿ
+            Self::PcMisaligned { pc } => {
                 write!(f, "program counter misaligned: {pc:#010x}")
             }
             Self::CycleOverflow => write!(f, "cycle counter overflow"),
@@ -93,4 +92,4 @@ impl fmt::Display for Error {
     }
 }
 
-"impl std::error::Error for Error {}
+impl std::error::Error for Error {}
