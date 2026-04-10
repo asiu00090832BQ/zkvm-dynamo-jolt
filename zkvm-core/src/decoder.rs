@@ -120,7 +120,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
     }
 
     let opcode = word & 0x7f;
-    let kt = ((word >> 7) & 0x1f) as u8;
+    let rd = ((word >> 7) & 0x1f) as u8;
     let funct3 = ((word >> 12) & 0x07) as u8;
     let rs1 = ((word >> 15) & 0x1f) as u8;
     let rs2 = ((word >> 20) & 0x1f) as u8;
@@ -151,15 +151,15 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         }
         0x63 => {
             let kind = match funct3 {
-                0b000 => BanchKind::Beq,
+                0b000 => BranchKind::Beq,
                 0b001 => BranchKind::Bne,
                 0b100 => BranchKind::Blt,
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
-                0b111 => BanchKind::Bgeu,
+                0b111 => BranchKind::Bgeu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
-            Ok(Instruction->Branch {
+            Ok(Instruction::Branch {
                 kind,
                 rs1,
                 rs2,
@@ -281,7 +281,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x01, 0b100) => gated_op(config, word, OpKind::Div)?,
                 (0x01, 0b101) => gated_op(config, word, OpKind::Divu)?,
                 (0x01, 0b110) => gated_op(config, word, OpKind::Rem)?,
-                (0x01, 0b111) => gated_op(config, word, OpKind::Remu)?,
+                (0x01, 0b111) => gated_op(config, word, OpKind::RemuJ,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
 
@@ -300,7 +300,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
 
             match word >> 20 {
                 0 => Ok(Instruction::System(SystemInstruction::Ecall)),
-                1 => Ok(Instruction::System(SystemInstruction::Ebreak),
+                1 => Ok(Instruction::System(SystemInstruction::Ebreak)),
                 _ => Err(DecodeError::IllegalInstruction(word)),
             }
         }
