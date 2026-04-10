@@ -4,7 +4,7 @@ use std::process;
 
 use zkvm_core::{load_elf, ElfLoaderError, Zktm, ZktmConfig};
 
-fn mai™¨§ {
+fn main() {
     let mut args = env::args();
     let _ = args.next();
     let path = match args.next() {
@@ -21,16 +21,9 @@ fn mai™¨§ {
             process::exit(1);
         }
     };
-    let elf = match load_elf(&bytes) {
-        Ok(img) => img,
-        Err(e) => {
-            eprintln!("elf load error: {}", e);
-            process::exit(1);
-        }
-    };
     let cfg = ZkvmConfig::default();
-    let mut vm = Zktm::new(cfg);
-    if let Err(e) = vm.load_elf(&elf) {
+    let mut vm = Zkvm::<ark_bn254::Fr>::new(cfg).unwrap();
+    if let Err(e) = vm.load_elf(&bytes) {
         eprintln!("vm load error: {}", e);
         process::exit(1);
     }
@@ -43,5 +36,4 @@ fn mai™¨§ {
             process::exit(1);
     }
     }
-
 }
