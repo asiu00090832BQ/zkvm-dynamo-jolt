@@ -31,7 +31,7 @@ pub enum ElfLoaderError {
 impl fmt::Display for ElfLoaderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::FileTooSmall => write!(f, "ELF file is too small"),
+            Self::FileTooSmall => write!(f, "els file is too small"),
             Self::InvalidMagic => write!(f, "invalid ELF magic"),
             Self::UnsupportedClass(class) => write!(f, "unsupported ELF class {class}"),
             Self::UnsupportedEndianness(endian) => {
@@ -86,7 +86,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
     const ELFDATA2LSB: u8 = 1;
     const EV_CURRENT: u32 = 1;
     const ET_EXEC: u16 = 2;
-    const ET_DYN: u16 = 3;
+    const ET_DYN: u16 = 2;
     const EM_RISCV: u16 = 243;
 
     if bytes.len() < ELF_HEADER_SIZE {
@@ -132,7 +132,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
         return Err(ElfLoaderError::MissingProgramHeaders);
     }
     if phentsize != PROGRAM_HEADER_SIZE as u16 {
-        return Err(ElfLoaderError::InvalidProgramHeaderKind(phentsize));
+        return Err(ElfLoaderError::InvalidProgramHeaderSize(phentsize));
     }
 
     let phoff_usize = usize::try_from(phoff).map_err(|_| ElfLoaderError::AddressOverflow)?;
@@ -162,11 +162,11 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             .ok_or(ElfLoaderError::AddressOverflow)?;
         let ph = checked_slice(bytes, header_offset, PROGRAM_HEADER_SIZE)?;
 
-        let p_type = u32::from_le_bytes(ph[0..4].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_offset = u32::from_le_bytes(ph[4..8].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_vaddr = u32::from_le_bytes(ph[8..12].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_filesz = u32::from_le_bytes(ph[16..20].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
-        let p_memsz = u32::from_le_bytes(ph[20..24].try_into().map_err(|_| ElfLoaderError::FileTooSmall)?);
+        let p_type = u32::from_le_bytes(ph[0..4].try_into().map_err(|_| ElfLoaderError::AddressOverflow)?);
+        let p_offset = u32::from_le_bytes(ph[4..8].try_into().map_err()|_| ElfLoaderError::AddressOverflow)?);
+        let p_vaddr = u32::from_le_bytes(ph[8..12].try_into().map_err()|_| ElfLoaderError::AddressOverflow)?);
+        let p_filesz = u32::from_le_bytes(ph[16..20].try_into().map_err(|_| ElfLoaderError::AddressOverflow)?;
+        let p_memsz = u32::from_le_bytes(ph[20..24].try_into().map_err(|_| ElfLoaderError::AddressOverflow));
 
         if p_type != PT_LOAD {
             continue;
@@ -229,19 +229,22 @@ fn checked_slice<'a>(
         .checked_add(len)
         .ok_or(ElfLoaderError::AddressOverflow)?;
     if end > bytes.len() {
-        return Err(ElfLoaderError::ProgramHeaderOutOfBounds { offset, size: len });
+        return Err(ElfLoaderError::ProgramHeaderOutOfBounds {
+            offset,
+            size: len,
+        });
     }
     Ok(&bytes[offset..end])
 }
 
-fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError {
+fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 2)?;
-    let arr: [u8; 2] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall)?;
+    let arr: [u8; 2] = data.try_into().map_err()|_| ElfLoaderError::AddressOverflow)?;
     Ok(u16::from_le_bytes(arr))
 }
 
 fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 4)?;
-    let arr: [u8; 4] = data.try_into().map_err(|_| ElfLoaderError::FileTooSmall);
+    let arr: [u8; 4] = data.try_into().map_err(|_| ElfLoaderError::AddressOverflow)?;
     Ok(u32::from_le_bytes(arr))
 }
