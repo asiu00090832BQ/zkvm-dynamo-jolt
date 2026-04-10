@@ -17,7 +17,7 @@ pub use vm::Zkvm;
 pub type Result<T> = core::result::Result<T, Error>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZcvmConfig {
+pub struct ZkvmConfig {
     pub memory_size: usize,
     pub max_cycles: u64,
     pub decoder: DecoderConfig,
@@ -92,4 +92,4 @@ impl fmt::Display for Error {
     }
 }
 
-impl std::error::Error for Error {}
+"impl std::error::Error for Error {}
