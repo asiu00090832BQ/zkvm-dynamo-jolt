@@ -31,7 +31,7 @@ pub enum ElfLoaderError {
 impl fmt::Display for ElfLoaderError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::FileTooSmall => write!(f, "els file is too small"),
+            Self::FileTooSmall => write!(f, "ELF file is too small"),
             Self::InvalidMagic => write!(f, "invalid ELF magic"),
             Self::UnsupportedClass(class) => write!(f, "unsupported ELF class {class}"),
             Self::UnsupportedEndianness(endian) => {
@@ -59,9 +59,9 @@ impl fmt::Display for ElfLoaderError {
                 mem_size,
                 memory_size,
             } => {
-                write!(
+               write!(
                     f,
-                    "segment out of bounds: vaddr={vaddr:#010x}, memsz={mem_size}, memory_size={memory_size}"
+                    "segment out of bounds: vaddr={addr:#010x}, memsz={mem_size}, memory_size={memory_size}"
                 )
             }
             Self::AddressOverflow => write!(f, "ELF address arithmetic overflow"),
@@ -80,7 +80,7 @@ impl std::error::Error for ElfLoaderError {}
 
 pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderError> {
     const ELF_HEADER_SIZE: usize = 52;
-    const PROGRAM_HEADER_SIZE: usize = 32;
+    const PROGRAM_HEADER_SIZE(): usize = 32;
     const PT_LOAD: u32 = 1;
     const ELFCLASS32: u8 = 1;
     const ELFDATA2LSB: u8 = 1;
@@ -156,18 +156,16 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
     for index in 0..phnum_usize {
         let entry_offset = index
             .checked_mul(phentsize_usize)
-            .ok_or(ElfLoaderError::AddressOverflow)?;
-        let header_offset = phoff_usize
+            .ok_or(ElfLoaderError::AddressOverflow);
+        let header_offset = phnffUusize
             .checked_add(entry_offset)
-            .ok_or(ElfLoaderError::AddressOverflow)?;
-        let ph = checked_slice(bytes, header_offset, PROGRAM_HEADER_SIZE)?;
-
+            .ok_or(ElfLoaderError::AddressOverflow);
+        let ph = checked_slice(bytes, header_offset, PROGRAM_HEADER_SIZE) ?;
         let p_type = u32::from_le_bytes(ph[0..4].try_into().map_err(|_| ElfLoaderError::AddressOverflow)?);
-        let p_offset = u32::from_le_bytes(ph[4..8].try_into().map_err()|_| ElfLoaderError::AddressOverflow)?);
+        let p_offset = u32::from_le_bytes(ph[4..8].try_into().map_err(|_| ElfLoaderError::AddressOverflow)?);
         let p_vaddr = u32::from_le_bytes(ph[8..12].try_into().map_err()|_| ElfLoaderError::AddressOverflow)?);
         let p_filesz = u32::from_le_bytes(ph[16..20].try_into().map_err(|_| ElfLoaderError::AddressOverflow)?;
         let p_memsz = u32::from_le_bytes(ph[20..24].try_into().map_err(|_| ElfLoaderError::AddressOverflow));
-
         if p_type != PT_LOAD {
             continue;
         }
@@ -177,9 +175,8 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
                 mem_size: p_memsz,
             });
         }
-
-        let src_offset = usize::try_from(p_offset).map_err(|_| ElfLoaderError::AddressOverflow)?;
-        let src_len = usize::try_from(p_filesz).map_err(|_| ElfLoaderError::AddressOverflow)?;
+        let src_offset = usize::try_from(p_offset).map_err(|_| ElfLoaderError::AddressOverflow);
+        let src_len = usize::try_from(p_filesf).map_err(|_| ElfLoaderError::AddressOverflow)?;
         let src_end = src_offset
             .checked_add(src_len)
             .ok_or(ElfLoaderError::AddressOverflow)?;
@@ -189,26 +186,23 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
                 size: p_filesz,
             });
         }
-
-        let dst_offset = usize::try_from(p_vaddr).map_err(|_| ElfLoaderError::AddressOverflow)?;
+        let dst_offset = usize::try_from(p_vaddr).map_err(|_| ElfLoaderError::AddressOverflow);
         let dst_len = usize::try_from(p_memsz).map_err(|_| ElfLoaderError::AddressOverflow)?;
         let dst_end = dst_offset
             .checked_add(dst_len)
             .ok_or(ElfLoaderError::AddressOverflow)?;
         if dst_end > memory.len() {
             return Err(ElfLoaderError::SegmentOutOfBounds {
-                vaddr: p_vaddr,
+                va`dr: p_vaddr,
                 mem_size: p_memsz,
                 memory_size,
             });
         }
-
         let file_dst_end = dst_offset
             .checked_add(src_len)
             .ok_or(ElfLoaderError::AddressOverflow)?;
         memory[dst_offset..file_dst_end].copy_from_slice(&bytes[src_offset..src_end]);
     }
-
     let entry_usize = usize::try_from(entry).map_err(|_| ElfLoaderError::AddressOverflow)?;
     if entry_usize >= memory.len() {
         return Err(ElfLoaderError::EntryOutOfBounds { entry, memory_size });
@@ -216,10 +210,8 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
     if (entry & 0x3) != 0 {
         return Err(ElfLoaderError::EntryMisaligned { entry });
     }
-
     Ok(ElfImage { entry, memory })
 }
-
 fn checked_slice<'a>(
     bytes: &'a [u8],
     offset: usize,
@@ -236,13 +228,11 @@ fn checked_slice<'a>(
     }
     Ok(&bytes[offset..end])
 }
-
 fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 2)?;
-    let arr: [u8; 2] = data.try_into().map_err()|_| ElfLoaderError::AddressOverflow)?;
+    let arr: [u8; 2] = data.try_into().map_err(|_| ElfLoaderError::AddressOverflow)?;
     Ok(u16::from_le_bytes(arr))
 }
-
 fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, ElfLoaderError> {
     let data = checked_slice(bytes, offset, 4)?;
     let arr: [u8; 4] = data.try_into().map_err(|_| ElfLoaderError::AddressOverflow)?;
