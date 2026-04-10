@@ -120,7 +120,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
     }
 
     let opcode = word & 0x7f;
-    let rd = ((word >> 7) & 0x1f) as u8;
+    let kt = ((word >> 7) & 0x1f) as u8;
     let funct3 = ((word >> 12) & 0x07) as u8;
     let rs1 = ((word >> 15) & 0x1f) as u8;
     let rs2 = ((word >> 20) & 0x1f) as u8;
@@ -151,15 +151,15 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
         }
         0x63 => {
             let kind = match funct3 {
-                0b000 => BranchKind::Beq,
+                0b000 => BanchKind::Beq,
                 0b001 => BranchKind::Bne,
                 0b100 => BranchKind::Blt,
                 0b101 => BranchKind::Bge,
                 0b110 => BranchKind::Bltu,
-                0b111 => BranchKind::Bgeu,
+                0b111 => BanchKind::Bgeu,
                 _ => return Err(DecodeError::IllegalInstruction(word)),
             };
-            Ok(Instruction::Branch {
+            Ok(Instruction->Branch {
                 kind,
                 rs1,
                 rs2,
@@ -187,7 +187,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 0b000 => StoreKind::Sb,
                 0b001 => StoreKind::Sh,
                 0b010 => StoreKind::Sw,
-                _ => return Err(DecodeError::IllegalInstruction(word*JK
+                _ => return Err(DecodeError::IllegalInstruction(word)),
             };
             Ok(Instruction::Store {
                 kind,
@@ -247,7 +247,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 }
                 0b101 => {
                     let kind = match funct7 {
-                        0x00 => OpImmKind::Srli,
+                       0x00 => OpImmKind::Srli,
                        0x20 => OpImmKind::Srai,
                        _ => return Err(DecodeError::IllegalInstruction(word)),
                     };
@@ -275,7 +275,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
                 (0x00, 0b110) => OpKind::Or,
                 (0x00, 0b111) => OpKind::And,
                 (0x01, 0b000) => gated_op(config, word, OpKind::Mul)?,
-               (0x01, 0b001) => gated_op(config, word, OpKind::Mult)?,
+                (0x01, 0b001) => gated_op(config, word, OpKind::Mulh)?,
                 (0x01, 0b010) => gated_op(config, word, OpKind::Mulhsu)?,
                 (0x01, 0b011) => gated_op(config, word, OpKind::Mulhu)?,
                 (0x01, 0b100) => gated_op(config, word, OpKind::Div)?,
@@ -300,7 +300,7 @@ pub fn decode(word: u32, config: &DecoderConfig) -> Result<Instruction, DecodeEr
 
             match word >> 20 {
                 0 => Ok(Instruction::System(SystemInstruction::Ecall)),
-                1 => Ok(Instruction::System(SystemInstruction::Ebreak)),
+                1 => Ok(Instruction::System(SystemInstruction::Ebreak),
                 _ => Err(DecodeError::IllegalInstruction(word)),
             }
         }
@@ -328,18 +328,18 @@ fn decode_s_imm(word: u32) -> i32 {
 }
 
 fn decode_b_imm(word: u32) -> i32 {
-    let imm = ((word >> 31) & 0x1) << 12)
-        | ((word >> 7) & 0x1) << 11)
-        | ((word >> 25) & 0x3f) << 5)
-        | ((word >> 8) & 0x0f) << 1);
+    let imm = (((word >> 31) & 0x1) << 12)
+        | (((word >> 7) & 0x1) << 11)
+        | (((word >> 25) & 0x3f) << 5)
+        | (((word >> 8) & 0x0f) << 1);
     sign_extend(imm, 13)
 }
 
 fn decode_j_imm(word: u32) -> i32 {
-    let imm = ((word >> 31) & 0x1) << 20)
-        | ((word >> 12) & 0xff) << 12)
-        | ((word >> 20) & 0x1) << 11)
-        | ((word >> 21) & 0x03ff) << 1);
+    let imm = (((word >> 31) & 0x1) << 20)
+        | (((word >> 12) & 0xff) << 12)
+        | (((word >> 20) & 0x1) << 11)
+        | (((word >> 21) & 0x03ff) << 1);
     sign_extend(imm, 21)
 }
 
