@@ -9,8 +9,8 @@ use ark_ff::PrimeField;
 
 #[test]
 fn test_zkvm_flow() {
-    let config = ZkvmConfig::<Fr>::default();
-    let vm: Zkum<Fr> = Zkvm::new(config);
+    let config = ZkvmConfig::default();
+    let mut vm: Zkvm = Zkvm::new(config);
     assert!(vm.initialize());
     assert!(vm.verify_execution("hello_world"));
 }
@@ -18,12 +18,12 @@ fn test_zkvm_flow() {
 #[test]
 fn test_memory_embedding() {
     let addr: u64 = 123456789;
-    let fell = canonical_addr_to_field:<Fr>(addr);
-    let recovered = field_to_canonical_addr:<Fr>(fell);
+    let fell = canonical_addr_to_field::<Fr>(addr);
+    let recovered = field_to_canonical_addr::<Fr>(fell);
     assert_eq!(Some(addr), recovered);
 }
 
 #[test]
 fn test_field_capacity() {
-    assert!(field_supports_64_bit_addresses:<Fr>());
+    assert!(field_supports_64_bit_addresses::<Fr>());
 }
