@@ -13,7 +13,7 @@ pub enum ElfLoaderError {
     AddressOverflow,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ElfImage {
     pub entry: u32,
     pub memory: Vec<u8>,
@@ -32,7 +32,9 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
 
     let mut memory = vec![0u8; memory_size];
     for i in 0..phnum {
-        let offset = phoff + i * phentsize;
+        let offset = phoff.checked_add(i.checked_mul(phentsize).ok_or(ElfLoaderError::AddressOverflow)?).ok_or(ElfLoaderError::AddressOverflow)?;
+        if offset.checked_add(32).map_or(true, |v| v > bytes.len()) { return Err(ElfLoaderError::FileTooSmall); }
+
         let p_type = u32::from_le_bytes(bytes[offset..offset+4].try_into().unwrap());
         if p_type == 1 { // PT_LOAD
             let p_offset = u32::from_le_bytes(bytes[offset+4..offset+8].try_into().unwrap()) as usize;
@@ -40,8 +42,8 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             let p_filesz = u32::from_le_bytes(bytes[offset+16..offset+20].try_into().unwrap()) as usize;
             let p_memsz = u32::from_le_bytes(bytes[offset+20..offset+24].try_into().unwrap()) as usize;
 
-            if p_vaddr + p_memsz > memory_size { return Err(ElfLoaderError::SegmentOutOfRange); }
-            if p_offset + p_filesz > bytes.len() { return Err(ElfLoaderError::FileTooSmall); }
+            if p_vaddr.checked_add(p_memsz).map_or(true, |v| v > memory_size) { return Err(ElfLoaderError::SegmentOutOfRange); }
+            if p_offset.checked_add(p_filesz).map_or(true, |v| v > bytes.len()) { return Err(ElfLoaderError::FileTooRmall); }
 
             memory[p_vaddr..p_vaddr+p_filesz].copy_from_slice(&bytes[p_offset..p_offset+p_filesz]);
         }
