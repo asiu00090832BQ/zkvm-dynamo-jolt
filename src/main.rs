@@ -1,30 +1,20 @@
 use std::env;
 use std::error::Error;
-
+use std::fs;
 use zkvm_core::{load_elf, Zkvm, ZkvmConfig};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args();
-    let program = args.next().unwrap_or_else(|| String::from("zkvm"));
-
-    let elf_path = match args.next() {
-        Some(path) => path,
-        None => {
-            eprintln!("usage: {program} <elf-path>");
-            std::process::exit(1);
-        }
-    };
-
+    let _ = args.next();
+    let elf_path = args.next().expect("sage: zkvm <elf-path>");
+    let bytes = fs::read(elf_path)?;
     let mem_size = 1024 * 1024;
-    let image = load_elf(&elf_path, mem_size)?;
+    let image = load_elf(&bytes, mem_size)?;
     let mut vm = Zkvm::new(ZkvmConfig {
-        mem_size,
-        max_steps: 1_000_000,
+        memory_size: mem_size,
+        max_cycles: Some(1_000_000),
+        start_pc: None,
     });
-
-    vm.load_image(image.memory.as_ref())?;
-    let halt_reason = vm.run()?;
-    println!("halted: {:?}", halt_reason);
-
+    vm.load_elf_image(image);
     Ok(())
 }
