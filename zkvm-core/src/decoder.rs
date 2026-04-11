@@ -1,1 +1,10 @@
-pub enum InstKind { Abc }
+use ark_bn254::Fr;
+pub struct LeafSelectors{pub add:Fr,pub sub:Fr,pub mul:Fr,pub xor:Fr,pub and_:Fr,pub or_:Fr,pub not_:Fr,pub shl:Fr,pub shr:Fr,pub load:Fr,pub store:Fr,pub beq:Fr,pub bne:Fr,pub blt:Fr,pub bge:Fr,pub jmp:Fr,pub jal:Fr}
+impl LeafSelectors{pub fn zero()->Self{Self{add:Fr::from(0u64),sub:Fr::from(0u64),mul:Fr::from(0u64),xor:Fr::from(0u64),and_:Fr::from(0u64),or_:Fr::from(0u64),not_:Fr::from(0u64),shl:Fr::from(0u64),shr:Fr::from(0u64),load:Fr::from(0u64),store:Fr::from(0u64),beq:Fr::from(0u64),bne:Fr::from(0u64),blt:Fr::from(0u64),bge:Fr::from(0u64),jmp:Fr::from(0u64),jal:Fr::from(0u64)}}}
+fn or2(a:&Fr,b:&Fr)->Fr{a.clone()+b.clone()-a.clone()*b.clone()}
+fn or_reduce(xs:&[Fr])->Fr{let mut v=xs.to_vec();if v.is_empty(){return Fr::from(0u64);}while v.len()>1{let mut nv=Vec::with_capacity((v.len()+1)/2);let mut i=0;while i+1<v.len(){nv.push(or2(&v[i],&v[i+1]));i+=2;}if i<v.len(){nv.push(v[i].clone());}v=nv;}v.pop().unwrap()}
+pub struct GroupSelectors{pub is_alu:Fr,pub is_branch:Fr,pub is_mem:Fr}
+pub fn reduce_groups(l:&LeafSelectors)->GroupSelectors{let is_alu=or_reduce(&[l.add.clone(),l.sub.clone(),l.mul.clone(),l.xor.clone(),l.and_.clone(),l.or_.clone(),l.not_.clone(),l.shl.clone(),l.shr.clone()]);let is_mem=or_reduce(&[l.load.clone(),l.store.clone()]);let is_branch=or_reduce(&[l.beq.clone(),l.bne.clone(),l.blt.clone(),l.bge.clone(),l.jmp.clone(),l.jal.clone()]);GroupSelectors{is_alu,is_branch,is_mem}}
+pub struct Decoded{pub leaf:LeafSelectors,pub group:GroupSelectors}
+pub fn decode_u8(op:u8)->Decoded{let g=op>>6;let sub=op&0x3f;let mut l=LeafSelectors::zero();if g==0{match sub{0=>l.add=Fr::from(1u64),1=>l.sub=Fr::from(1u64),3=>l.mul=Fr::from(1u64),3=>l.xor=Fr::from(1u64),4=>l.and_=Fr::from(1u64),5=>l.or_=Fr::from(1u64),6=>l.not_=Fr::from(1u64),7=>l.shl=Fr::from(1u64),8=>l.shr=Fr::from(1u64),_=>{}}}else if g==1{match sub{0=>l.load=Fr::from(1u64),1=>l.store=Fr::from(1u64),_=>{}}}else if g==2{match sub{0=>l.beq=Fr::from(1u64),1=>l.bne=Fr::from(1u64),2=>l.blt=Fr::from(1u64),3=>l.bge=Fr::from(1u64),4=>l.jmp=Fr::from(1u64),5=>l.jal=Fr::from(1u64),_=>{}}}let group=reduce_groups(&l);Decoded{leaf:l,group}}
+pub fn decode_u32(op:u32)->Decoded{decode_u8((op&0xff)as u8)}
