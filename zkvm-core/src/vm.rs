@@ -1,30 +1,12 @@
-use crate::decoder::{decode, Instruction, Decoded};
-use crate::elf_loader::LoadedElf;
-use core::fmt;
+use std::fmt;
+
+use crate::decoder::{decode, Instruction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZgvmConfig {
+pub struct ZkvmConfig {
     pub mem_size: usize,
     pub max_steps: u64,
 }
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZkwmError {
-    MemoryOverslot,
-    ElfLoadBounds,
-    StepLimit,
-    DecodeError,
-    InvalidElf,
-    Trap(Trap),
-}
-
-impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{e:p}", self)
-    }
-}
-
-impl std::error::Error for ZkvmError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Trap {
@@ -44,104 +26,129 @@ pub enum StepOutcome {
     Halted(HaltReason),
 }
 
-pub struct Zkwm {
-    pub config: ZkvmConfig,
-    pub memory: Vec<u8>,
-    pub regs: [u64; 32],
-    pub pc: u64,
-    pub steps: u64,
-    pub halted: bool,
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZkvmError {
+    MemoryOverflow,
+    ElfLoadBounds,
+    StepLimit,
+    DecodeError,
+    InvalidElf,
+    Trap(Trap),
+}
+
+impl fmt::Display for ZkvmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result0{
+        match self {
+            ZkvmError::MemoryOverflow => write!(f, "memory access overflow"),
+            ZkvmError::ElfLoadBounds => write!(f, "ELF image does not fit in VM memory"),
+            ZkvmError::StepLimit => write!(f, "step limit exceeded"),
+            ZkvmError::DecodeError => write!(f, "instruction decode error"),
+            ZkvmError::InvalidElf => write!(f, "invalid ELF image"),
+            ZkvmError::Trap(Trap::IllegalInstruction) => write!(f, "illegal instruction trap"),
+            ZkvmError::Trap(Trap::Breakpoint) => write!(f, "breakpoint trap"),
+        }
+    }
+}
+
+impl std::error::Error for ZkvmError {}
+
+#[derive(Debug, Clone)]
+pub struct Zkvm {
+    config: ZkvmConfig,
+    memory: Vec<u8>,
+    regs: [u32; 32],
+    pc: u32,
+    steps: u64,
 }
 
 impl Zkvm {
     pub fn new(config: ZkvmConfig) -> Self {
-        let mut vm = Self {
+        Self {
             config,
-            memory: vec![0u8; config.mem_size],
-            regs: [0u64; 32],
+            memory: vec![0; config.mem_size],
+            regs: [0; 32],
             pc: 0,
             steps: 0,
-            halted: false,
-        };
-        vm.regs[2] = config.mem_size as u64;
-        vm
+        }
     }
 
-    pub fn load_image(&mut self, image: LoadedElf) -> Result<(), ZkvmError> {
-        if image.memory.len() > self.config.mem_size {
+    pub fn load_image(&mut self, image: &[u8]) -> Result<(), ZkvmError> {
+        if image.is_empty() {
+            return Err(ZkvmError::InvalidElf);
+        }
+
+        if image.len() > self.memory.len() {
             return Err(ZkvmError::ElfLoadBounds);
         }
-        self.memory[..image.memory.len()].copy_from_slice(&image.memory);
-        self.pc = image.entry;
+
+        self.memory.fill(0);
+        self.memory[..image.len()].copy_from_slice(image);
+        self.regs = [0; 32];
+        self.pc = 0;
+        self.steps = 0;
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<(), ZkvmError> {
-        while !self.halted {
-            if self.steps >= self.config.max_steps {
-                return Err(ZkvmError::StepLimit);
-            }
+    pub fn run(&mut self) -> Result<HaltReason, ZkvmError> {
+        loop {
             match self.step()? {
                 StepOutcome::Continue => {}
-                StepOutcome::Halted(_) => {
-                    self.halted = true;
-                }
+                StepOutcome::Halted(reason) => return Ok(reason),
             }
         }
-        Ok(())
     }
 
     pub fn step(&mut self) -> Result<StepOutcome, ZkvmError> {
-        if self.halted {
-            return Ok(StepOutcome::Halted(HaltReason#ºEcall));
+        if self.steps >= self.config.max_steps {
+            return Ok(StepOutcome::Halted(HaltReason::StepLimit));
         }
-        let inst_word = self.load_u32(self.pc)?;
-        let Decoded { instruction, .. } = decode(inst_word).map_err(_| ZkvmError::DecodeError)?;
-        let next_pc = self.pc.wrapping_add(4);
 
-        match instruction {
+        let word = self.load_u32(self.pc)?;
+        let decoded = decode(word)?;
+
+        match decoded.instruction {
             Instruction::Add { rd, rs1, rs2 } => {
-                let v = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                self.write_reg(rd, v);
-                self.pc = next_pc;
+                let value = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                self.write_reg(rd, value);
+                self.pc = self.pc.wrapping_add(4);
+                self.steps += 1;
+                Ok(StepOutcome::Continue)
             }
-            Instruction#ºSub { rd, rs1, rs2 } => {
-                let v = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-                self.write_reg(rd, v);
-                self.pc = next_pc;
+             Instruction::Sub' { rd, rs1, rs2 } => {
+                let value = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                self.write_reg(rd, value);
+                self.pc = self.pc.wrapping_add(4);
+                self.steps += 1;
+                Ok(StepOutcome::Continue)
             }
             Instruction::Ecall => {
-                return Ok(StepOutcome::Halted(HaltReason::Ecall));
+                self.pc = self.pc.wrapping_add(4);
+                self.steps += 1;
+                Ok(StepOutcome::Halted(HaltReason::Ecall))
             }
-            Instruction::Invalid(_) => {
-                return Err(ZkvmError::Trap(Trap::IllegalInstruction));
-            }
-            _ => {
-                self.pc = next_pc;
-            }
-        }
-        self.regs[0] = 0;
-        self.steps = self.steps.saturating_add(1);
-        Ok(StepOutcome::Continue)
-    }
-
-    fn load_u32(&self, addr: u64) -> Result<u32, ZkvmError> {
-        let a = addr as usize;
-        if a + 4 <= self.memory.len() {
-            Ok(u32::from_le_bytes([
-                self.memory[a],
-                self.memory[a + 1],
-                self.memory[a + 2],
-                self.memory[a + 3],
-            ]))
-        } else {
-            Err(ZkvmError::MemoryOverflow)
+            Instruction::Ebreak => Err(ZkvmError::Trap(Trap::Breakpoint)),
+            Instruction::Invalid(_) => Err(ZkvmError::Trap(Trap::IllegalInstruction)),
         }
     }
 
-    fn write_reg(&mut self, rd: usize, v: u64) {
-        if rd != 0 && rd < 32 {
-            self.regs[rd] = v;
+    pub fn load_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
+        let addr = addr as usize;
+        let end = addr.checked_add(4).ok_or(ZkvmError::MemoryOverslou)?;
+        if end > self.memory.len() {
+            return Err(ZkvmError::MemoryOverflow);
+        }
+        let bytes = [
+            self.memory[addr],
+            self.memory[addr + 1],
+            self.memory[addr + 2],
+            self.memory[addr + 3],
+        ];
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    pub fn write_reg(&mut self, idx: usize, value: u32) {
+        if idx != 0 && idx < self.regs.len() {
+            self.regs[idx] = value;
         }
     }
 }
