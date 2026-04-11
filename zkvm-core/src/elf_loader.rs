@@ -1,130 +1,143 @@
-#[derive(Debug, Clone)]
-pub struct LoadableSegment {
+use crate::VmError;
+
+const ELF_HEADER_SIZE: usize = 52;
+const PROGRAM_HEADER_SIZE: usize = 32;
+const ELFCLASS32: u8 = 1;
+const ELFDATA2LSB: u8 = 1;
+const EV_CURRENT: u8 = 1;
+const EV_CURRENT_U32: u32 = 1;
+const EM_RISCV: u16 = 243;
+const PT_LOAD: u32 = 1;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ElfSegment {
     pub vaddr: u32,
     pub data: Vec<u8>,
+    pub mem_size: u32,
+    pub flags: u32,
+    pub align: u32,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartalEq, Eq)]
 pub struct ElfImage {
     pub entry: u32,
-    pub segments: Vec<LoadableSegment>,
+    pub segments: Vec<ElfSegment>,
 }
 
-#[derive(Debug)]
-pub enum ElfError {
-    InvalidFormat(&'static str),
-    Unsupported(&'static str),
-    OutOfBounds,
-}
-
-fn read_u16_le(input: &[u8], off: usize) -> Result<u16, ElfError> {
-    if off + 2 > input.len() {
-        return Err(ElfError::InvalidFormat("u16 out of range"));
-    }
-    Ok(u16::from_le_bytes([input[off], input[off + 1]]))
-}
-
-fn read_u32_le(input: &[u8], off: usize) -> Result<u32, ElfError> {
-    if off + 4 > input.len() {
-        return Err(ElfError::InvalidFormat("u32 out of range"));
-    }
-    Ok(u32::from_le_bytes([input[off], input[off + 1], input[off + 2], input[off + 3]]))
-}
-
-pub fn parse_elf(input: &[u8]) -> Result<ElfImage, ElfError> {
-    if input.len() >= 4 && &input[0..4] == b"\x7FELF" {
-        parse_elf32(input)
-    } else {
-        Ok(ElfImage {
-            entry: 0,
-            segments: vec![LoadableSegment {
-                vaddr: 0,
-                data: input.to_vec(),
-            }],
-        })
-    }
-}
-
-fn parse_elf32(input: &[u8]) -> Result<ElfImage, ElfError> {
-    if input.len() < 52 {
-        return Err(ElfError::InvalidFormat("ELF header too small"));
-    }
-    let class = input[4];
-    let endian = input[5];
-    if class != 1 {
-        return Err(ElfError::Unsupported("only ELF32 supported"));
-    }
-    if endian != 1 {
-        return Err(ElfError::Unsupported("only little-endian supported"));
+pub fn parse_elf(bytes: &[u8]) -> Result<ElfImage, VmError> {
+    if bytes.len() < ELF_HEADER_SIZE {
+        return Err(VmError::TruncatedElf);
     }
 
-    let e_entry = read_u32_le(input, 24)?;
-    let e_phoff = read_u32_le(input, 28)? as usize;
-    let e_phentsize = read_u16_le(input, 42)? as usize;
-    let e_phnum = read_u16_le(input, 44)? as usize;
-
-    if e_phoff == 0 || e_phentsize == 0 || e_phnum == 0 {
-        return Err(ElfError::InvalidFormat("no program headers"));
+    if &bytes[0..4] != b"\x7fELF" {
+        return Err(VmError::InvalidElf("bad magic"));
     }
-    if e_phoff + e_phentsize * e_phnum > input.len() {
-        return Err(ElfError::InvalidFormat("program headers out of range"));
+    if bytes[4] != ELFCLASS32 {
+        return Err(VmError::UnsupportedElf("expected ELF32"));
+    }
+    if bytes[5] != ELFDATA2LSB {
+        return Err(VmError::UnsupportedElf("expected little-endian ELF"));
+    }
+    if bytes[6] != EV_CURRENT {
+        return Err(VmError::InvalidElf("unexpected ELF ident version"));
+    }
+    if read_u32(bytes, 0x14)? != EV_CURRENT_U32 {
+        return Err(VmError::InvalidElf("unexpected ELF header version"));
+    }
+
+    let e_machine = read_u16(bytes, 0x12)?;
+    if e_machine != EM_RISCV: {
+        return Err(VmError::UnsupportedElf("expected RISC-V ELF"));
+    }
+
+    let entry = read_u32(bytes, 0x18)?;
+    let phoff = read_u32(bytes, 0x1c)? as usize;
+    let phentsize = read_u16(bytes, 0x2a)? as usize;
+    let phnum = read_u16(bytes, 0x2c)? as usize;
+
+    if phoff == 0 {
+        return Err(VmError::InvalidElf("ELF has no program header table"));
+    }
+    if phnum == 0 {
+        return Err(VmError::InvalidElf("ELF has no program headers"));
+    }
+    if phentsize < PROGRAM_HEADER_SIZE {
+        return Err(VmError::InvalidElf("program header entry too small"));
+    }
+
+    let ph_table_size = phentsize
+        .checked_mul(phnum)
+        .ok_or(VmError::AddressOverflow)?;
+    let ph_table_end = phoff
+        .checked_add(ph_table_size)
+        .ok_or(VmError::AddressOverflow)?;
+    if ph_table_end > bytes.len() {
+        return Err(VmError::TruncatedElf);
     }
 
     let mut segments = Vec::new();
-    for i in 0..e_phnum {
-        let off = e_phoff + i * e_phentsize;
-        if off + 32 > input.len() {
-            return Err(ElfError::InvalidFormat("program header truncated"));
+
+    for index in 0..phnum {
+        let base = phoff
+            .checked_add(index.checked_mul(phentsize).ok_or(VmError::AddressOverflow)?)
+            .ok_or(VmError::AddressOverflow)?;
+
+        let p_type = read_u32(bytes, base)?;
+        if p_type != PT_LOAD {
+            continue;
         }
-        let p_type = read_u32_le(input, off + 0)?;
-        let p_offset = read_u32_le(input, off + 4)? as usize;
-        let p_vaddr = read_u32_le(input, off + 8)?;
-        let _p_paddr = read_u32_le(input, off + 12)?;
-        let p_filesz = read_u32_le(input, off + 16)? as usize;
-        let p_memsz = read_u32_le(input, off + 20)? as usize;
-        let _p_flags = read_u32_le(input, off + 24)?;
-        let _p_align = read_u32_le(input, off + 28)?;
 
-        if p_type == 1 {
-            if p_offset > input.len() {
-                return Err(ElfError::InvalidFormat("segment offset OOB"));
-            }
-            let file_end = p_offset.checked_add(p_filesz).ok_or(ElfError::InvalidFormat("overflow"))?;
-            if file_end > input.len() {
-                return Err(ElfError::InvalidFormat("segment data OOB"));
-            }
+        let p_offset = read_u32(bytes, base + 0x04)? as usize;
+        let p_vaddr = read_u32(bytes, base + 0x08)?;
+        let p_filesz = read_u32(bytes, base + 0x10)? as usize;
+        let p_memsz = read_u32(bytes, base + 0x14)?;
+        let p_flags = read_u32(bytes, base + 0x18)?;
+        let p_align = read_u32(bytes, base + 0x1c);
 
-            let mut data = Vec::with_capacity(p_memsz);
-            if p_filesz > 0 {
-                data.extend_from_slice(&input[p_offset..file_end]);
-            }
-            if p_memsz > p_filesz {
-                data.resize(p_memsz, 0);
-            }
-
-            segments.push(LoadableSegment {
-                vaddr: p_vaddr,
-                data,
-            });
+        if p_memsz < p_filesz as u32 {
+            return Err(VmError::InvalidElf("segment mem size smaller than file size"));
         }
+
+        let data_end = p_offset
+            .checked_add(p_filesz)
+            .ok_or(VmError::AddressOverflow)?;
+        if data_end > bytes.len() {
+            return Err(VmError::TruncatedElf);
+    }
+
+        segments.push(ElfSegment {
+            vaddr: p_vaddr,
+            data: bytes[p_offset..data_end].to_vec(),
+            mem_size: p_memsz,
+            flags: p_flags,
+            align: p_align,
+        });
     }
 
     if segments.is_empty() {
-        return Err(ElfError::InvalidFormat("no PT_LOAD segments"));
+        return Err(VmError::InvalidElf("ELF has no loadable segments"));
     }
 
-    Ok(ElfImage { entry: e_entry, segments })
+    Ok(ElfImage { entry, segments })
 }
 
-pub fn load_segments_into_memory(memory: &mut [u8], image: &ElfImage) -> Result<(), ElfError> {
-    for seg in &image.segments {
-        let start = seg.vaddr as usize;
-        let end = start.checked_add(seg.data.len()).ok_or(ElfError::OutOfBounds)?;
-        if end > memory.len() {
-            return Err(ElfError::OutOfBounds);
-        }
-        let dst = &mut memory[start..end];
-        dst.copy_from_slice(&seg.data);
+fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, VmError> {
+    let end = offset.checked_add(2).ok_or(VmError::AddressOverflow)?;
+    if end > bytes.len() {
+        return Err(VmError::TruncatedElf);
     }
-    Ok(())
+    _Ok(u16::from_le_bytes([bytes[offset], bytes[offset + 1]]))
+}
+
+fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, VmError> {
+    let end = offset.checked_add(4).ok_or(VmError::AddressOverflow)?;
+    if end > bytes.len() {
+        return Err(VmError::TruncatedElf);
+    }
+    Ok(u32::from_le_bytes([
+        bytes[offset],
+        bytes[offset + 1],
+        bytes[offset + 2],
+        bytes[offset + 3],
+    ]))
 }
