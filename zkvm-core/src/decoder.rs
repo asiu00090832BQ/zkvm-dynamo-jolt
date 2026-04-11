@@ -11,11 +11,9 @@ pub enum Instruction {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct HierSelectors {
-    pub is_add: bool,
-    pub is_sub: bool,
-    pub is_ecall: bool,
-    pub is_ebreak: bool,
-    pub is_invalid: bool,
+    pub is_alu: bool,
+    pub is_system: bool,
+    pub sub_op: u32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -25,38 +23,8 @@ pub struct Decoded {
     pub selectors: HierSelectors,
 }
 
-impl HierSelectors {
-    fn from_instruction(instruction: &Instruction) -> Self {
-        match instruction {
-            Instruction::Add { .. } => Self {
-                is_add: true,
-                ..Self::default()
-            },
-            Instruction::Sub { .. } => Self {
-                is_sub: true,
-                ..Self::default()
-            },
-            Instruction::Ecall => Self {
-                is_ecall: true,
-                ..Self::default()
-            },
-            Instruction::Ebreak => Self {
-                is_ebreak: true,
-                ..Self::default()
-            },
-            Instruction::Invalid(_) => Self {
-                is_invalid: true,
-                ..Self::default()
-            },
-        }
-    }
-}
-
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    if (word & 0x3) != 0x3 {
-        return Err(ZkvmError::DecodeError);
-    }
-
+    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecodeError); }
     let opcode = word & 0x7f;
     let rd = ((word >> 7) & 0x1f) as usize;
     let funct3 = (word >> 12) & 0x7;
@@ -64,22 +32,25 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
     let rs2 = ((word >> 20) & 0x1f) as usize;
     let funct7 = (word >> 25) & 0x7f;
 
-    let instruction = match opcode {
-        0x33 => match (funct3, funct7) {
-            (0x0, 0x00) => Instruction::Add { rd, rs1, rs2 },
-            (0x0, 0x20) => Instruction::Sub { rd, rs1, rs2 },
-            _ => Instruction::Invalid(word),
-        },
-        0x73 => match word {
-            0ÌÌÈOˆ[œÝXÝ[ÛŽŽ‘XØ[ˆLÌÌÈOˆ[œÝXÝ[ÛŽŽ‘Xœ™XZËˆÈOˆ[œÝXÝ[ÛŽŽ’[˜[Y
-ÛÜ™
-KˆBˆÈOˆ[œÝXÝ[ÛŽŽ’[˜[Y
-ÛÜ™
-KˆNÂ‚ˆ]Ù[XÝÜœÈHY\”Ù[XÝÜœÎŽ™œ›ÛWÚ[œÝXÝ[ÛŠ(&instruction);
+    let (instruction, selectors) = match opcode {
+        0x33 => {
+            let inst = match (funct3, funct7) {
+                (0x0, 0x00) => Instruction::Add { rd, rs1, rs2 },
+                (0x0, 0x20) => Instruction::Sub { rd, rs1, rs2 },
+                _ => Instruction::Invalid(word),
+            };
+            (inst, HierSelectors { is_alu: true, is_system: false, sub_op: funct3 })
+        }
+        0x73 => {
+            let inst = match word {
+                0x0000_0073 => Instruction::Ecall,
+                0x0010_0073 => Instruction::Ebreak,
+                _ => Instruction::Invalid(word),
+            };
+            (inst, HierSelectors { is_alu: false, is_system: true, sub_op: 0 })
+        }
+        _ => (Instruction::Invalid(word), HierSelectors::default()),
+    };
 
-    Ok(Decoded {
-        word,
-        instruction,
-        selectors,
-    })
+    Ok(Decoded { word, instruction, selectors })
 }
