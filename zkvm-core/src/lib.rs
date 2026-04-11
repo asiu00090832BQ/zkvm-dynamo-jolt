@@ -1,6 +1,6 @@
-pub mod vm;
 pub mod decoder;
+pub mod elf_loader;
+pub mod vm;
 
-pub use vm::{StepOutcome, Zkvm, ZkvmConfig, VmError};
 pub use decoder::{decode_instruction, DecodeError, Instruction};
-pub use rv32im_decoder as rv32im;
+pub use vm::{RunStats, StepOutcome, VmError, Zkvm, ZkvmConfig};
