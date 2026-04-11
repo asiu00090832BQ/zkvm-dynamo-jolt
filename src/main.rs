@@ -6,10 +6,9 @@ use zkvm_core::{load_elf, Zkvm, ZkvmConfig};
 fn main() -> Result<(), Box<dyn Error>> {
     let mut args = env::args();
     let _ = args.next();
-    let elf_path = args.next().expect("sage: zkvm <elf-path>");
-    let bytes = fs::read(elf_path)?;
+    let elf_path = args.next().expect("usage: zkvm <elf-path>");
     let mem_size = 1024 * 1024;
-    let image = load_elf(&bytes, mem_size)?;
+    let image = load_elf(elf_path, mem_size)?;
     let mut vm = Zkvm::new(ZkvmConfig {
         memory_size: mem_size,
         max_cycles: Some(1_000_000),
