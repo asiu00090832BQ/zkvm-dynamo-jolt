@@ -15,13 +15,14 @@ fn main() -> Result<(), Box<dyn Error>> {
         }
     };
 
-    let image = load_elf(&elf_path)?;
+    let mem_size = 1024 * 1024;
+    let image = load_elf(&elf_path, mem_size)?;
     let mut vm = Zkvm::new(ZkvmConfig {
-        mem_size: 1024 * 1024,
+        mem_size,
         max_steps: 1_000_000,
     });
 
-    vm.load_image(image.as_ref())?;
+    vm.load_image(image.memory.as_ref())?;
     let halt_reason = vm.run()?;
     println!("halted: {:?}", halt_reason);
 
