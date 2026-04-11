@@ -4,7 +4,7 @@ use zkvm_core::{Zkvm, ZkvmConfig};
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Running Standalone Hello World Verification...");
     let config = ZkvmConfig::default();
-    let mut vm = Zkvm::<Fr>::new(config)?;
+    let mut vm = Zkvm::new(config);
     vm.run()?;
     println!("SUCCESS: Hello World proved.");
     Ok(())
