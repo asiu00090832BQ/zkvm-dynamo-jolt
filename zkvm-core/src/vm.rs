@@ -1,488 +1,295 @@
-use crate::decoder::{decode, Instruction};
-use crate::elf_loader::ElfImage;
-use crate::VmError;
+use crate::decoder::{decode, InstKind};
+use std::error::Error;
+use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StepOutcome {
-    Halted,
-    Timeout,
-    Error,
+#[derive(Clone, Debug)]
+pub struct ZkvmConfig {
+    pub name: String,
+    pub start_pc: u32,
+    pub max_cycles: u64,
+    pub max_steps: u64,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Debug)]
 pub struct RunStats {
     pub steps: u64,
-    pub outcome: StepOutcome,
+    pub cycles: u64,
+    pub halted: bool,
+    pub exit_code: u32,
+    pub outcome: String,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct ZkvmConfig {
-    pub memory_size: usize,
-    pub max_cycles: Option<v64>,
-    pub start_pc: Option<u32>,
+#[derive(Debug)]
+pub enum VmError {
+    MemoryOutOfBounds { address: u32, size: u32 },
+    InvalidInstruction(u32),
+    PcOverflow { pc: u32, inc: u32 },
+    AddressOverflow { base: u32, offset: i32 },
+    MisalignedAccess { address: u32, alignment: u32 },
+    EmptyMemory,
 }
 
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            memory_size: 1024 * 1024,
-            max_cycles: None,
-            start_pc: None,
+impl fmt::Display for VmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VmError::MemoryOutOfBounds { address, size } => {
+                write!(f, "memory out of bounds at address {} for size {}", address, size)
+            }
+            VmError::InvalidInstruction(raw) => write!(f, "invalid instruction 0x{:08x}", raw),
+            VmError::PcOverflow { pc, inc } => write!(f, "program counter overflow: pc={} inc={}", pc, inc),
+            VmError::AddressOverflow { base, offset } => write!(f, "address overflow: base={} offset={}", base, offset),
+            VmError::MisalignedAccess { address, alignment } => write!(f, "misaligned access at {} (alignment {})", address, alignment),
+            VmError::EmptyMemory => write!(f, "empty program memory"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+impl Error for VmError {}
+
+#[derive(Clone)]
 pub struct Zkvm {
-    config: ZkvmConfig,
-    memory: Vec<u8>,
-    regs: [u32; 32],
-    pc: u32,
-    loaded: bool,
+    pub config: ZkvmConfig,
+    pub memory: Vec<u8>,
+    pub pc: u32,
+    pub regs: [u32; 32],
+    cycles: u64,
+    steps: u64,
+    halted: bool,
+    exit_code: u32,
 }
 
 impl Zkvm {
-    pub fn new(config: ZkvmConfig) -> Self {
-        Self {
-            memory: vec![0; config.memory_size],
-            config,
-            regs: [0; 32],
-            pc: 0,
-            loaded: false,
+    pub fn new(config: ZkvmConfig, memory: Vec<u8>) -> Result<Self, VmError> {
+        if memory.is_empty() {
+            return Err(VmError::EmptyMemory);
         }
+        Ok(Self {
+            pc: config.start_pc,
+            config,
+            memory,
+            regs: [0u32; 32],
+            cycles: 0,
+            steps: 0,
+            halted: false,
+            exit_code: 0,
+        })
     }
 
-    pub fn load_elf(&mut self, image: &ElfImage) -> Result<(), VmError> {
-        self.memory.fill(0);
-        self.regs = [0; 32];
-
-        for segment in &image.segments {
-            let start = segment.vaddr as usize;
-            let file_len = segment.data.len();
-            let mem_len = segment.mem_size as usize;
-
-            if mem_len < file_len {
-                return Err(VmError::InvalidElf("segment mem size smaller than file size"));
-            }
-
-            let file_end = start
-                .checked_add(file_len)
-                .ok_or(VmError::AddressOverflow)?;
-            let mem_end = start
-                .checked_add(mem_len)
-                .ok_or(VmError::AddressOverflow)?;
-
-            if mem_end > self.memory.len() {
-                return Err(VmError::AddressOutOfBounds {
-                    addr: segment.vaddr,
-                    size: mem_len,
-                });
-            }
-
-            self.memory[start..mem_end].fill(0);
-            self.memory[start..file_end].copy_from_slice(&segment.data);
-        }
-
-        self.pc = self.config.start_pc.unwrap_or(image.entry);
-        self.regs[2] = (self.memory.len().min(u32::MAX as usize) as u32) & !0x0f;
-        self.regs[0] = 0;
-        self.loaded = true;
-        Ok(())
+    pub fn reset(&mut self) {
+        self.pc = self.config.start_pc;
+        self.regs = [0u32; 32];
+        self.cycles = 0;
+        self.steps = 0;
+        self.halted = false;
+        self.exit_code = 0;
     }
 
     pub fn run(&mut self) -> Result<RunStats, VmError> {
-        if !self.loaded {
-            return Err(VmError::NotLoaded);
-        }
-
-        let mut steps = 0u64;
-        loop {
-            if let Some(max_cycles) = self.config.max_cycles {
-                if steps >= max_cycles {
-                    return Ok(RunStats {
-                        steps,
-                        outcome: StepOutcome::Timeout,
-                    });
-                }
+        while !self.halted {
+            if self.steps >= self.config.max_steps || self.cycles >= self.config.max_cycles {
+                break;
             }
-
-            let outcome = self.step()?;
-            steps = steps.wrapping_add(1);
-
-            if let Some(outcome) = outcome {
-                return Ok(RunStats { steps, outcome });
-            }
+            self.step()?;
         }
+        let outcome = if self.halted {
+            "halted".to_string()
+        } else if self.steps >= self.config.max_steps {
+            "max_steps_exceeded".to_string()
+        } else if self.cycles >= self.config.max_cycles {
+            "max_cycles_exceeded".to_string()
+        } else {
+            "stopped".to_string()
+        };
+        Ok(RunStats {
+            steps: self.steps,
+            cycles: self.cycles,
+            halted: self.halted,
+            exit_code: self.exit_code,
+            outcome,
+        })
     }
 
-    fn step(&mut self) -> Result<Option<StepOutcome>, VmError> {
-        let cur_pc = self.pc;
-        let word = self.fetch_u32(cur_pc)?;
-        let instruction = decode(word)?;
-        let next_pc = cur_pc.wrapping_add(4);
+    pub fn step(&mut self) -> Result<(), VmError> {
+        let raw = self.fetch_u32(self.pc)?;
+        let d = decode(raw);
+        if matches!(d.kind, InstKind::Invalid) {
+            return Err(VmError::InvalidInstruction(raw));
+        }
 
-        match instruction {
-            Instruction::Lui { rd, imm } => {
-                self.set_reg(rd, imm);
-                self.pc = next_pc;
-            }
-            Instruction::Auipc { rd, imm } => {
-                self.set_reg(rd, cur_pc.wrapping_add(imm));
-                self.pc = next_pc;
-            }
-            Instruction::Jal { rd, imm } => {
-                self.set_reg(rd, next_pc);
-                self.pc = cur_pc.wrapping_add(imm as u32);
-            }
-            Instruction::Jalr { rd, rs1, imm } => {
-                let target = self.reg(rs1).wrapping_add(imm as u32) & !1;
-                self.set_reg(rd, next_pc);
-                self.pc = target;
-            }
+        let mut next_pc = self.pc.checked_add(4).ok_or(VmError::PcOverflow { pc: self.pc, inc: 4 })?;
 
-            Instruction::Beq { rs1, rs2, imm } => {
-                self.pc = if self.reg(rs1) == self.reg(rs2) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+        match d.kind {
+            InstKind::AluReg => {
+                let rd = d.rd as usize;
+                let rs1 = d.rs1 as usize;
+                let rs2 = d.rs2 as usize;
+                match (d.funct3, d.funct7) {
+                    (0x0, 0x00) => {
+                        let val = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                        self.set_reg(rd, val);
+                    }
+                    (0x0, 0x20) => {
+                        let val = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                        self.set_reg(rd, val);
+                    }
+                    (0x7, 0x00) => {
+                        let val = self.regs[rs1] & self.regs[rs2];
+                        self.set_reg(rd, val);
+                    }
+                    (0x6, 0x00) => {
+                        let val = self.regs[rs1] | self.regs[rs2];
+                        self.set_reg(rd, val);
+                    }
+                    (0x4, 0x00) => {
+                        let val = self.regs[rs1] ^ self.regs[rs2];
+                        self.set_reg(rd, val);
+                    }
+                    _ => return Err(VmError::InvalidInstruction(raw)),
+                }
             }
-            Instruction::Bne { rs1, rs2, imm } => {
-                self.pc = if self.reg(rs1) != self.reg(rs2) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+            InstKind::AluImm => {
+                let rd = d.rd as usize;
+                let rs1 = d.rs1 as usize;
+                match d.funct3 {
+                    0x0 => {
+                        let val = self.regs[rs1].wrapping_add(d.imm_i32 as u32);
+                        self.set_reg(rd, val);
+                    }
+                    _ => return Err(VmError::InvalidInstruction(raw)),
+                }
             }
-            Instruction::Blt { rs1, rs2, imm } => {
-                self.pc = if (self.reg(rs1) as i32) < (self.reg(rs2) as i32) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+            InstKind::Load => {
+                let rd = d.rd as usize;
+                let rs1 = d.rs1 as usize;
+                match d.funct3 {
+                    0x2 => {
+                        let addr = self.addr_with_imm(self.regs[rs1], d.imm_i32)?;
+                        if addr % 4 != 0 { return Err(VmError::MisalignedAccess { address: addr, alignment: 4 }); }
+                        let v = self.fetch_u32(addr)?;
+                        self.set_reg(rd, v);
+                    }
+                    _ => return Err(VmError::InvalidInstruction(raw)),
+                }
             }
-            Instruction::Bge { rs1, rs2, imm } => {
-                self.pc = if (self.reg(rs1) as i32) >= (self.reg(rs2) as i32) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+            InstKind::Store => {
+                let rs1 = d.rs1 as usize;
+                let rs2 = d.rs2 as usize;
+                match d.funct3 {
+                    0x2 => {
+                        let addr = self.addr_with_imm(self.regs[rs1], d.imm_i32)?;
+                        if addr % 4 != 0 { return Err(VmError::MisalignedAccess { address: addr, alignment: 4 }); }
+                        self.store_u32(addr, self.regs[rs2])?;
+                    }
+                    _ => return Err(VmError::InvalidInstruction(raw)),
+                }
             }
-            Instruction::Bltu { rs1, rs2, imm } => {
-                self.pc = if self.reg(rs1) < self.reg(rs2) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+            InstKind::Branch => {
+                let rs1 = d.rs1 as usize;
+                let rs2 = d.rs2 as usize;
+                match d.funct3 {
+                    0x0 => {
+                        if self.regs[rs1] == self.regs[rs2] {
+                            next_pc = self.pc_branch_target(self.pc, d.imm_i32)?;
+                        }
+                    }
+                    0x1 => {
+                        if self.regs[rs1] != self.regs[rs2] {
+                            next_pc = self.pc_branch_target(self.pc, d.imm_i32)?;
+                        }
+                    }
+                    _ => return Err(VmError::InvalidInstruction(raw)),
+                }
             }
-            Instruction::Bgeu { rs1, rs2, imm } => {
-                self.pc = if self.reg(rs1) >= self.reg(rs2) {
-                    cur_pc.wrapping_add(imm as u32)
-                } else {
-                    next_pc
-                };
+            InstKind::Jal => {
+                let rd = d.rd as usize;
+                let ret = next_pc;
+                next_pc = self.pc_branch_target(self.pc, d.imm_i32)?;
+                self.set_reg(rd, ret);
             }
-
-            Instruction::Lb { rd, rs1, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                let v = self.load_u8(addr)? as i8 as i32 as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
+            InstKind::Jalr => {
+                let rd = d.rd as usize;
+                let base = self.regs[d.rs1 as usize];
+                let target = self.addr_with_imm(base, d.imm_i32)? & !1u32;
+                let ret = next_pc;
+                next_pc = target;
+                self.set_reg(rd, ret);
             }
-            Instruction::Lh { rd, rs1, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                let v = self.load_u16(addr)? as i16 as i32 as u32;
+            InstKind::Lui => {
+                let rd = d.rd as usize;
+                self.set_reg(rd, (d.imm_i32 as u32) & 0xFFFFF000);
+            }
+            InstKind::Auipc => {
+                let rd = d.rd as usize;
+                let val = self.pc.wrapping_add((d.imm_i32 as u32) & 0xFFFFF000);
                 self.set_reg(rd, val);
-                self.pc = next_pc;
             }
-            Instruction::Lw { rd, rs1, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                let v = self.load_u32_mem(addr)?;
-                self.set_reg(rd, val);
-                self.pc = next_pc;
+            InstKind::System => {
+                let a0 = 10usize;
+                self.exit_code = self.regs[a0];
+                self.halted = true;
             }
-            Instruction::Lbu { rd, rs1, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                self.set_reg(rd, self.load_u8(addr)? as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Lhu { rd, rs1, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                self.set_reg(rd, self.load_u16(addr)? as u32);
-                self.pc = next_pc;
-            }
-
-            Instruction::Sb { rs1, rs2, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                self.write_u8(addr, self.reg(rs2) as u8)?;
-                self.pc = next_pc;
-            }
-            Instruction::Sh { rs1, rs2, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                self.write_u16(addr, self.reg(rs2) as u16)?;
-                self.pc = next_pc;
-            }
-            Instruction::Sw { rs1, rs2, imm } => {
-                let addr = self.reg(rs1).wrapping_add(imm as u32);
-                self.write_u32(addr, self.reg(rs2))?;
-                self.pc = next_pc;
-            }
-
-            Instruction::Addi { rd, rs1, imm } => {
-                self.set_reg(rd, self.reg(rs1).wrapping_add(imm as u32));
-                self.pc = next_pc;
-            }
-            Instruction::Slti { rd, rs1, imm } => {
-                let v = ((self.reg(rs1) as i32) < imm) as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Sltiu { rd, rs1, imm } => {
-                let v = (self.reg(rs1) < imm as u32) as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Xori { rd, rs1, imm } => {
-                self.set_reg(rd, self.reg(rs1) ^ (imm as u32));
-                self.pc = next_pc;
-            }
-            Instruction::Ori { rd, rs1, imm } => {
-                self.set_reg(rd, self.reg(rs1) | (imm as u32));
-                self.pc = next_pc;
-            }
-            Instruction::Andi { rd, rs1, imm } => {
-                self.set_reg(rd, self.reg(rs1) & (imm as u32));
-                self.pc = next_pc;
-            }
-            Instruction::Slli { rd, rs1, shamt } => {
-                let v = self.regs[rs1] << (shamt & 31);
-                self.write_rd(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Srli { rd, rs1, shamt } => {
-                let v = self.regs[rs1] >> (shamt & 31);
-                self.write_rd(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Srai { rd, rs1, shamt } => {
-                let v = ((self.regs[rs1] as i32) >> (shamt & 31)) as u32;
-                self.write_rd(rd, val);
-                self.pc = next_pc;
-            }
-
-            Instruction::Add { rd, rs1, rs2 } => {
-                let v = self.reg(rs1).wrapping_add(self.reg(rs2));
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Sub { rd, rs1, rs2 } => {
-                let v = self.reg(rs1).wrapping_sub(self.reg(rs2));
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Sll { rd, rs1, rs2 } => {
-                let v = self.reg(rs1) << (self.reg(rs2) & 31);
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Slt { rd, rs1, rs2 } => {
-                let v = ((self.reg(rs1) as i32) < (self.reg(rs2) as i32)) as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Sltu { rd, rs1, rs2 } => {
-                let v = (self.reg(rs1) < self.reg(rs2)) as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Xor { rd, rs1, rs2 } => {
-                let v = self.reg(rs1) ^ self.reg(rs2);
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Srl { rd, rs1, rs2 } => {
-                let v = self.reg(rs1) >> (self.reg(rs2) & 31);
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Sra { rd, rs1, rs2 } => {
-                let v = ((self.reg(rs1) as i32) >> (self.reg(rs2) & 31)) as u32;
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::Or { rd, rs1, rs2 } => {
-                let v = self.reg(rs1) | self.reg(rs2);
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-            Instruction::And { rd, rs1, rs2 } => {
-                let v = self.reg(rs1) & self.reg(rs2);
-                self.set_reg(rd, v);
-                self.pc = next_pc;
-            }
-
-            Instruction::Mul { rd, rs1, rs2 } => {
-                let a = self.reg(rs1) as i64;
-                let b = self.reg(rs2) as i64;
-                self.set_reg(rd, a.wrapping_mul(b) as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Mulh { rd, rs1, rs2 } => {
-                let a = self.reg(rs1) as i64;
-                let b = self.reg(rs2) as i64;
-                let prod = (a as i128).wrapping_mul(b as i128);
-                self.set_reg(rd, (prod >> 32) as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Mulhsu { rd, rs1, rs2 } => {
-                let a = self.reg(rs1) as i64;
-                let b = self.reg(rs2) as u64 as i64;
-                let prod = (a as i128).wrapping_mul(b as i128);
-                self.set_reg(rd, (prod >> 32) as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Mulhu { rd, rs1, rs2 } => {
-                let a = self.reg(rs1) as u64;
-                let b = self.reg(rs2) as u64;
-                let prod = (a as u128).wrapping_mul(b as u128);
-                self.set_reg(rd, (prod >> 32) as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Div { rd, rs1, rs2 } => {
-                let dividend = self.reg(rs1) as i32;
-                let divisor = self.reg(rs2) as i32;
-                let val = if divisor == 0 { -1 } else if dividend == i32::MIN && divisor == -1 { i32::MIN } else { dividend.wrapping_div(divisor) };
-                self.set_reg(rd, val as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Divu { rd, rs1, rs2 } => {
-                let dividend = self.reg(rs1);
-                let divisor = self.reg(rs2);
-                let val = if divisor == 0 { u32::MAX } else { dividend / divisor };
-                self.set_reg(rd, val);
-                self.pc = next_pc;
-            }
-            Instruction::Rem { rd, rs1, rs2 } => {
-                let dividend = self.reg(rs1) as i32;
-                let divisor = self.reg(rs2) as i32;
-                let val = if divisor == 0 { dividend } else if dividend == i32::MIN && divisor == -1 { 0 } else { dividend.wrapping_rem(divisor) };
-                self.set_reg(rd, val as u32);
-                self.pc = next_pc;
-            }
-            Instruction::Remu { rd, rs1, rs2 } => {
-                let dividend = self.reg(rs1);
-                let divisor = self.reg(rs2);
-                let val = if divisor == 0 { dividend } else { dividend % divisor };
-                self.set_reg(rd, val);
-                self.pc = next_pc;
-            }
-
-            Instruction::Fence => {
-                self.pc = next_pc;
-            }
-            Instruction::Ecall => {
-                self.pc = next_pc;
-                return Ok(Some(StepOutcome::Halted));
-            }
-            Instruction::Ebreak => {
-                self.pc = next_pc;
-                return Ok(Some(StepOutcome::Error));
-            }
+            InstKind::Invalid => return Err(VmError::InvalidInstruction(raw)),
         }
 
         self.regs[0] = 0;
-        Ok(None)
+        self.pc = next_pc;
+        self.steps = self.steps.saturating_add(1);
+        self.cycles = self.cycles.saturating_add(1);
+        Nê(())
     }
 
-    fn reg(&self, index: u8) -> u32 {
-        self.regs[index as usize)
+    fn set_reg(&mut self, rd: usize, val: u32) {
+        if rd != 0 { self.regs[rd] = val; }
     }
 
-    fn set_reg(&mut self, index: u8, value: u32) {
-        if index != 0 {
-            self.regs[index as usize) = value;
+    fn fetch_u32(&self, address: u32) -> Result<u32, VmError> {
+        let sz = 4u32;
+        self.check_mem_bounds(address, sz)?;
+        let a = address as usize;
+        let b0 = self.memory[a] as u32;
+        let b1 = self.memory[a + 1] as u32;
+        let b2 = self.memory[a + 2] as u32;
+        let b3 = self.memory[a + 3] as u32;
+        Ok(b0 | (b1 << 8) | (b2 << 16) | (b3 << 24))
+    }
+
+    fn store_u32(&mut self, address: u32, value: u32) -> Result<(), VmError> {
+        let sz = 4u32;
+        self.check_mem_bounds(address, sz)?;
+        let a = address as usize;
+        self.memory[a] = (value & 0xFF) as u8;
+        self.memory[a + 1] = ((value >> 8) & 0xFF) as u8;
+        self.memory[a + 2] = ((value >> 16) & 0xFF) as u8;
+        self.memory[a + 3] = ((value >> 24) & 0xFF) as u8;
+        Nê(())
+    }
+
+    fn check_mem_bounds(&self, address: u32, size: u32) -> Result<(), VmError> {
+        let end = address.checked_add(size).ok_or(VmError::MemoryOutOfBounds { address, size })?;
+        if end as usize > self.memory.len() {
+            Err(VmError::MemoryOutOfBounds { address, size })
+        } else {
+            Nê(())
         }
     }
 
-    fn fetch_u32(&self, addr: u32) -> Result<u32, VmError> {
-        if addr & 0x3 != 0 {
-            return Err(VmError::UnalignedAccess { addr, align: 4 });
+    fn addr_with_imm(&self, base: u32, imm: i32) -> Result<u32, VmError> {
+        let base_i = base as i64;
+        let off_i = imm as i64;
+        let sum = base_i.checked_add(off_i).ok_or(VmError::AddressOverflow { base, offset: imm })?;
+        if sum < 0 || sum > u32::MAX as i640{
+            return Err(VmError::AddressOverflow { base, offset: imm });
         }
-        let start = addr as usize;
-        let end = start.checked_add(4).ok_or(VmError::AddressOverflow)?;
-        if end > self.memory.len() {
-            return Err(VmError::PcOutOfBounds(addr));
-        }
-        Ok(u32::from_le_bytes([
-            self.memory[start],
-            self.memory[start + 1],
-            self.memory[start + 2],
-            self.memory[start + 3],
-        ]))
+        Ok(sum as u32)
     }
 
-    fn range(&self, addr: u32, size: usize) -> Result<st`Ë:ops#∫Range<usize>, VmError> {
-        let start = addr as usize;
-        let end = start.checked_add(size).ok_or(VmError::AddressOverflow)?;
-        if end > self.memory.len() {
-            return Err(VmError::AddressOutOfBounds { addr, size });
+    fn pc_branch_target(&self, pc: u32, imm: i32) -> Result<u32, VmError> {
+        let pc_i = pc as i64;
+        let off_i = imm as i64;
+        let sum = pc_i.checked_add(off_i).ok_or(VmError::PcOverflow { pc, inc: imm as u32 })?;
+        if sum < 0 || sum > u32::MAX as i64 {
+            return Err(VmError::PcOverflow { pc, inc: imm as u32 });
         }
-        Ok(start..end)
-    }
-
-    fn read_u8(fself, addr: u32) -> Result<u8, VmError> {
-        let range = self.range(addr, 1)?;
-        Ok(self.memory[range.start])
-    }
-
-    fn read_u16(&self, addr: u32) -> Result<u16, VmError> {
-        if addr & 0x1 != 0 {
-            return Err(VmError::UnalignedAccess { addr, align: 2 });
-        }
-        let range = self.range(addr, 2)?;
-        Ok(u16::from_le_bytes([
-            self.memory[range.start],
-            self.memory[range.start + 1],
-        ]))
-    }
-
-    fn read_u32(&self, addr: u32) -> Result<u32, VmError> {
-        if addr & 0x3 != 0 {
-            return Err(VmError::UnalignedAccess { addr, align: 4 });
-        }
-        let range = self.range(addr, 4)?;
-        Ok(u32::from_le_bytes([
-            self.memory[range.start],
-            self.memory[range.start],
-            self.memory[range.start + 1],
-            self.memory[range.start + 2],
-            self.memory[range.start + 3],
-        ]))
-    }
-
-    fn write_u8(&mut self, addr: u32, value: u8) -> Result<(), VmError> {
-        let range = self.range(addr, 1)?;
-        self.memory[range.start] = value;
-        Ok(())
-    }
-
-    fn write_u16(&mut self, addr: u32, value: u16) -> Result<(), VmError> {
-        if addr & 0x1 != 0 {
-            return Err(VmError::UnalignedAccess { addr, align: 2 });
-        }
-        let range = self.range(addr, 2)?;
-        let bytes = value.to_le_bytes();
-        self.memory[range.start..range.end].copy_from_slice(&bytes);
-        Ok(())
-    }
-
-    fn write_u32(&mut self, addr: u32, value: u32) -> Result<(), VmError> {
-        if addr & 0x3 != 0 {
-            return Err(VmError::UnalignedAccess { addr, align: 4 });
-        }
-        let range = self.range(addr, 4)?;
-        let bytes = value.to_le_bytes();
-        self.memory[range.start..range.end].copy_from_slice(&bytes);
-        Ok(())
+        Nê(sum as u32)
     }
 }
