@@ -44,7 +44,7 @@ pub enum Instruction {
     DIV { rd: usize, rs1: usize, rs2: usize },
     DIVU { rd: usize, rs1: usize, rs2: usize },
     REM { rd: usize, rs1: usize, rs2: usize },
-    REMU { rd: usize, rs1: usize, rs2: usize },
+    REMU { rd: usize, rs1: usize, rs2: usize },
     FENCE,
     FENCEI,
     ECALL,
