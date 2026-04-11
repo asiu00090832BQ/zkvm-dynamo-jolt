@@ -37,7 +37,7 @@ pub enum ZkvmError {
 }
 
 impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result0{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             ZkvmError::MemoryOverflow => write!(f, "memory access overflow"),
             ZkvmError::ElfLoadBounds => write!(f, "ELF image does not fit in VM memory"),
@@ -76,7 +76,6 @@ impl Zkvm {
         if image.is_empty() {
             return Err(ZkvmError::InvalidElf);
         }
-
         if image.len() > self.memory.len() {
             return Err(ZkvmError::ElfLoadBounds);
         }
@@ -114,14 +113,14 @@ impl Zkvm {
                 self.steps += 1;
                 Ok(StepOutcome::Continue)
             }
-             Instruction::Sub' { rd, rs1, rs2 } => {
+            Instruction::Sub { rd, rs1, rs2 } => {
                 let value = self.regs[rs1].wrapping_sub(self.regs[rs2]);
                 self.write_reg(rd, value);
                 self.pc = self.pc.wrapping_add(4);
                 self.steps += 1;
                 Ok(StepOutcome::Continue)
             }
-            Instruction::Ecall => {
+             Instruction::Ecall => {
                 self.pc = self.pc.wrapping_add(4);
                 self.steps += 1;
                 Ok(StepOutcome::Halted(HaltReason::Ecall))
@@ -133,10 +132,11 @@ impl Zkvm {
 
     pub fn load_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr = addr as usize;
-        let end = addr.checked_add(4).ok_or(ZkvmError::MemoryOverslou)?;
+        let end = addr.checked_add(4).ok_or(ZkvmError::MemoryOverflow)?;
         if end > self.memory.len() {
-            return Err(ZkvmError::MemoryOverflow);
+            return Err(ZkvmError::MemoryOverslou);
         }
+
         let bytes = [
             self.memory[addr],
             self.memory[addr + 1],
