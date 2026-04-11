@@ -1,14 +1,10 @@
 use ark_ff::Field;
-
 use crate::decoder::{decode_instruction, DecodeError, Instruction};
+use crate::elf_loader::ElfImage;
 
+#[derive(Debug, Clone)]
 pub struct ZkvmConfig {
     pub memory_size: usize,
-}
-
-pub struct ElfImage {
-    pub entry: u64,
-    pub data: Vec<u8>,
 }
 
 #[derive(Debug)]
@@ -21,6 +17,12 @@ pub enum VmError {
 pub enum StepOutcome {
     Continue,
     Halted,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RunStats {
+    pub steps: u64,
+    pub outcome: StepOutcome,
 }
 
 pub struct Zkvm<F: Field> {
@@ -44,9 +46,14 @@ impl<F: Field> Zkvm<F> {
     }
 
     pub fn load_elf(&mut self, elf: &ElfImage) -> Result<(), VmError> {
-        let len = core::cmp::min(elf.data.len(), self.memory.len());
-        self.memory[..len].copy_from_slice(&elf.data[..len]);
-        self.pc = elf.entry as u32;
+        for seg in &elf.segments {
+            let start = seg.vaddr as usize;
+            let end = start + seg.data.len();
+            if end <= self.memory.len() {
+                self.memory[start..end].copy_from_slice(&seg.data);
+            }
+        }
+        self.pc = elf.entry;
         Ok(())
     }
 
@@ -67,54 +74,27 @@ impl<F: Field> Zkvm<F> {
 
         match instruction {
             Instruction::Add { rd, rs1, rs2 } => {
-                let value = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
+                let val = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
                 if rd != 0 {
-                    self.regs[rd as usize] = value;
+                    self.regs[rd as usize] = val;
                 }
             }
             Instruction::Sub { rd, rs1, rs2 } => {
-                let value = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
+                let val = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
                 if rd != 0 {
-                    self.regs[rd as usize] = value;
+                     self.regs[rd as usize] = val;
                 }
             }
             Instruction::Mul { rd, rs1, rs2 } => {
-                let value = self.regs[rs1 as usize].wrapping_mul(self.regs[rs2 as usize]);
+                let val = self.regs[rs1 as usize].wrapping_mul(self.regs[rs2 as usize]);
                 if rd != 0 {
-                    self.regs[rd as usize] = value;
+                     self.regs[rd as usize] = val;
                 }
             }
-            Instruction::Mulh { rd, rs1, rs2 } => {
-                let a = self.regs[rs1 as usize] as i64;
-                let b = self.regs[rs2 as usize] as i64;
-                let value = ((a * b) >> 32) as u32;
-                if rd != 0 {
-                    self.regs[rd as usize] = value;
-                }
-            }
-            Instruction::Mulhu { rd, rs1, rs2 } => {
-                let a = self.regs[rs1 as usize] as u64;
-                let b = self.regs[rs2 as usize] as u64;
-                let value = ((a * b) >> 32) as u32;
-                if rd != 0 {
-                    self.regs[rd as usize] = value;
-                }
-            }
-            Instruction::Remu { rd, rs1, rs2 } => {
-                let divisor = self.regs[rs2 as usize];
-                let value = if divisor == 0 {
-                    self.regs[rs1 as usize]
-                } else {
-                    self.regs[rs1 as usize] % divisor
-                };
-                if rd != 0 {
-                    self.regs[rd as usize] = value;
-                }
-            }
+            _ => {}
         }
 
         self.regs[0] = 0;
-
         self.pc = self.pc.wrapping_add(4);
         Ok(StepOutcome::Continue)
     }
