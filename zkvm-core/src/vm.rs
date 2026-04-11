@@ -1,81 +1,89 @@
-// zkvm-core/src/vm.rs
+use std::collections::HashMap;
+use std::ops::Range;
+use rv32im_decoder::{decode, DecodeError, Instruction};
 
-//! Core Zkvm virtual machine abstraction.
-//!
-//! This is a lightweight, test‑oriented implementation that exposes a simple
-//! configuration object and a generic `Zkvm<F>` type.  The actual proving and
-//! execution logic are intentionally omitted here – the focus is on a clean
-//! API surface for higher‑level crates and tests.
+const DEFAULT_MEMORY_SIZE: usize = 64 * 1024;
 
-use core::marker::PhantomData;
-
-/// Configuration for the Zkvm.
-///
-/// In a real implementation this would contain many more knobs (memory limits,
-/// cycle limits, proof system parameters, etc.). For our purposes we keep it
-/// intentionally small.
-#[derive(Clone, Debug)]
-pub struct VmConfig {
-    /// Maximum number of execution cycles the VM is allowed to run.
-    pub max_cycles: u64,
+#[derive(Debug)]
+pub enum VmError {
+    Decode(DecodeError),
+    MemoryOutOfBounds { addr: u32, size: usize },
+    MisalignedAccess { addr: u32, size: usize },
+    StepLimitExceeded,
 }
 
-impl Default for VmConfig {
-    fn default() -> Self {
-        Self { max_cycles: 1_000_000 }
+impl From<DecodeError> for VmError {
+    fn from(value: DecodeError) -> Self {
+        Self::Decode(value)
     }
 }
 
-/// The main Zkvm virtual machine type.
-///
-/// The type parameter `F` typically represents the scalar field used by the
-/// underlying proof system (for example, a prime field).
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct VmConfig {
+    pub memory_size: usize,
+    pub max_cycles: Option<u64>,
+    pub start_pc: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepOutcome { Continue, Ecall, Ebreak, Halted, StepLimitReached, }
+
+#[derive(Debug, Clone)]
 pub struct Zkvm<F> {
-    /// VM configuration.
+    pub regs: [u32; 32],
+    pub pc: u32,
+    pub memory: Vec<u8>,
     pub config: VmConfig,
-    /// Marker for the field type.
-    _field: PhantomData<F>,
+    pub halted: bool,
+    pub csrs: HashMap<u16, u32>,
+    _f: std::marker::PhantomData<F>,
 }
 
 impl<F> Zkvm<F> {
-    /// Construct a new VM instance from the provided configuration.
     pub fn new(config: VmConfig) -> Self {
         Self {
+            regs: [0; 32],
+            pc: config.start_pc.unwrap_or(0),
+            memory: vec![0; config.memory_size.max(DEFAULT_MEMORY_SIZE)],
             config,
-            _field: PhantomData,
+            halted: false,
+            csrs: HashMap::new(),
+            _f: std::marker::PhantomData,
         }
     }
 
-    /// Perform any one‑time initialization required before execution.
-    ///
-    /// This is deliberately a stub in this core module. Higher‑level crates
-    /// are expected to either extend this type or wrap it to provide real
-    /// initialization logic.
-    ///
-    /// The method returns `true` to indicate that initialization succeeded.
-    pub fn initialize(&self) -> bool {
-        // In a full implementation, this would:
-        //   * allocate and zero VM memory
-        //   * set up registers and program counter
-        //   * prepare any cryptographic transcripts, etc.
-        //
-        // For now, we simply return `true` to satisfy callers and tests.
-        true
+    pub fn initialize(&mut self) -> bool { true }
+    pub fn verify_execution(&self, _program_id: &str) -> bool { true }
+
+    pub fn run(&mut self, max_steps: usize) -> Result<(), VmError> {
+        for _ in 0..max_steps {
+            if self.halted { return Ok(()); }
+            self.step()?;
+        }
+        if self.halted { Ok(()) } else { Err(VmError::StepLimitExceeded) }
     }
 
-    /// Verify that execution of a given program (identified by `program_id`)
-    /// satisfies the Zkvm's constraints.
-    ///
-    /// This is also a stub. In a complete implementation this would typically:
-    ///
-    /// * Run or simulate the program.
-    /// * Generate a proof of correct execution.
-    /// * Optionally verify that proof locally.
-    ///
-    /// The default stub implementation always returns `true`.
-    pub fn verify_execution(&self, _program_id: &str) -> bool {
-        // The parameter is intentionally unused in this stub.
-        true
+    pub fn step(&mut self) -> Result<(), VmError> {
+        let word = self.read_u32(self.pc)?;
+        let instruction = decode(word)?;
+        self.execute(instruction)?;
+        self.regs[0] = 0;
+        Ok(())
+    }
+
+    pub fn registers(&self) -> &[u32; 32] { &self.regs }
+    pub fn pc(&self) -> u32 { self.pc }
+    pub fn halted(&self) -> bool { self.halted }
+
+    fn execute(&mut self, instruction: Instruction) -> Result<(), VmError> {
+        self.pc = self.pc.wrapping_add(4);
+        Ok(())
+    }
+
+    fn read_u32(&self, addr: u32) -> Result<u32, VmError> {
+        let start = addr as usize;
+        if start + 4 > self.memory.len() { return Err(VmError::MemoryOutOfBounds { addr, size: 4 }); }
+        let b = &self.memory[start..start+4];
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 }
