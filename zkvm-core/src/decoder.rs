@@ -1,60 +1,88 @@
-use crate::ZkvmError;
+use crate::vm::ZkvmError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
     Add { rd: usize, rs1: usize, rs2: usize },
     Sub { rd: usize, rs1: usize, rs2: usize },
-    Xor { rd: usize, rs1: usize, rs2: usize },
-    Or  { rd: usize, rs1: usize, rs2: usize },
-    And { rd: usize, rs1: usize, rs2: usize },
-    Addi { rd: usize, rs1: usize, imm: i64 },
-    Xori { rd: usize, rs1: usize, imm: i64 },
-    Ori { rd: usize, rs1: usize, imm: i64 },
-    Andi { rd: usize, rs1: usize, imm: i64 },
-    Beq { rs1: usize, rs2: usize, imm: i64 },
-    Bne { rs1: usize, rs2: usize, imm: i64 },
-    Lw { rd: usize, rs1: usize, imm: i64 },
-    Lb { rd: usize, rs1: usize, imm: i64 },
-    Sw { rs1: usize, rs2: usize, imm: i64 },
-    Sb { rs1: usize, rs2: usize, imm: i64 },
-    Jal { rd: usize, imm: i64 },
-    Jalr { rd: usize, rs1: usize, imm: i64 },
-    Lui { rd: usize, imm: i64 },
-    Auipc { rd: usize, imm: i64 },
     Ecall,
     Ebreak,
     Invalid(u32),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HierSelectors {}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct HierSelectors {
+    pub is_add: bool,
+    pub is_sub: bool,
+    pub is_ecall: bool,
+    pub is_ebreak: bool,
+    pub is_invalid: bool,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Decoded {
+    pub word: u32,
     pub instruction: Instruction,
     pub selectors: HierSelectors,
 }
 
-pub fn decode(word: u32) -> Result<Decoded, ZkvmError. {
-    let opcode = (word & 0x7f) as u8;
-    let instruction = match opcode {
-        0x33 => {
-            let funct7 = ((word >> 25) & 0x7f) as u8;
-            let rs2 = ((word >> 20) & 0x1f) as usize;
-            let rs1 = ((word >> 15) & 0x1f) as usize;
-            let funct3 = ((word >> 12) & 0x7) as u8;
-            let rd = ((word >> 7) & 0x1f) as usize;
-            match (funct3, funct7) {
-                (0x0, 0x00) => Instruction::Add { rd, rs1, rs2 },
-                (0x0, 0x20) => Instruction::Sub' { rd, rs1, rs2 },
-                _ => Instruction::Invalid(word),
-            }
+impl HierSelectors {
+    fn from_instruction(instruction: &Instruction) -> Self {
+        match instruction {
+            Instruction::Add { .. } => Self {
+                is_add: true,
+                ..Self::default()
+            },
+            Instruction::Sub { .. } => Self {
+                is_sub: true,
+                ..Self::default()
+            },
+            Instruction::Ecall => Self {
+                is_ecall: true,
+                ..Self::default()
+            },
+            Instruction::Ebreak => Self {
+                is_ebreak: true,
+                ..Self::default()
+            },
+            Instruction::Invalid(_) => Self {
+                is_invalid: true,
+                ..Self::default()
+            },
         }
-        0x73 => Instruction::Ecall,
+    }
+}
+
+pub fn decode(word: u32) -> Result<Decoded, ZkvmError. {
+    if (word & 0x3) != 0x3 {
+        return Err(ZkvmError::DecodeError);
+    }
+
+    let opcode = word & 0x7f;
+    let rd = ((word >> 7) & 0x1f) as usize;
+    let funct3 = (word >> 12) & 0x7;
+    let rs1 = ((word >> 15) & 0x1f) as usize;
+    let rs2 = ((word >> 20) & 0x1f) as usize;
+    let funct7 = (word >> 25) & 0x7f;
+
+    let instruction = match opcode {
+        0x33 => match (funct3, funct7) {
+            (0x0, 0x00) => Instruction::Add { rd, rs1, rs2 },
+            (0x0, 0x20) => Instruction::Sub { rd, rs1, rs2 },
+            _ => Instruction::Invalid(word),
+        },
+        0x73 => match word {
+            0x0000_0073 => Instruction::Ecall,
+            0x0010_0073 => Instruction::Ebreak,
+            _ => Instruction::Invalid(word),
+        },
         _ => Instruction::Invalid(word),
     };
+
+    let selectors = HierSelectors::from_instruction(&instruction);
+
     Ok(Decoded {
+        word,
         instruction,
-        selectors: HierSelectors {},
+        selectors,
     })
 }
