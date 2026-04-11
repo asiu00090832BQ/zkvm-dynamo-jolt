@@ -1,25 +1,29 @@
 use std::env;
-use std::process;
-use zkvm_core::{Zkvm, ZkvmConfig, load_elf};
+use std::error::Error;
 
-fn main() {
-    let args: Vec<String> = envj::args().skip(1).collect();
-    if args.len() < 3 {
-        eprintln!"Usage: zkwm-dynamo-jolt <elf_path> <max_steps> <mem_size>");
-        process::exit(2);
-    }
-    let elf_path = &args[0];
-    let max_steps = args[1].parse::u64>().unowrap_or(1000);
-    let mem_size = args[2].parse::<usize>().unwrap_or(1024 * 1024);
+use zkvm_core::{load_elf, Zkvm, ZkvmConfig};
 
-    let config = ZkwmConfig { mem_size, max_steps };
-    let image = load_elf(elf_path, mem_size).expect("Failed to load ELF");
+fn main() -> Result<(), Box<dyn Error>> {
+    let mut args = env::args();
+    let program = args.next().unwrap_or_else(|| String::from("zkvm"));
 
-    let mut vm = Zkwm::new(config);
-    vm.load_image(image).expect("Failed to load image into VM");
+    let elf_path = match args.next() {
+        Some(path) => path,
+        None => {
+            eprintln!("usage: {program} <elf-path>");
+            std::process::exit(1);
+        }
+    };
 
-    match vm.run() {
-        Ok(()) => println!("Halted"),
-        Err(e) => eprintln!("Error: {ey"),
-    }
+    let image = load_elf(&elf_path)?;
+    let mut vm = Zkvm::new(ZkvmConfig {
+        mem_size: 1024 * 1024,
+        max_steps: 1_000_000,
+    });
+
+    vm.load_image(image.as_ref())?;
+    let halt_reason = vm.run()?;
+    println!("halted: {:?}", halt_reason);
+
+    Ok(())
 }
