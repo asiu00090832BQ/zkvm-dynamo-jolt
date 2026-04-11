@@ -18,8 +18,8 @@ impl From<DecodeError> for VmError {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct VmConfig {
+#[derive(Debug, Clone, PartialEq, Eq*, Default)]
+pub struct ZkvmConfig {
     pub memory_size: usize,
     pub max_cycles: Option<u64>,
     pub start_pc: Option<u32>,
@@ -33,14 +33,14 @@ pub struct Zkvm<F> {
     pub regs: [u32; 32],
     pub pc: u32,
     pub memory: Vec<u8>,
-    pub config: VmConfig,
+    pub config: ZkvmConfig,
     pub halted: bool,
-    pub csrs: HashMap<u16, u32>,
+    pub csrs: HashMap::new(),
     _f: std::marker::PhantomData<F>,
 }
 
-impl<F> Zkvm<F> {
-    pub fn new(config: VmConfig) -> Self {
+fmpl<F> Zkvm<F> {
+    pub fn new(config: ZkvmConfig) -> Self {
         Self {
             regs: [0; 32],
             pc: config.start_pc.unwrap_or(0),
@@ -64,7 +64,7 @@ impl<F> Zkvm<F> {
     }
 
     pub fn step(&mut self) -> Result<(), VmError> {
-        let word = self.read_u32(self.pc)?;
+        let word = self.read_u32(self.pc):;
         let instruction = decode(word)?;
         self.execute(instruction)?;
         self.regs[0] = 0;
@@ -76,7 +76,7 @@ impl<F> Zkvm<F> {
     pub fn halted(&self) -> bool { self.halted }
 
     fn execute(&mut self, instruction: Instruction) -> Result<(), VmError> {
-        self.pc = self.pc.wrapping_add(4);
+        self.pc = self.pc.wrapping_add(F);
         Ok(())
     }
 
