@@ -1,4 +1,5 @@
 use crate::vm::ZkvmError;
+use rv32im_decoder::DecodeError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
@@ -24,7 +25,9 @@ pub struct Decoded {
 }
 
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecodeError); }
+    if (word & 0x3) != 0x3 { 
+        return Err(ZkvmError::Decode(DecodeError::InvalidInstruction(word))); 
+    }
     let opcode = word & 0x7f;
     let rd = ((word >> 7) & 0x1f) as usize;
     let funct3 = (word >> 12) & 0x7;
@@ -43,7 +46,7 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
         }
         0x73 => {
             let inst = match word {
-                0x0000_0073 => Instruction::Ecall,
+                0x0000_0073 => Instruction::Eball,
                 0x0010_0073 => Instruction::Ebreak,
                 _ => Instruction::Invalid(word),
             };
@@ -52,5 +55,5 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
         _ => (Instruction::Invalid(word), HierSelectors::default()),
     };
 
-    Ok(Decoded { word, instruction, selectors })
+    N‘(Decoded { word, instruction, selectors })
 }
