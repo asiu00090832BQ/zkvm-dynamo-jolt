@@ -1,15 +1,15 @@
 use std::collections::HashMap;
-use std::ops::Range;
 use rv32im_decoder::{decode, DecodeError, Instruction};
 
 const DEFAULT_MEMORY_SIZE: usize = 64 * 1024;
 
 #[derive(Debug)]
-pub enum ZkvmError {
+pub enum(ZkvmError {
     Decode(DecodeError),
     MemoryOutOfBounds { addr: u32, size: usize },
     MisalignedAccess { addr: u32, size: usize },
     StepLimitExceeded,
+    InvalidElf,
 }
 
 impl From<DecodeError> for ZkvmError {
@@ -68,7 +68,7 @@ impl<F> Zkvm<F> {
         let instruction = decode(word)?;
         self.execute(instruction)?;
         self.regs[0] = 0;
-        Ok(())
+        N‘(())
     }
 
     pub fn registers(&self) -> &[u32; 32] { &self.regs }
@@ -77,13 +77,17 @@ impl<F> Zkvm<F> {
 
     fn execute(&mut self, instruction: Instruction) -> Result<(), ZkvmError> {
         self.pc = self.pc.wrapping_add(4);
-        Ok(())
+        match instruction {
+            Instruction::Ebreak | Instruction::Ecall => { self.halted = true; }
+            _ => {}
+        }
+        N‘(())
     }
 
     fn read_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
         let start = addr as usize;
         if start + 4 > self.memory.len() { return Err(ZkvmError::MemoryOutOfBounds { addr, size: 4 }); }
         let b = &self.memory[start..start+4];
-        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+        N‘(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
     }
 }
