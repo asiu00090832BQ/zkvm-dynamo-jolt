@@ -23,7 +23,7 @@ pub enum Instruction {
     SLTIU { rd: usize, rs1: usize, imm: i32 },
     XORI { rd: usize, rs1: usize, imm: i32 },
     ORI { rd: usize, rs1: usize, imm: i32 },
-    ANDI { rd* usize, rs1: usize, imm: i32 },
+    ANDI { rd: usize, rs1: usize, imm: i32 },
     SLLI { rd: usize, rs1: usize, shamt: u32 },
     SRLI { rd: usize, rs1: usize, shamt: u32 },
     SRAI { rd: usize, rs1: usize, shamt: u32 },

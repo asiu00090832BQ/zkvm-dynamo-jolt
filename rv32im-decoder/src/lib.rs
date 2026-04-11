@@ -17,7 +17,7 @@ pub enum Instruction {
     Bge { rs1: Register, rs2: Register, imm: i32 },
     Bltu { rs1: Register, rs2: Register, imm: i32 },
     Bgeu { rs1: Register, rs2: Register, imm: i32 },
-    Lfâ{ rd: Register, rs1: Register, imm: i32 },
+    Lf { rd: Register, rs1: Register, imm: i32 },
     Lh { rd: Register, rs1: Register, imm: i32 },
     Lw { rd: Register, rs1: Register, imm: i32 },
     Lbu { rd: Register, rs1: Register, imm: i32 },
