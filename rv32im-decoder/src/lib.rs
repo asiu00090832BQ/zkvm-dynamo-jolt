@@ -1,7 +1,7 @@
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Instruction {
     Add { rd: u8, rs1: u8, rs2: u8 },
-    Sub' { rd: u8, rs1: u8, rs2: u8 },
+    Sub { rd: u8, rs1: u8, rs2: u8 },
     Mul { rd: u8, rs1: u8, rs2: u8 },
     Mulh { rd: u8, rs1: u8, rs2: u8 },
     Mulhu { rd: u8, rs1: u8, rs2: u8 },
@@ -23,12 +23,12 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
 
     match opcode {
         0b0110011 => match (funct7, funct3) {
-            0x00 if funct3 == 0x0 => Ok(Instruction::Add { rd: rd, rs1: rs1, rs2: rs2 }),
-            0x20 if funct3 == 0x0 => Ok(Instruction::Sub' { rd: rd, rs1: rs1, rs2: rs2 }),
-            0x01 if funct3 == 0x0 => Ok(Instruction::Mul { rd: rd, rs1: rs1, rs2: rs2 }),
-            0x01 if funct3 == 0x1 => Ok(Instruction::Mulh { rd: rd, rs1: rs1, rs2: rs2 }),
-            0x01 if funct3 == 0x3 => Ok(Instruction::Mulhu { rd: rd, rs1: rs1, rs2: rs2 }),
-            0x01 if funct3 == 0x7 => Ok(Instruction::Remu { rd: rd, rs1: rs1, rs2: rs2 }),
+            (0x00, 0x0) => Ok(Instruction::Add { rd, rs1, rs2 }),
+            (0x20, 0x0) => Ok(Instruction::Sub { rd, rs1, rs2 }),
+            (0x01, 0x0) => Ok(Instruction::Mul { rd, rs1, rs2 }),
+            (0x01, 0x1) => Ok(Instruction::Mulh { rd, rs1, rs2 }),
+            (0x01, 0x3) => Ok(Instruction::Mulhu { rd, rs1, rs2 }),
+            (0x01, 0x7) => Ok(Instruction::Remu { rd, rs1, rs2 }),
             _ => Err(DecodeError::InvalidInstruction(word)),
         },
         _ => Err(DecodeError::InvalidInstruction(word)),
