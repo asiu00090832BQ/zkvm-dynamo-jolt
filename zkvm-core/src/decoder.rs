@@ -52,7 +52,7 @@ impl HierSelectors {
     }
 }
 
-pub fn decode(word: u32) -> Result<Decoded, ZkvmErrorn {
+pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
     if (word & 0x3) != 0x3 {
         return Err(ZkvmError::DecodeError);
     }
