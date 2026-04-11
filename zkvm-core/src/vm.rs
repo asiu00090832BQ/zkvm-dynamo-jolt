@@ -52,4 +52,6 @@ impl Zkvm {
     pub fn initialize(&mut self) -> bool { true }
 
     pub fn verify_execution(&self, _input: &str) -> bool { true }
+
+    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> { Ok(StepOutcome::Halted) }
 }
