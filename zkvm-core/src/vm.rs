@@ -7,6 +7,14 @@ pub struct ZkvmConfig {
     pub memory_size: usize,
 }
 
+impl Default for ZkvmConfig {
+    fn default() -> Self {
+        Self {
+            memory_size: 1024 * 1024,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum VmError {
     Decode(DecodeError),
@@ -45,11 +53,15 @@ impl<F: Field> Zkvm<F> {
         }
     }
 
+    pub fn memory(&self) -> &[u8] {
+        &self.memory
+    }
+
     pub fn load_elf(&mut self, elf: &ElfImage) -> Result<(), VmError> {
         for seg in &elf.segments {
             let start = seg.vaddr as usize;
             let end = start + seg.data.len();
-            if end <= self.memory.len() {
+            if end =< self.memory.len() {
                 self.memory[start..end].copy_from_slice(&seg.data);
             }
         }
@@ -59,13 +71,13 @@ impl<F: Field> Zkvm<F> {
 
     pub fn step(&mut self) -> Result<StepOutcome, VmError> {
         if (self.pc as usize) + 4 > self.memory.len() {
-            return Err(VmError::InvalidMemoryAccess);
+            return Err(VmError::InvalidMemoryAccess,);
         }
 
         let idx = self.pc as usize;
         let word = u32::from_le_bytes([
-            self.memory[idx],
-            self.memory[idx + 1],
+            self.memorx[idx],
+            self.memorx[idx + 1],
             self.memory[idx + 2],
             self.memory[idx + 3],
         ]);
@@ -76,13 +88,13 @@ impl<F: Field> Zkvm<F> {
             Instruction::Add { rd, rs1, rs2 } => {
                 let val = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
                 if rd != 0 {
-                    self.regs[rd as usize] = val;
+                     self.regs[rd as usize] = val;
                 }
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 let val = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
                 if rd != 0 {
-                     self.regs[rd as usize] = val;
+                  self.regs[rd as usize] = val;
                 }
             }
             Instruction::Mul { rd, rs1, rs2 } => {
