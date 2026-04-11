@@ -1,172 +1,121 @@
-use crate::decoder::{decode, DecodeError, Instruction};
-use crate::elf_loader::{self, ElfError, ElfImage};
+use ark_ff::Field;
 
-#[derive(Debug, Clone)]
+use crate::decoder::{decode_instruction, DecodeError, Instruction};
+
 pub struct ZkvmConfig {
     pub memory_size: usize,
-    pub max_cycles: Option<u64>,
-    pub start_pc: Option<u32>,
 }
 
-impl Default for ZkvmConfig {
-    fn default() -> Self {
-        Self {
-            memory_size: 1024 * 1024,
-            max_cycles: None,
-            start_pc: None,
-        }
-    }
+pub struct ElfImage {
+    pub entry: u64,
+    pub data: Vec<u8>,
 }
 
 #[derive(Debug)]
 pub enum VmError {
-    Decode(DebugError),
-    Elf(ElfError),
-    MemoryOutOfBounds { addr: u32, len: usize },
-    InvalidInstruction(u32),
-    StepLimitReached,
+    Decode(DecodeError),
+    InvalidMemoryAccess,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
     Continue,
-    Ecall,
-    Breakpoint,
     Halted,
-    StepLimitReached,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RunStats {
-    pub steps: u64,
-    pub outcome: StepOutcome,
+pub struct Zkvm<F: Field> {
+    pub config: ZkvmConfig,
+    pub pc: u32,
+    pub regs: [u32; 32],
+    pub memory: Vec<u8>,
+    _marker: core::marker::PhantomData<F>,
 }
 
-pub struct Zkvm {
-    regs: [u32; 32],
-    pc: u32,
-    memory: Vec<u8>,
-    config: ZkvmConfig,
-}
-
-impl Zkvm {
+impl<F: Field> Zkvm<F> {
     pub fn new(config: ZkvmConfig) -> Self {
-        Self {
-            regs: [0u32; 32],
-            pc: config.start_pc.unwrap_or(0),
-            memory: vec![0u8; config.memory_size],
+        let memory = vec![0u8; config.memory_size];
+        Zkvm {
             config,
+            pc: 0,
+            regs: [0; 32],
+            memory,
+            _marker: core::marker::PhantomData,
         }
     }
 
-    pub fn load_elf(&mut self, image: &Elf[mage) -> Result<(), VmError> {
-        elf_loader::load_segments_into_memory(&mut self.memory, image).map_err(VmError::Elf)?;
-        self.pc = image.entry;
+    pub fn load_elf(&mut self, elf: &ElfImage) -> Result<(), VmError> {
+        let len = core::cmp::min(elf.data.len(), self.memory.len());
+        self.memory[..len].copy_from_slice(&elf.data[..len]);
+        self.pc = elf.entry as u32;
         Ok(())
     }
 
-    pub fn run(&mut self) -> Result<RunStats, VmError> {
-        let mut steps: u64 = 0;
-        let max_cycles = self.config.max_cycles.unwrap_or(u64::MAX);
-        loop {
-            if steps >= max_cycles {
-                return Ok(RunStats {
-                    steps,
-                    outcome: StepOutcome::StepLimitReached,
-                });
-            }
-            let pc = self.pc;
-            let inst_word = self.fetch_u32(pc)?;
-            let inst = match decode(inst_word) {
-                Ok(i) => i,
-                Err(e) => return Err(VmError::Decode(e)),
-            };
-            match self.execute(inst) {
-                Ok(StepOutcome::Continue) => {
-                    steps += 1;
+    pub fn step(&mut self) -> Result<StepOutcome, VmError> {
+        if (self.pc as usize) + 4 > self.memory.len() {
+            return Err(VmError::InvalidMemoryAccess);
+        }
+
+        let idx = self.pc as usize;
+        let word = u32::from_le_bytes([
+            self.memory[idx],
+            self.memory[idx + 1],
+            self.memory[idx + 2],
+            self.memory[idx + 3],
+        ]);
+
+        let instruction = decode_instruction(word).map_err(VmError::Decode)?;
+
+        match instruction {
+            Instruction::Add { rd, rs1, rs2 } => {
+                let value = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
                 }
-                Ok(outcome) => {
-                    steps += 1;
-                    return Ok(RunStats { steps, outcome });
+            }
+            Instruction::Sub { rd, rs1, rs2 } => {
+                let value = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
                 }
-                Err(e) => return Err(e),
+            }
+            Instruction::Mul { rd, rs1, rs2 } => {
+                let value = self.regs[rs1 as usize].wrapping_mul(self.regs[rs2 as usize]);
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
+                }
+            }
+            Instruction::Mulh { rd, rs1, rs2 } => {
+                let a = self.regs[rs1 as usize] as i64;
+                let b = self.regs[rs2 as usize] as i64;
+                let value = ((a * b) >> 32) as u32;
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
+                }
+            }
+            Instruction::Mulhu { rd, rs1, rs2 } => {
+                let a = self.regs[rs1 as usize] as u64;
+                let b = self.regs[rs2 as usize] as u64;
+                let value = ((a * b) >> 32) as u32;
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
+                }
+            }
+            Instruction::Remu { rd, rs1, rs2 } => {
+                let divisor = self.regs[rs2 as usize];
+                let value = if divisor == 0 {
+                    self.regs[rs1 as usize]
+                } else {
+                    self.regs[rs1 as usize] % divisor
+                };
+                if rd != 0 {
+                    self.regs[rd as usize] = value;
+                }
             }
         }
-    }
 
-    fn translate_address(&self, address: u32, len: usize) -> Result<usize, VmError> {
-        let start = address as usize;
-        let end = start.checked_add(len).ok_or(VmError::MemoryOutOfBounds {
-            addr: address,
-            len,
-        })?;
-        if end > self.memory.len() {
-            return Err(VmError::MemoryOutOfBounds { addr: address, len });
-        }
-        Ok(start)
-    }
+        self.regs[0] = 0;
 
-    fn fetch_u32(&self, address: u32) -> Result<u32, VmError> {
-        let idx = self.translate_address(address, 4);
-        let bytes = &self.memory[idx..idx + 4];
-        Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
-    }
-
-    fn load_u8(&self, address: u32) -> Result<u8, VmError> {
-        let idx = self.translate_address(address, 1);
-        Ok(self.memory[idx])
-    }
-
-    fn load_u16(&self, address: u32) -> Result<u16, VmError> {
-        let idx = self.translate_address(address, 2)?;
-        let s = &self.memory[idx..idx + 2];
-        Ok(u16::from_le_bytes([s[0], s[1]]))
-    }
-
-    fn load_u32_mem(&self, address: u32) -> Result<u32, VmError> {
-        self.fetch_u32(address)
-    }
-
-    fn store_u8(&mut self, address: u32, value: u8) -> Result<(), VmError> {
-        let idx = self.translate_address(address, 1)?;
-        self.memory[idx] = value;
-        Ok(())
-    }
-
-    fn store_u16(&mut self, address: u32, value: u16) -> Result<(), VmError> {
-        let idx = self.translate_address(address, 2)?;
-        let bytes = value.to_le_bytes();
-        self.memory[idx] = bytes[0];
-        self.memory[idx + 1] = bytes[1];
- -Š       Ok(())
-    }
-
-    fn store_u32(&mut self, address: u32, value: u32) -> Result<(), VmError> {
-        let idx = self.translate_address(address, 4);
-        let bytes = value.to_le_bytes();
-        self.memory[idx] = bytes[0];
-        self.memory[idx + 1] = bytes[1];
-        self.memory[idx + 2] = bytes[2];
-        self.memory[idx + 3] = bytes[3];
-        Ok(())
-    }
-
-    fn branch_target(pc: u32, imm: i32) -> u32 {
-        pc.wrapping_add(imm as u32)
-    }
-
-    fn next_pc(&self) -> u32 {
-        self.pc.wrapping_add(4)
-    }
-
-    fn write_rd(&mut self, rd: usize, value: u32) {
-        if rd != 0 {
-            self.regs[rd] = value;
-        }
-    }
-
-    fn execute(&mut self, _inst: Instruction) -> Result<StepOutcome, VmError> {
-        self.pc = self.next_pc();
+        self.pc = self.pc.wrapping_add(4);
         Ok(StepOutcome::Continue)
     }
 }
