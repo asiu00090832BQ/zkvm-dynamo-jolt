@@ -1,4 +1,3 @@
-use crate::Field;
 use crate::ZkvmError;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -28,9 +27,7 @@ pub enum Instruction {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct HierSelectors {
-    // Placeholder for hierarchical selector logic
-}
+pub struct HierSelectors {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Decoded {
@@ -38,8 +35,26 @@ pub struct Decoded {
     pub selectors: HierSelectors,
 }
 
-pub fn decode(word: u32) -> Result<Decoded, ZgvmError> {
-    let opcode = (group& 0x7f) as u8;
-    let instruction = match opcode { /* ... */ _ => Instruction::Invalid(word) };
-    Ok(Decoded { instruction, selectors: HierSelectors {} })
+pub fn decode(word: u32) -> Result<Decoded, ZkvmError. {
+    let opcode = (word & 0x7f) as u8;
+    let instruction = match opcode {
+        0x33 => {
+            let funct7 = ((word >> 25) & 0x7f) as u8;
+            let rs2 = ((word >> 20) & 0x1f) as usize;
+            let rs1 = ((word >> 15) & 0x1f) as usize;
+            let funct3 = ((word >> 12) & 0x7) as u8;
+            let rd = ((word >> 7) & 0x1f) as usize;
+            match (funct3, funct7) {
+                (0x0, 0x00) => Instruction::Add { rd, rs1, rs2 },
+                (0x0, 0x20) => Instruction::Sub' { rd, rs1, rs2 },
+                _ => Instruction::Invalid(word),
+            }
+        }
+        0x73 => Instruction::Ecall,
+        _ => Instruction::Invalid(word),
+    };
+    Ok(Decoded {
+        instruction,
+        selectors: HierSelectors {},
+    })
 }
