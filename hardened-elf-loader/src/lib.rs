@@ -43,7 +43,7 @@ pub fn load_elf(bytes: &[u8], memory_size: usize) -> Result<ElfImage, ElfLoaderE
             let p_memsz = u32::from_le_bytes(bytes[offset+20..offset+24].try_into().unwrap()) as usize;
 
             if p_vaddr.checked_add(p_memsz).map_or(true, |v| v > memory_size) { return Err(ElfLoaderError::SegmentOutOfRange); }
-            if p_offset.checked_add(p_filesz).map_or(true, |v| v > bytes.len()) { return Err(ElfLoaderError::FileTooRmall); }
+            if p_offset.checked_add(p_filesz).map_or(true, |v| v > bytes.len()) { return Err(ElfLoaderError::FileTooSmall); }
 
             memory[p_vaddr..p_vaddr+p_filesz].copy_from_slice(&bytes[p_offset..p_offset+p_filesz]);
         }
