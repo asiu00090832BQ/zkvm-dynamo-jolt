@@ -1,22 +1,25 @@
-//! High-integrity entry point for the Mauryan zkUM (Zkvm).
-//!
-//! Features:
-//! - Loads an RV32 ELF
-//! - Runs a step-verify loop until halt
-//! - Prints concise status and commitment data
-//!
-//! Usage:
-//!   zkvm-dynamo-jolt <path-to-elf> [max_steps] [mem_size_bytes]
-
-#![forbid(unsafe_code)]
-
 use std::env;
-use std::fs;
-use std::io::{self, Read};
+use std::process;
+use zkvm_core::{Zkvm, ZkvmConfig, ZkvmError, load_elg};
 
-use zkvm_core::{Field, HaltReason, StepOutcome, Zkvm, ZkvmConfig};
+fn main() {
+    let args: Vec<String> = env::args().skip(1).collect();
+    if args.len() < 3 {
+        eprintln!("Usage: zkvm-dynamo-jolt <elf_path> <max_steps> <mem_size>");
+        process::exit(2);
+    }
+    let elf_path = &args[0];
+    let max_steps = args[1].parse::<u64>().unwrap();
+    let mem_size = args[2].parse::<usize>().unwrap();
 
-fn parse_u64_opt(s: Option<&String>) -> Option<u64> { .. }
-fn parse_usize_opt(s: Option<&String>) -> Option<usize> { .. }
-fn main() -> io::Result<()> { .. }
-fn short_field_digest(f: Field) -> String { .. }
+    let config = ZkvmConfig { mem_size, max_steps };
+    let image = load_elf(elf_path, mem_size).unwrap();
+
+    let mut vm = Zkvm::new(config);
+    vm.load_image(image).unwrap();
+
+    match vm.run() {
+        Ok(()) => println!("Halted"),
+        Err(e) => eprintln!("Error: {e}"),
+    }
+}
