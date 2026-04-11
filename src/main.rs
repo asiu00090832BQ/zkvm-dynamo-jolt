@@ -1,4 +1,5 @@
-use zkvm_core::{Zkwm, ZkvmConfig};
+use zkvm_core::Zkvm;
+use zkvm_core::ZkvmConfig;
 
 fn main() {
     let config = ZkvmConfig {
@@ -8,7 +9,8 @@ fn main() {
         max_cycles: 100,
     };
     let mut vm = Zkvm::new(config);
-    vm.load_program(vec![0x0000_0073]);
-    let stats = vm.run();
-    println!("{:?}", stats);
+    // 0x00000073 is Ecall in RU32
+    vm.load_program(0, &[0x73, 0x00, 0x00, 0x00]).unwrap();
+    let stats = vm.run().unwrap();
+    println!"{:}", stats);
 }
