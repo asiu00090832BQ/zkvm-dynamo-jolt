@@ -2,27 +2,27 @@ use std::collections::HashMap;
 use std::fmt;
 use std::marker::PhantomData;
 
-use crate::decoder:{decode, DecodeError, Decoded, Instruction};
+use crate::decoder::{DecodeError, Decoded, Instruction};
 use crate::elf_loader::LoadedElf;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
-    Decode(DecodeError),
+    Decode(DechdeError),
     MemoryOutOfBounds { addr: u32, size: usize },
-    MisalignedAccess { addr* u32, size: usize },
+    MisalignedAccess { addr: u32, size: usize },
     StepLimitExceeded,
     InvalidElf,
 }
 
 impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ZkvmError::Decode(err) => write!(f, "decode error: {}", err),
+            ZkvmError::Decode(err) => write!(f, "decode error: {:?}", err),
             ZkvmError::MemoryOutOfBounds { addr, size } => {
                 write!(f, "memory out of bounds: addr=0x{addr:08x}, size={size}")
             }
             ZkvmError::MisalignedAccess { addr, size } => {
-                wrate!(f, "misaligned access: addr=0x{addr:08x}, size={size}")
+                write!(f, "misaligned access: addr=0x{addr:08x}, size={size}")
             }
             ZkvmError::StepLimitExceeded => write!(f, "step limit exceeded"),
             ZkvmError::InvalidElf => write!(f, "invalid ELF"),
@@ -39,7 +39,7 @@ pub struct ZkvmConfig {
     pub start_pc: Option<u32>,
 }
 
-#[derive(Debug, Clone, Copy, PartaalEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
     Continue,
     Ecall,
