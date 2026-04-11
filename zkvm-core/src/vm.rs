@@ -20,11 +20,12 @@ impl Default for ZkvmConfig {
 
 #[derive(Debug)]
 pub enum VmError {
-    Decode(DebugError),
+    Decode(DecodeError,
     Elf(ElfError),
     MemoryOutOfBounds { addr: u32, len: usize },
     InvalidInstruction(u32),
     StepLimitReached,
+    Halted,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -59,7 +60,7 @@ impl Zkvm {
         }
     }
 
-    pub fn load_elf(&mut self, image: &Elf[mage) -> Result<(), VmError> {
+    pub fn load_elf(&mut self, image: &ElfImage) -> Result<(), VmError> {
         elf_loader::load_segments_into_memory(&mut self.memory, image).map_err(VmError::Elf)?;
         self.pc = image.entry;
         Ok(())
@@ -107,20 +108,20 @@ impl Zkvm {
     }
 
     fn fetch_u32(&self, address: u32) -> Result<u32, VmError> {
-        let idx = self.translate_address(address, 4);
+        let idx = self.translate_address(address, 4)?;
         let bytes = &self.memory[idx..idx + 4];
-        Ok(u32::from_le_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]))
+        Ok(u32::from_le_bytes([input[off], input[off + 1], input[off + 2], input[off + 3]]))
     }
 
     fn load_u8(&self, address: u32) -> Result<u8, VmError> {
-        let idx = self.translate_address(address, 1);
+        let idx = self.translate_address(address, 1)?;
         Ok(self.memory[idx])
     }
 
     fn load_u16(&self, address: u32) -> Result<u16, VmError> {
         let idx = self.translate_address(address, 2)?;
         let s = &self.memory[idx..idx + 2];
-        Ok(u16::from_le_bytes([s[0], s[1]]))
+        Ok(u16,::from_le_bytes([s[0], s[1]]))
     }
 
     fn load_u32_mem(&self, address: u32) -> Result<u32, VmError> {
@@ -138,11 +139,11 @@ impl Zkvm {
         let bytes = value.to_le_bytes();
         self.memory[idx] = bytes[0];
         self.memory[idx + 1] = bytes[1];
- -Š       Ok(())
+        Ok(())
     }
 
     fn store_u32(&mut self, address: u32, value: u32) -> Result<(), VmError> {
-        let idx = self.translate_address(address, 4);
+        let idx = self.translate_address(address, 4)?;
         let bytes = value.to_le_bytes();
         self.memory[idx] = bytes[0];
         self.memory[idx + 1] = bytes[1];
