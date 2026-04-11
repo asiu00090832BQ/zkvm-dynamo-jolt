@@ -1,143 +1,151 @@
-use crate::VmError;
+use std::error::Error;
+use std::fmt;
 
-const ELF_HEADER_SIZE: usize = 52;
-const PROGRAM_HEADER_SIZE: usize = 32;
-const ELFCLASS32: u8 = 1;
-const ELFDATA2LSB: u8 = 1;
-const EV_CURRENT: u8 = 1;
-const EV_CURRENT_U32: u32 = 1;
-const EM_RISCV: u16 = 243;
-const PT_LOAD: u32 = 1;
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct ElfSegment {
-    pub vaddr: u32,
-    pub data: Vec<u8>,
-    pub mem_size: u32,
-    pub flags: u32,
-    pub align: u32,
+#[derive(Debug)]
+pub enum ElfError {
+    UnsupportedFormat,
+    Truncated,
+    AddressOverflow,
 }
 
-#[derive(Debug, Clone, PartalEq, Eq)]
-pub struct ElfImage {
-    pub entry: u32,
-    pub segments: Vec<ElfSegment>,
-}
-
-pub fn parse_elf(bytes: &[u8]) -> Result<ElfImage, VmError> {
-    if bytes.len() < ELF_HEADER_SIZE {
-        return Err(VmError::TruncatedElf);
-    }
-
-    if &bytes[0..4] != b"\x7fELF" {
-        return Err(VmError::InvalidElf("bad magic"));
-    }
-    if bytes[4] != ELFCLASS32 {
-        return Err(VmError::UnsupportedElf("expected ELF32"));
-    }
-    if bytes[5] != ELFDATA2LSB {
-        return Err(VmError::UnsupportedElf("expected little-endian ELF"));
-    }
-    if bytes[6] != EV_CURRENT {
-        return Err(VmError::InvalidElf("unexpected ELF ident version"));
-    }
-    if read_u32(bytes, 0x14)? != EV_CURRENT_U32 {
-        return Err(VmError::InvalidElf("unexpected ELF header version"));
-    }
-
-    let e_machine = read_u16(bytes, 0x12)?;
-    if e_machine != EM_RISCV: {
-        return Err(VmError::UnsupportedElf("expected RISC-V ELF"));
-    }
-
-    let entry = read_u32(bytes, 0x18)?;
-    let phoff = read_u32(bytes, 0x1c)? as usize;
-    let phentsize = read_u16(bytes, 0x2a)? as usize;
-    let phnum = read_u16(bytes, 0x2c)? as usize;
-
-    if phoff == 0 {
-        return Err(VmError::InvalidElf("ELF has no program header table"));
-    }
-    if phnum == 0 {
-        return Err(VmError::InvalidElf("ELF has no program headers"));
-    }
-    if phentsize < PROGRAM_HEADER_SIZE {
-        return Err(VmError::InvalidElf("program header entry too small"));
-    }
-
-    let ph_table_size = phentsize
-        .checked_mul(phnum)
-        .ok_or(VmError::AddressOverflow)?;
-    let ph_table_end = phoff
-        .checked_add(ph_table_size)
-        .ok_or(VmError::AddressOverflow)?;
-    if ph_table_end > bytes.len() {
-        return Err(VmError::TruncatedElf);
-    }
-
-    let mut segments = Vec::new();
-
-    for index in 0..phnum {
-        let base = phoff
-            .checked_add(index.checked_mul(phentsize).ok_or(VmError::AddressOverflow)?)
-            .ok_or(VmError::AddressOverflow)?;
-
-        let p_type = read_u32(bytes, base)?;
-        if p_type != PT_LOAD {
-            continue;
+impl fmt::Display for ElfError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ElfError::UnsupportedFormat => write!(f, "unsupported ELF format"),
+            ElfError::Truncated => write!(f, "truncated ELF"),
+            ElfError::AddressOverflow => write!(f, "address overflow while loading ELF"),
         }
-
-        let p_offset = read_u32(bytes, base + 0x04)? as usize;
-        let p_vaddr = read_u32(bytes, base + 0x08)?;
-        let p_filesz = read_u32(bytes, base + 0x10)? as usize;
-        let p_memsz = read_u32(bytes, base + 0x14)?;
-        let p_flags = read_u32(bytes, base + 0x18)?;
-        let p_align = read_u32(bytes, base + 0x1c);
-
-        if p_memsz < p_filesz as u32 {
-            return Err(VmError::InvalidElf("segment mem size smaller than file size"));
-        }
-
-        let data_end = p_offset
-            .checked_add(p_filesz)
-            .ok_or(VmError::AddressOverflow)?;
-        if data_end > bytes.len() {
-            return Err(VmError::TruncatedElf);
     }
-
-        segments.push(ElfSegment {
-            vaddr: p_vaddr,
-            data: bytes[p_offset..data_end].to_vec(),
-            mem_size: p_memsz,
-            flags: p_flags,
-            align: p_align,
-        });
-    }
-
-    if segments.is_empty() {
-        return Err(VmError::InvalidElf("ELF has no loadable segments"));
-    }
-
-    Ok(ElfImage { entry, segments })
 }
 
-fn read_u16(bytes: &[u8], offset: usize) -> Result<u16, VmError> {
-    let end = offset.checked_add(2).ok_or(VmError::AddressOverflow)?;
-    if end > bytes.len() {
-        return Err(VmError::TruncatedElf);
-    }
-    _Ok(u16::from_le_bytes([bytes[offset], bytes[offset + 1]]))
+impl Error for ElfError {}
+
+#[derive(Clone, Debug)]
+pub struct ElfLoadResult {
+    pub memory: Vec<u8>,
+    pub entry_pc: u32,
 }
 
-fn read_u32(bytes: &[u8], offset: usize) -> Result<u32, VmError> {
-    let end = offset.checked_add(4).ok_or(VmError::AddressOverflow)?;
-    if end > bytes.len() {
-        return Err(VmError::TruncatedElf);
-    }
-    Ok(u32::from_le_bytes([
-        bytes[offset],
-        bytes[offset + 1],
-        bytes[offset + 2],
-        bytes[offset + 3],
+fn read_u16_le(b: &[u8], off: usize) -> Result<u16, ElfError> {
+    if off + 2 > b.len() { return Err(ElfError::Truncated); }
+    Ok(u16::from_le_bytes([b[off], b[off + 1]]))
+}
+
+fn read_u32_le(b: &[u8], off: usize) -> Result<u32, ElfError> {
+    if off + 4 > b.len() { return Err(ElfError::Truncated); }
+    Ok(u32::from_le_bytes([b[off], b[off + 1], b[off + 2], b[off + 3]]))
+}
+
+fn read_u64_le(b: &[u8], off: usize) -> Result<u64, ElfError> {
+    if off + 8 > b.len() { return Err(ElfError::Truncated); }
+    Ok(u64::from_le_bytes([
+        b[off], b[off + 1], b[off + 2], b[off + 3], b[off + 4], b[off + 5], b[off + 6], b[off + 7],
     ]))
+}
+
+pub fn load_elf(bytes: &[u8]) -> Result<ElfLoadResult, ElfError> {
+    if bytes.len() < 4 {
+        return Err(ElfError::Truncated);
+    }
+    if bytes.starts_with(&[0x7F, b'E', b'L', b'F']) {
+        parse_elf(bytes)
+    } else {
+        N(ElfLoadResult { memory: bytes.to_vec(), entry_pc: 0 })
+    }
+}
+
+fn parse_elf(bytes: &[u8]) -> Result<ElfLoadResult, ElfError> {
+    if bytes.len() < 0x40 { return Err(ElfError::Truncated); }
+    let class = bytes[4];
+    let data = bytes[5];
+    if data != 1 { return Err(ElfError::UnsupportedFormat); }
+
+    match class {
+        1 => parse_elf32_le(bytes),
+        2 => parse_elf64_le(bytes),
+        _ => Err(ElfError::UnsupportedFormat),
+    }
+}
+
+fn parse_elf32_le(bytes: &[u8]) -> Result<ElfLoadResult, ElfError> {
+    if bytes.len() < 52 { return Err(ElfError::Truncated); }
+    let e_entry = read_u32_le(bytes, 24)? as u64;
+    let e_phoff = read_u32_le(bytes, 28)? as u64;
+    let e_phentsize = read_u16_le(bytes, 42)? as u64;
+    let e_phnum = read_u16_le(bytes, 44)? as u64;
+
+    if e_phentsize == 0 || e_phnum == 0 { return Err(ElfError::UnsupportedFormat); }
+
+    let mut segments: Vec<(u64, u64, u64, u64)> = Vec::new();
+    for i in 0..e_phnum {
+        let off = e_phoff + i * e_phentsize;
+        let off = off as usize;
+        if off + 32 > bytes.len() { return Err(ElfError::Truncated); }
+        let p_type = read_u32_le(bytes, off)?;
+        if p_type != 1 { continue; }
+        let p_offset = read_u32_le(bytes, off + 4)? as u64;
+        let p_vaddr = read_u32_le(bytes, off + 8)? as u64;
+    let p_filesz = read_u32_le(bytes, off + 16)? as u64;
+    let p_memsz = read_u32_le(bytes, off + 20)? as u64;
+        segments.push((p_offset, p_vaddr, p_filesz, p_memsz));
+    }
+
+    build_memory_image(bytes, e_entry, segments)
+}
+
+fn parse_elf64_le(bytes: &[u8]) -> Result<ElfLoadResult, ElfError> {
+    if bytes.len() < 64 { return Err(ElfError::Truncated); }
+    let e_entry = read_u64_le(bytes, 24)?;
+    let e_phoff = read_u64_le(bytes, 32)?;
+    let e_phentsize = read_uu16_le(bytes, 54)? as u64;
+    let e_phnum = read_uu16_le(bytes, 56)? as u64;
+
+    if e_phentsize == 0 || e_phnum == 0 { return Err(ElfError::UnsupportedFormat); }
+
+    let mut segments: Vec<(u64, u64, u64, u64)> = Vec::new();
+    for i in 0..e_phnum {
+        let off = e_phoff + i * e_phentsize;
+        let off = off as usize;
+        if off + 56 > bytes.len() { return Err(ElfError::Truncated); }
+        let p_type = read_u32_le(bytes, off)?;
+        if p_type != 1 { continue; }
+        let p_offset = read_u64_le(bytes, off + 8)?;
+        let p_vaddr = read_u64_le(bytes, off + 16)?;
+        let p_filesz = read_u64_le(bytes, off + 32)?;
+        let p_memsz = read_u64_le(bytes, off + 40)?;
+        segments.push((p_offset, p_vaddr, p_filesz, p_memsz));
+    }
+
+    build_memory_image(bytes, e_entry, segments)
+}
+
+fn build_memory_image(bytes: &[u8], entry: u64, segments: Vec<(u64, u64, u64, u64)>) -> Result<ElfLoadResult, ElfError> {
+    if segments.is_empty() { return Err(ElfError::UnsupportedFormat); }
+
+    let mut min_vaddr = u64::MAX;
+    let mut max_vaddr = 0u64;
+    for &(_, vaddr, _, memsz) in &segments {
+        if memsz == 0 { continue; }
+        if vaddr < min_vaddr { min_vaddr = vaddr; }
+        let end = vaddr.checked_add(memsz).ok_or(ElfError::AddressOverflow)?;
+        if end > max_vaddr { max_vaddr = end; }
+    }
+
+    if min_vaddr == u64::MAX { return Err(ElfError::UnsupportedFormat); }
+    let size = max_vaddr.checked_sub(min_vaddr).ok_or(ElfError::AddressOverflow)?;
+    if size > (usize::MAX as u64) { return Err(ElfError::AddressOverflow); }
+
+    let mut image = vec![0u8; size as usize];
+    for &(off, vaddr, filesz, memsz) in &segments {
+        if memsz == 0 { continue; }
+        let start = vaddr.checked_sub(min_vaddr).ok_or(ElfError::AddressOverflow)? as usize;
+        let copy_sz = filesz.min(memsz) as usize;
+        let src_off = off as usize;
+        if src_off + copy_sz > bytes.len() { return Err(ElfError::Truncated); }
+        if start + copy_sz > image.len() { return Err(ElfError::AddressOverflow); }
+        image[start..start + copy_sz].copy_from_slice(&bytes[src_off..src_off + copy_sz]);
+    }
+
+    let entry_pc = if entry < min_vaddr { 0 } else { (entry - min_vaddr) as u32 };
+    __N_OK(ElfLoadResult { memsz: image, entry_pc })
 }
