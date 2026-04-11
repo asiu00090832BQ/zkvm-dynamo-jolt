@@ -76,6 +76,7 @@ impl Zkvm {
         if image.is_empty() {
             return Err(ZkvmError::InvalidElf);
         }
+
         if image.len() > self.memory.len() {
             return Err(ZkvmError::ElfLoadBounds);
         }
@@ -120,7 +121,7 @@ impl Zkvm {
                 self.steps += 1;
                 Ok(StepOutcome::Continue)
             }
-             Instruction::Ecall => {
+            Instruction::Ecall => {
                 self.pc = self.pc.wrapping_add(4);
                 self.steps += 1;
                 Ok(StepOutcome::Halted(HaltReason::Ecall))
@@ -134,7 +135,7 @@ impl Zkvm {
         let addr = addr as usize;
         let end = addr.checked_add(4).ok_or(ZkvmError::MemoryOverflow)?;
         if end > self.memory.len() {
-            return Err(ZkvmError::MemoryOverslou);
+            return Err(ZkvmError::MemoryOverflow);
         }
 
         let bytes = [
