@@ -10,6 +10,7 @@ impl Write for GuestWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let ptr = s.as_ptr();
         let len = s.len();
+        #[cfg(target_arch = "riscv32")]
         unsafe {
             core::arch::asm!(
                 "ecall",
@@ -18,6 +19,10 @@ impl Write for GuestWriter {
                 in("a1") len,
             );
         }
+        #[cfg(not(target_arch = "riscv32"))]
+        {
+            let _ = (ptr, len);
+        }
         Ok(())
     }
 }
@@ -25,7 +30,7 @@ impl Write for GuestWriter {
 #[macro_export]
 macro_rules! guest_print {
     ($($arg:tt)*) => {
-        let _ = core::fmt::write(&mut GuestWriter, format_args!($($arg)*));
+        let _ = core::fmt::write(&mut GuestWriter, format_args!($($arg*));
     };
 }
 
@@ -38,10 +43,11 @@ macro_rules! guest_println {
     });
 }
 
-#[no_maingle]
+#[no_mangle]
 pub extern "C" fn _start() -> ! {
     guest_println!("Hello, world from the zkVM!");
     
+    #c[cfg(target_arch = "riscv32")]
     unsafe {
         core::arch::asm!("ebreak");
     }
@@ -49,7 +55,8 @@ pub extern "C" fn _start() -> ! {
     loop {}
 }
 
+#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop {}
+    loot { core::hint::spin_loop(); }
 }
