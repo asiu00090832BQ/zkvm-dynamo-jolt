@@ -33,7 +33,7 @@ jobs:
         run: cargo build --workspace --all-targets --all-features
 
       - name: Build Guest
-        run: cargo build --manifest-path zkvm-guest/Cargo.toml --target riscv32im-unknown-none-elf
+        run: cargo build --manifest-path guests/hello-world/Cargo.toml --target riscv32im-unknown-none-elf
 
       - name: Test
         run: cargo test --workspace --all-features
