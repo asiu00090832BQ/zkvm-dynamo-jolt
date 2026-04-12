@@ -17,7 +17,16 @@ jolt-sumcheck = { path = "jolt-sumcheck" }
 ark-ff = "0.5.0"
 
 [workspace]
-members = ["zeroos-mem", "dynamo-invariants", "jolt-sumcheck", "zkvm-core", "rv32im-decoder", "hardened-elf-loader", "compiler-frontend"]
+members = [
+    "zeroos-mem",
+    "dynamo-invariants",
+    "jolt-sumcheck",
+    "zkzm-core",
+    "rv32im-decoder",
+    "hardened-elf-loader",
+    "compiler-frontend",
+    "guest"
+]
 resolver = "2"
 
 [workspace.package]
@@ -27,7 +36,6 @@ license = "MIT"
 
 [workspace.dependencies]
 ark-ff = "0.5.0"
-ELF_LOADER = { path = "hardened-elf-loader" }
 ark-poly = "0.5.0"
 ark-std = "0.5.0"
 ark-ec = "0.5.0"
