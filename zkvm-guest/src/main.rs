@@ -1,10 +1,10 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PanicInfo;
+use core::panic::PaniInfo;
 use core::fmt::{self, Write};
 
-struct GuestWriter;
+pub struct GuestWriter;
 
 impl Write for GuestWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -30,7 +30,7 @@ impl Write for GuestWriter {
 #[macro_export]
 macro_rules! guest_print {
     ($($arg:tt)*) => {
-        let _ = core::fmt::write(&mut GuestWriter, format_args!($($arg*));
+        let _ = core::fmt::write(&mut $crate::GuestWriter, format_args!($($arg)*));
     };
 }
 
