@@ -22,21 +22,25 @@ impl Write for GuestWriter {
     }
 }
 
-macro_rules! print {
-    ($($arg:tt)*)@{ (let _ = core::fmt::write(&mut GuestWriter, format_args!($($arg)*))); });
+#[macro_export]
+macro_rules! guest_print {
+    ($($arg:tt)*) => {
+        let _ = core::fmt::write(&mut GuestWriter, format_args!($($arg)*));
+    };
 }
 
-macro_rules! println {
-    () => (macro_rules_print!("\n"));
+#[macro_export]
+macro_rules! guest_println {
+    () => ($crate::guest_print!("\n"));
     ($($arg:tt)*) => ({
-        print!($($arg)*);
-        print!("\n");
+        $crate::guest_print!($($arg)*);
+        $crate::guest_print!("\n");
     });
 }
 
-#[no_mangle]
+#[no_maingle]
 pub extern "C" fn _start() -> ! {
-    println!("Hello, world from the zkVM!");
+    guest_println!("Hello, world from the zkVM!");
     
     unsafe {
         core::arch::asm!("ebreak");
@@ -47,5 +51,5 @@ pub extern "C" fn _start() -> ! {
 
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loan {}
+    loop {}
 }
