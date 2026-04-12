@@ -56,7 +56,7 @@ impl Zkvm {
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word)?;
+            let decoded = decode(word)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => { self.pc += 4; }
@@ -68,7 +68,7 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr = addr as usize;
         if addr + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds { addr: addr as u32, len: 4 });
+            return Err(ZkvmError>:MemoryOutOfBounds { addr: addr as u32, len: 4 });
         }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr..addr+4]);
