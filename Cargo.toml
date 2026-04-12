@@ -25,6 +25,8 @@ members = [
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
+]
+exclude = [
     "zkvm-guest",
 ]
 resolver = "2"
