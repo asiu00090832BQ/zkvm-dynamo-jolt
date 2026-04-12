@@ -4,6 +4,9 @@ use crate::vm::ZkvmError;
 pub enum Instruction {
     Add { rd: usize, rs1: usize, rs2: usize },
     Sub { rd: usize, rs1: usize, rs2: usize },
+    Lui { rd: usize, imm: u32 },
+    Addi { rd: usize, rs1: usize, imm: u32 },
+    Jal { rd: usize, imm: i32 },
     Ecall,
     Ebreak,
     Invalid(u32),
@@ -50,6 +53,18 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
                 },
             )
         }
+        0x37 => {
+            let imm = word & 0xfffff000;
+            (Instruction::Lui { rd, imm }, HierSelectors::default())
+        }
+        0x13 => {
+            let imm = ((word as i32) >> 20) as u32;
+            (Instruction::Addi { rd, rs1, imm }, HierSelectors::default())
+        }
+        0x6f => {
+            let imm = decode_j_imm(word);
+            (Instruction::Jal { rd, imm }, HierSelectors::default())
+        }
         0x73 => {
             let inst = match word {
                 0x0000_0073 => Instruction::Ecall,
@@ -73,4 +88,17 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
         instruction,
         selectors,
     })
+}
+
+fn decode_j_imm(word: u32) -> i32 {
+    let imm20 = (word >> 31) & 0x1;
+    let imm10_1 = (word >> 21) & 0x3ff;
+    let imm11 = (word >> 20) & 0x1;
+    let imm19_12 = (word >> 12) & 0xff;
+    let imm = (imm20 << 20) | (imm19_12 << 12) | (imm11 << 11) | (imm10_1 << 1);
+    if (imm & 0x100000) != 0 {
+        (imm | 0xfff00000) as i32
+    } else {
+        imm as i32
+    }
 }
