@@ -4,10 +4,16 @@
 use core::panic::PanicInfo;
 
 #[no_mangle]
+static mut RESULT: u32 = 0;
+
+#[no_mangle]
 pub extern "C" fn _start() -> ! {
-    let mut x: u32 = 0;
-    for i in 0..100 {
-        x = x.wrapping_add(i);
+    let mut sum: u32 = 0;
+    for i in 0..=100 {
+        sum = sum.wrapping_add(i);
+    }
+    unsafe {
+        RESULT = sum;
     }
     loop {}
 }
