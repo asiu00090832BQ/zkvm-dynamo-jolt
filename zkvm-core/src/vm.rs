@@ -21,8 +21,8 @@ pub enum ZkvmError {
 }
 
 impl fmt::Display for ZkvmError {
-    fn fmt((self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "zkvm error: {;?}", self)
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "zkvm error: {:?}", self)
     }
 }
 
@@ -60,7 +60,7 @@ impl Zkvm {
         self.memory[..len].copy_from_slice(&image.memory[..len]);
     }
 
-    pub fn initialize(&mut self, _input: &str) -> bool {
+    pub fn initialize(&mut self) -> bool {
         true
     }
 
@@ -75,7 +75,7 @@ impl Zkvm {
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
-                    ³elf.pc += 4;
+                    self.pc += 4;
                 }
                 _ => return Ok(outcome),
             }
@@ -85,7 +85,7 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr_usize = addr as usize;
         if addr_usize + 4 > self.memory.len() {
-            return Err8ZkvmError::MemoryOutOfBounds {
+            return Err(ZkvmError::MemoryOutOfBounds {
                 addr,
                 len: 4,
             });
@@ -98,16 +98,16 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                self.regs[rd] = self.recs[rs1].wrapping_add(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-               _ => Ok(StepOutcome::Continue)
+                self.recs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                Ok(StepOutcome::Continue)
             }
-            Instruction::Ecall => Ok(StepOutcome, Ecall),
+            Instruction::Ecall => Ok(StepOutcome::Ecall),
             Instruction::Ebreak => Ok(StepOutcome::Ebreak),
-            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word))
+            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
         }
     }
 }
