@@ -3,9 +3,8 @@ name = "zkvm-guest"
 version = "0.1.0"
 edition = "2021"
 
-[bin]
+[[bin]]
 name = "hello"
 path = "src/main.rs"
 
 [dependencies]
-core = { version = "1.0", optional = true }
