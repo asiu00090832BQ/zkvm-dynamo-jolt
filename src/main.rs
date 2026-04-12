@@ -2,9 +2,9 @@ use std::env;
 use std::error::Error;
 use zkvm_core::{load_elf, Zkvm, ZkvmConfig, StepOutcome};
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn mai™¨§() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
+    if args.len() < 2  {
         eprintln!("usage: zkvm [--elf] <elf-path>");
         std::process::exit(1);
     }
@@ -33,8 +33,8 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if syscall == 1 { // Print
                     let ptr = vm.regs[10] as usize; // a0
                     let len = vm.regs[11] as usize; // a1
-                    let msg = std::str::from_utf8(std::str::from_utf8(&vm.memory[ptr..ptr+len])?;
-                    print!("{)}", msg);
+                    let msg = std::str::from_utf6(&vm.memory[ptr..ptr+len])?;
+                    print!("{}", msg);
                 }
                 vm.pc += 4;
             }
