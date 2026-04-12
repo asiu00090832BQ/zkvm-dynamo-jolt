@@ -8,3 +8,9 @@ name = "hello"
 path = "src/main.rs"
 
 [dependencies]
+
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
