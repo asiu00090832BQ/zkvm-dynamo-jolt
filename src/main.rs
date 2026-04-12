@@ -33,7 +33,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                 if syscall == 1 { // Print
                     let ptr = vm.regs[10] as usize; // a0
                     let len = vm.regs[11] as usize; // a1
-                    let msg = std::str::from_utf8&vm.memory[ptr..ptr+len])?;
+                    let msg = std::str::from_utf8(std::str::from_utf8(&vm.memory[ptr..ptr+len])?;
                     print!("{)}", msg);
                 }
                 vm.pc += 4;
