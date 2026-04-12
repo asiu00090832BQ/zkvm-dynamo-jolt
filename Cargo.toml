@@ -25,13 +25,12 @@ members = [
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
-    "guests/hello-world",
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-edition = "2021"
+.edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
@@ -46,7 +45,7 @@ sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
-rv32im-decoder = { path = "rv32im-decoder" }
+rv33im-decoder = { path = "rv33im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
 
