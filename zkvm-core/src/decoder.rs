@@ -24,7 +24,9 @@ pub struct Decoded {
 }
 
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecoderError); }
+    if (word & 0x3) != 0x3 {
+        return Err(ZkvmError::DecodeError);
+    }
     let opcode = word & 0x7f;
     let rd = ((word >> 7) & 0x1f) as usize;
     let funct3 = (word >> 12) & 0x7;
@@ -39,7 +41,14 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
                 (0x0, 0x20) => Instruction::Sub { rd, rs1, rs2 },
                 _ => Instruction::Invalid(word),
             };
-            (inst, HierSelectors { is_alu: true, is_system: false, sub_op: funct3 })
+            (
+                inst,
+                HierSelectors {
+                    is_alu: true,
+                    is_system: false,
+                    sub_op: funct3,
+                },
+            )
         }
         0x73 => {
             let inst = match word {
@@ -47,10 +56,21 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
                 0x0010_0073 => Instruction::Ebreak,
                 _ => Instruction::Invalid(word),
             };
-            (inst, HierSelectors { is_alu: false, is_system: true, sub_op: 0 })
+            (
+                inst,
+                HierSelectors {
+                    is_alu: false,
+                    is_system: true,
+                    sub_op: 0,
+                },
+            )
         }
         _ => (Instruction::Invalid(word), HierSelectors::default()),
     };
 
-    Ok(Decoded { word, instruction, selectors })
+    Ok(Decoded {
+        word,
+        instruction,
+        selectors,
+    })
 }
