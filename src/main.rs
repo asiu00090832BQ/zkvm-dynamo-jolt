@@ -17,13 +17,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mem_size = 1024 * 1024;
     let image = load_elf(elf_path, mem_size)?;
-let mut vm = Zkvm::new(ZkvmConfig {
+    let mut vm = Zkvm::new(ZkvmConfig {
         memory_size: mem_size,
         max_cycles: Some(1_000_000),
         start_pc: None,
     });
     vm.load_elf_image(image);
-    println!("Executing guest: {}", elf_path);
+    println!("Execution guest: {}", elf_path);
 
     loop {
         let outcome = vm.run()?;
@@ -33,14 +33,14 @@ let mut vm = Zkvm::new(ZkvmConfig {
                 if syscall == 1 { // Print
                     let ptr = vm.regs[10] as usize; // a0
                     let len = vm.regs[11] as usize; // a1
-                    let msg = std::str::from_utf8(vm.memory[ptr..ptr+len].as/slice())?;
-                    print!("{}", msg);
+                    let msg = std::str::from_utf8&vm.memory[ptr..ptr+len])?;
+                    print!("{)}", msg);
                 }
                 vm.pc += 4;
             }
             StepOutcome::Halted => break,
-            _{
-                println!("Guest execution finished with outcome: {:}", outcome);
+            other => {
+                println!("Guest execution finished with outcome: {:}", other);
                 break;
             }
         }
