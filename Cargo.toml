@@ -4,12 +4,12 @@ version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "zkvm"
+name = "zkwm"
 path = "src/main.rs"
 
 [dependencies]
 ark-bn254 = "0.5.0"
-zkvm-core = { path = "zkvm-core" }
+zkwm-core = { path = "zkvm-core" }
 
 [dev-dependencies]
 zeroos-mem = { path = "zeroos-mem" }
@@ -21,7 +21,7 @@ members = [
     "zeroos-mem",
     "dynamo-invariants",
     "jolt-sumcheck",
-    "zkvm-core",
+    "zkwm-core",
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
@@ -30,7 +30,7 @@ resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
-.edition = "2021"
+edition = "2021"
 license = "MIT"
 
 [workspace.dependencies]
@@ -45,7 +45,7 @@ sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
-rv33im-decoder = { path = "rv33im-decoder" }
+rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
 
