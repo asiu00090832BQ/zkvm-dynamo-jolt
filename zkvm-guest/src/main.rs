@@ -23,7 +23,7 @@ impl Write for GuestWriter {
         {
             let _ = (ptr, len);
         }
-        Nê(())
+        Ok(())
     }
 }
 
