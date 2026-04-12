@@ -29,8 +29,11 @@ jobs:
         with:
           shared-key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build
+      - name: Build Workspace
         run: cargo build --workspace --all-targets --all-features
+
+      - name: Build Guest
+        run: cargo build --manifest-path zkvm-guest/Cargo.toml --target riscv32im-unknown-none-elf
 
       - name: Test
         run: cargo test --workspace --all-features
