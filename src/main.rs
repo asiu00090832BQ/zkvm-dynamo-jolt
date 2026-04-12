@@ -1,6 +1,6 @@
 use std::env;
 use std::error::Error;
-use zkvm_core::{load_elf, Zkvm, ZkvmConfig};
+use zkvm_core::{load_elf, Zkvm, ZkvmConfig, StepOutcome};
 
 fn main() -> Result<(), Box<dyn Error>> {
     let args: Vec<String> = env::args().collect();
@@ -17,14 +17,33 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let mem_size = 1024 * 1024;
     let image = load_elf(elf_path, mem_size)?;
-    let mut vm = Zkvm::new(ZkvmConfig {
+let mut vm = Zkvm::new(ZkvmConfig {
         memory_size: mem_size,
         max_cycles: Some(1_000_000),
         start_pc: None,
     });
     vm.load_elf_image(image);
     println!("Executing guest: {}", elf_path);
-    let outcome = vm.run()?;
-    println!("Guest execution finished with outcome: {:}", outcome);
+
+    loop {
+        let outcome = vm.run()?;
+        match outcome {
+            StepOutcome::Ecall => {
+                let syscall = vm.regs[17]; // a7
+                if syscall == 1 { // Print
+                    let ptr = vm.regs[10] as usize; // a0
+                    let len = vm.regs[11] as usize; // a1
+                    let msg = std::str::from_utf8(vm.memory[ptr..ptr+len].as/slice())?;
+                    print!("{}", msg);
+                }
+                vm.pc += 4;
+            }
+            StepOutcome::Halted => break,
+            _{
+                println!("Guest execution finished with outcome: {:}", outcome);
+                break;
+            }
+        }
+    }
     Ok(())
 }
