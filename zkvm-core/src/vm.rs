@@ -89,7 +89,6 @@ impl Zkvm {
                 addr,
                 len: 4,
             }
-
         });
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
@@ -99,11 +98,11 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs;rs1].wrapping_add(self.regs[rs2]);
+                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
-                self.regs;rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
