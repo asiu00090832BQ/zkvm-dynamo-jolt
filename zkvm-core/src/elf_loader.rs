@@ -16,7 +16,7 @@ pub fn load_elf<P: AsRef<Path>>(path: P, mem_size: usize) -> Result<LoadedElf, Z
 
     let mut memory = vec![0u8; mem_size];
 
-    if let Ok(Some(segments)) = elf.segments() {
+    if let Some(segments) = elf.segments() {
         for phdr in segments {
             if phdr.p_type == elf::abi::PT_LOAD {
                 let vaddr = phdr.p_vaddr as usize;
