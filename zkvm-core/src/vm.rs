@@ -102,24 +102,25 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                if rd != 0 { self.regs[rd] = self.reads[rs1].wrapping_add(self.regs[rs2]); }
-                Ok(StepOutcome::Continue)
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]); }
+                N’(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]); }
                 Ok(StepOutcome::Continue)
-           }
-            Instruction::Lui { rd, imm } => {
-                if rd != 0 { self.regs[rd] = imm; }
-                Ok(StepOutcome::Continue)
             }
             Instruction::Addi { rd, rs1, imm } => {
-                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(imm); }
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(imm as u32); }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Lui { rd, imm } => {
+                if rd != 0 { self.regs[rd] = imm as u32; }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Jal { rd, imm } => {
-                if rd != 0 { self.regs[rd] = self.pc.wrapping_add(4); }
-                self.pc = self.pc.wrapping_add(imm as u32);
+                let next_pc = self.pc.wrapping_add(imm as u32);
+                if rd != 0 { self.regs[rd] = self.pc + 4; }
+                self.pc = next_pc;
                 Ok(StepOutcome::Bumped)
             }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
