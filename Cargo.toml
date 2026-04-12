@@ -45,6 +45,7 @@ sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
+zkvm-core = { path = "zkvm-core" }
 rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
