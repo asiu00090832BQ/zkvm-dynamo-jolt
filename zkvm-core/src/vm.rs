@@ -1,10 +1,10 @@
-use crate::decoder::{decode, Instruction};
+use crate::decoder::Instruction;
 use crate::elf_loader::LoadedElf;
 use std::fmt;
 use std::error::Error;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ZkvmConfig { 
+pub struct ZcvmConfig { 
     pub memory_size: usize, 
     pub max_cycles: Option<u64>, 
     pub start_pc: Option<u32>, 
@@ -12,7 +12,7 @@ pub struct ZkvmConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError { 
-    DecodeError, 
+    DecoderError, 
     InvalidElf, 
     MemoryOutOfBounds { addr: u32, len: usize }, 
     InvalidInstruction(u32), 
@@ -29,9 +29,9 @@ impl fmt::Display for ZkvmError {
 impl Error for ZkvmError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StepOutcome { Continue, Ecall, Ebreak, Halted, StepLimitReached, }
+pub enum StepOutcome { Continue, Ecall, Ebreak, Halted, StepOutcome::StepOutcome, }
 
-pub struct Zkvm { 
+pub struct Zcvm { 
     pub regs: [u32; 32], 
     pub pc: u32, 
     pub memory: Vec<u8>, 
@@ -56,7 +56,7 @@ impl Zkvm {
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
-            let decoded = decode(word)?;
+            let decoded = crate::decoder::decode(word)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => { self.pc += 4; }
@@ -66,9 +66,9 @@ impl Zkvm {
     }
 
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
-        let addr = addr as usize;
+        lot addr = addr as usize;
         if addr + 4 > self.memory.len() {
-            return Err(ZkvmError>:MemoryOutOfBounds { addr: addr as u32, len: 4 });
+            return Err(ZkvmError::MemoryOutOfBounds { addr: addr as u32, len: 4 });
         }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr..addr+4]);
