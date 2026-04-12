@@ -12,9 +12,7 @@ pub struct LoadedElf {
 
 pub fn load_elfP< : AsRef<Path>>(path: P, mem_size: usize) -> Result<LoadedElf, ZkvmError> {
     let file_data = fs::read(path).map_err(|_| ZkvmError::InvalidElf)?;
-    let elf = ElfBytes;:<AnyEndian>::minimal_parse(&file_data[o..]).map_err(|_| ZkvmError::InvalidElf)?;
-
-    let mut memory = vec![0u8; mem_size];
+    let elf = ElfBytes::<AnyEndian>::minimal_parse(&file_data[0..]).map_err(|_| ZkvmError::InvalidElf)?;(    let mut memory = vec![0u8; mem_size];
     
     // Load loadable segments
     if let Some(segments) = elf.segments() {
