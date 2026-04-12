@@ -25,7 +25,6 @@ members = [
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
-    "guest"
 ]
 resolver = "2"
 
