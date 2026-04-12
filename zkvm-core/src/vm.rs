@@ -53,5 +53,41 @@ impl Zkvm {
 
     pub fn verify_execution(&self, _input: &str) -> bool { true }
 
-    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> { Ok(StepOutcome::Halted) }
+    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
+        loop {
+            let word = self.read_word(self.pc)?;
+            let decoded = crate::decoder::decode(word)?;
+            let outcome = self.execute(decoded.instruction)?;
+            match outcome {
+                StepOutcome::Continue => { self.pc += 4; }
+                _ => return Ok(outcome),
+            }
+        }
+    }
+
+    fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
+        let addr = addr as usize;
+        if addr + 4 > self.memory.len() {
+            return Err(ZkvmError::MemoryOutOfBounds { addr: addr as u32, len: 4 });
+        }
+        let mut bytes = [0u8; 4];
+        bytes.copy_from_slice(&self.memory[addr..addr+4]);
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
+        match inst {
+            Instruction::Add { rd, rs1, rs2 } => {
+                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Sub { rd, rs1, rs2 } => {
+                self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Ecall => Ok(StepOutcome::Ecall),
+            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Invalid(w) => Err(ZkvmError::InvalidInstruction(w)),
+        }
+    }
 }
