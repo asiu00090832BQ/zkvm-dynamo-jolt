@@ -68,7 +68,7 @@ impl Zkvm {
         true
     }
 
-    pub fn run(&put self) -> Result<StepOutcome, ZkvmError> {
+    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
             let decoded = crate::decoder::decode(word)?;
@@ -99,15 +99,15 @@ impl Zkvm {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                _ => Ok(StepOutcome::Continue)
+                Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-                Ok(StepOutcome::Continue)
+               _ => Ok(StepOutcome::Continue)
             }
-            Instruction::Ecall => Ok(StepOutcome::Ecall),
-            Instruction::Ebreak => Ok(StepOutcome, Ebreak),
-            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
+            Instruction::Ecall => Ok(StepOutcome, Ecall),
+            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word))
         }
     }
 }
