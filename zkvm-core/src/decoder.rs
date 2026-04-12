@@ -53,7 +53,7 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
         0x73 => {
             let inst = match word {
                 0x0000_0073 => Instruction::Ecall,
-      -°x0010_0073 => Instruction::Ebreak,
+                0x0010_0073 => Instruction::Ebreak,
                 _ => Instruction::Invalid(word),
             };
             (
