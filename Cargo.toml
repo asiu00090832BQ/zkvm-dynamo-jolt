@@ -53,9 +53,13 @@ hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
 [profile.release]
 panic = "abort"
+lto = true
+opt-level = 3
 
 [profile.dev]
 panic = "abort"
+lto = false
+opt-level = 0
 
 [profile.test]
 panic = "abort"
