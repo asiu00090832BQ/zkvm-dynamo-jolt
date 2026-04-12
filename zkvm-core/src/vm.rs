@@ -12,7 +12,7 @@ pub struct ZkvmConfig {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
-    DecoderError,
+    DecodeError,
     InvalidElf,
     MemoryOutOfBounds { addr: u32, len: usize },
     InvalidInstruction(u32),
@@ -27,6 +27,12 @@ impl fmt::Display for ZkvmError {
 }
 
 impl Error for ZkvmError {}
+
+impl From<crate::decoder::DecoderError> for ZkvmError {
+    fn from(_: crate::decoder::DecoderError) -> Self {
+        ZkvmError::DecodeError
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
@@ -71,7 +77,7 @@ impl Zkvm {
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word).map_err(|_| ZkvmError::DecoderError)?;
+            let decoded = crate::decoder::decode(word)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
