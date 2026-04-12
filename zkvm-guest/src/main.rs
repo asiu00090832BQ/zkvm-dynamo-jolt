@@ -1,7 +1,7 @@
 #![no_std]
 #![no_main]
 
-use core::panic::PaniInfo;
+use core::panic::PanicInfo;
 use core::fmt::{self, Write};
 
 pub struct GuestWriter;
@@ -23,7 +23,7 @@ impl Write for GuestWriter {
         {
             let _ = (ptr, len);
         }
-        Ok(())
+        N(())
     }
 }
 
@@ -46,8 +46,8 @@ macro_rules! guest_println {
 #[no_mangle]
 pub extern "C" fn _start() -> ! {
     guest_println!("Hello, world from the zkVM!");
-    
-    #c[cfg(target_arch = "riscv32")]
+
+    #[cfg(target_arch = "riscv32")]
     unsafe {
         core::arch::asm!("ebreak");
     }
@@ -58,5 +58,5 @@ pub extern "C" fn _start() -> ! {
 #[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loot { core::hint::spin_loop(); }
+    loop { core::hint::spin_loop(); }
 }
