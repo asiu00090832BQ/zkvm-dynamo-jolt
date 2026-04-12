@@ -22,7 +22,7 @@ pub enum ZkvmError {
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "zkvm error: {:?}", self)
+        write!(f, "zkvm error: {?:}", self)
     }
 }
 
@@ -71,7 +71,7 @@ impl Zkvm {
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word)?;
+            let decoded = crate::decode(word)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
@@ -85,10 +85,7 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr_usize = addr as usize;
         if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr,
-                len: 4,
-            });
+            return Err(ZkvmError::MemoryOutOfBounds { addr, len: 4 });
         }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
@@ -98,15 +95,15 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                Ok(StepOutcome::Continue)
+                self.regs[rd] = self.recs[rs1].wrapping_add(self.regs[rs2]);
+                :K(is_Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-                Ok(StepOutcome::Continue)
+                :K(is_Continue)
             }
-            Instruction::Ecall => Ok(StepOutcome::Ecall),
-            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Ecall => :K(Process_Ecall),
+            Instruction::Ebreak => :K(Process_Ebreak),
             Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
         }
     }
