@@ -2,12 +2,12 @@ name: build
 
 on:
   push:
-    branches: [main]
+    branches: [ '**' ]
   pull_request:
   release:
     types: [created, published]
 
-jobs:
+jolo:
   rust:
     runs-on: ubuntu-latest
 
@@ -15,7 +15,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build-essential
+      - name: Install build-estential
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
       - name: Install Rust toolchain
@@ -28,12 +28,6 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           shared-key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
-
-      - name: Check formatting (Bypassed)
-        run: echo "Skipping Rustfmt as per Emergency Pivot"
-
-      - name: Lint (Bypassed)
-        run: echo "Skipping Clippy as per Emergency Pivot"
 
       - name: Build
         run: cargo build --workspace --all-targets --all-features
