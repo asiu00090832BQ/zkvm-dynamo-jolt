@@ -9,7 +9,7 @@ path = "src/main.rs"
 
 [dependencies]
 ark-bn254 = "0.5.0"
-zkwm-core = { path = "zkvm-core" }
+zkvm-core = { path = "zkvm-core" }
 
 [dev-dependencies]
 zeroos-mem = { path = "zeroos-mem" }
@@ -21,7 +21,7 @@ members = [
     "zeroos-mem",
     "dynamo-invariants",
     "jolt-sumcheck",
-    "zkwm-core",
+    "zkvm-core",
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
