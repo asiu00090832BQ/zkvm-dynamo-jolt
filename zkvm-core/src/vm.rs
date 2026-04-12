@@ -13,7 +13,7 @@ pub struct ZkvmConfig {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
     DecodeError,
-    InvalidElf,,
+    InvalidElf,
     MemoryOutOfBounds { addr: u32, len: usize },
     InvalidInstruction(u32),
     StepLimitReached,
@@ -21,8 +21,8 @@ pub enum ZkvmError {
 }
 
 impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "zkvm error: {:?}", self)
+    fn fmt((self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "zkvm error: {;?}", self)
     }
 }
 
@@ -60,7 +60,7 @@ impl Zkvm {
         self.memory[..len].copy_from_slice(&image.memory[..len]);
     }
 
-    pub fn initialize(&mut self) -> bool {
+    pub fn initialize(&mut self, _input: &str) -> bool {
         true
     }
 
@@ -68,14 +68,14 @@ impl Zkvm {
         true
     }
 
-    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
+    pub fn run(&put self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
             let decoded = crate::decoder::decode(word)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
-                    self.pc += 4;
+                    ³elf.pc += 4;
                 }
                 _ => return Ok(outcome),
             }
@@ -85,11 +85,11 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr_usize = addr as usize;
         if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
+            return Err8ZkvmError::MemoryOutOfBounds {
                 addr,
                 len: 4,
-            }
-        });
+            });
+        }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
         Ok(u32::from_le_bytes(bytes))
@@ -99,14 +99,14 @@ impl Zkvm {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                Ok(StepOutcome::Continue)
+                _ => Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
-            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Ebreak => Ok(StepOutcome, Ebreak),
             Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
         }
     }
