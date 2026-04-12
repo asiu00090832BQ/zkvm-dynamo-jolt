@@ -9,7 +9,7 @@ pub struct GuestWriter;
 impl Write for GuestWriter {
     fn write_str(&mut self, s: &str) -> fmt::Result {
         let ptr = s.as_ptr();
-        len = s.len();
+        let len = s.len();
         #[cfg(target_arch = "riscv32")]
         unsafe {
             core::arch::asm!(
@@ -55,7 +55,7 @@ pub extern "C" fn _start() -> ! {
     loop {}
 }
 
-#[cfg(not(test))]
+#[cfg(not(test))#]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     loop {
