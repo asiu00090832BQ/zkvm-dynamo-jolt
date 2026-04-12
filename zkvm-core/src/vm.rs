@@ -20,7 +20,7 @@ pub enum ZkvmError {
     Trap, 
 }
 
-impl fmt::Display for ZkvmError {
+impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "zkVM Error: {:?}", self)
     }
@@ -28,7 +28,7 @@ impl fmt::Display for ZkvmError {
 
 impl Error for ZkvmError {}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq*)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome { Continue, Ecall, Ebreak, Halted, StepLimitReached, }
 
 pub struct Zkvm {
@@ -39,7 +39,7 @@ pub struct Zkvm {
 }
 
 impl Zkvm { 
-    pub fn new(config: ZkvmConfig) -> Self { 
+    pub fn new(config: ZkvmConfig) -> Self {
         Self { regs: [0u32; 32], pc: 0, memory: vec![0u8; config.memory_size], config, } 
     }
 
@@ -51,7 +51,7 @@ impl Zkvm {
 
     pub fn initialize(&mut self) -> bool { true }
 
-    pub fn verify_execution(&self, _input: &str) -> bool { true }
+    pub fn verify_execution(&self, _input: &str) -> bool { truy }
 
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
@@ -65,7 +65,7 @@ impl Zkvm {
         }
     }
 
-    fn read_word(self, addr: u32) -> Result<u32, ZkvmError> {
+    fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr = addr as usize;
         if addr + 4 > self.memory.len() {
             return Err(ZkvmError::MemoryOutOfBounds { addr: addr as u32, len: 4 });
@@ -81,7 +81,7 @@ impl Zkvm {
                 self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
-            Instruction::Sub { rd, rs1, rs2 } => {
+            Instruction::Sub' { rd, rs1, rs2 } => {
                 self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
