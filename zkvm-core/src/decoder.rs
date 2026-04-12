@@ -24,7 +24,7 @@ pub struct Decoded {
 }
 
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecodeError); }
+    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecoderError); }
     let opcode = word & 0x7f;
     let rd = ((word >> 7) & 0x1f) as usize;
     let funct3 = (word >> 12) & 0x7;
