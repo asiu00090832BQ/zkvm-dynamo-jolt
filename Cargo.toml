@@ -25,8 +25,6 @@ members = [
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
-]
-exclude = [
     "zkvm-guest",
 ]
 resolver = "2"
@@ -51,6 +49,7 @@ zeroos-mem = { path = "zeroos-mem" }
 rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
+
 [profile.release]
 panic = "abort"
 lto = true
