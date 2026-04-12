@@ -51,3 +51,8 @@ zeroos-mem = { path = "zeroos-mem" }
 rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
+[profile.release]
+panic = "abort"
+
+[profile.dev]
+panic = "abort"
