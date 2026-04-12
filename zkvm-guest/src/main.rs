@@ -14,14 +14,14 @@ impl Write for GuestWriter {
         unsafe {
             core::arch::asm!(
                 "ecall",
-                in("a7") 1, // Syscall 1 (Print)
+                in("a7") 1,
                 in("a0") ptr,
                 in("a1") len,
             );
         }
         #[cfg(not(target_arch = "riscv32"))]
         {
-            let _ = (ptr, len);
+           let _ = (ptr, len);
         }
         Ok(())
     }
@@ -38,7 +38,7 @@ macro_rules! guest_print {
 macro_rules! guest_println {
     () => ($crate::guest_print!("\n"));
     ($($arg:tt)*) => ({
-        $crate::guest_print!($($arg)*);
+        $crate::guest_print!($($arg))*;
         $crate::guest_print!("\n");
     });
 }
@@ -55,8 +55,12 @@ pub extern "C" fn _start() -> ! {
     loop {}
 }
 
-#[cfg(not(test))]
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    loop { core::hint::spin_loop(); }
+    loop {
+        #[cfg(target_arch = "riscv32")]
+        unsafe {
+            core::arch::asm!("ebreak");
+        }
+    }
 }
