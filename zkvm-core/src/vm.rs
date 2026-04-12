@@ -85,28 +85,25 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr_usize = addr as usize;
         if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr,
-                len: 4,
-            });
+            return Err(ZkvmError::MemoryOutOfBounds { addr, len: 4 });
         }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
-        N’(u32::from_le_bytes(bytes))
+        Ok(u32::from_le_bytes(bytes))
     }
 
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                self.regs[rd] = self.recs[rs1].wrapping_add(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                self.recs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
                 Ok(StepOutcome::Continue)
             }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
-             Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
             Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
         }
     }
