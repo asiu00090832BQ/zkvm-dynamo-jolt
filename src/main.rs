@@ -24,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
 
     vm.load_elf_image(image);
-    println!("Execution guest: {}", elf_path);
+    println!("Executing guest: {}", elf_path);
 
     loop {
         let outcome = vm.run()?;
@@ -42,7 +42,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             }
             StepOutcome::Halted => break,
             other => {
-                println!("Guest execution finished with outcome: {:}", other);
+                println!("Guest execution finished with outcome: {:?}", other);
                 break;
             }
         }
