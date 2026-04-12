@@ -2,4 +2,4 @@
 target = "riscv32im-unknown-none-elf"
 [target.riscv32im-unknown-none-elf]
 linker = "rust-lld"
-rustflags = ["-C", "link-arg=-nostartfiles"]
+rustflags = []
