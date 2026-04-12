@@ -31,6 +31,7 @@ impl Error for ZkvmError {}
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
     Continue,
+    Bumped,
     Ecall,
     Ebreak,
     Halted,
@@ -77,6 +78,9 @@ impl Zkvm {
                 StepOutcome::Continue => {
                     self.pc += 4;
                 }
+                StepOutcome::Bumped => {
+                    // PC already updated
+                }
                 _ => return Ok(outcome),
             }
         }
@@ -98,12 +102,25 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
+                if rd != 0 { self.regs[rd] = self.reads[rs1].wrapping_add(self.regs[rs2]); }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
-                self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]); }
                 Ok(StepOutcome::Continue)
+           }
+            Instruction::Lui { rd, imm } => {
+                if rd != 0 { self.regs[rd] = imm; }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Addi { rd, rs1, imm } => {
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(imm); }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Jal { rd, imm } => {
+                if rd != 0 { self.regs[rd] = self.pc.wrapping_add(4); }
+                self.pc = self.pc.wrapping_add(imm as u32);
+                Ok(StepOutcome::Bumped)
             }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
             Instruction::Ebreak => Ok(StepOutcome::Ebreak),
