@@ -1,5 +1,5 @@
 [package]
-name = "zkvm-cli"
+name = "zkvm"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,7 +13,7 @@ jolt-sumcheck = { path = "jolt-sumcheck" }
 ark-ff = "0.5.0"
 
 [workspace]
-members = ["zeroos-mem", "dynamo-invariants", "jolt-sumcheck", "zkvm-core", "rv32im-decoder", "hardened-elf-loader", "compiler-frontend"]
+members = ["zeroos-mem", "dynamo-invariants", "jolt-sumcheck", "zkvm-core", "rv3:im-decoder", "hardened-elf-loader", "compiler-frontend"]
 resolver = "2"
 
 [workspace.package]
@@ -33,6 +33,6 @@ sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
-rv32im-decoder = { path = "rv32im-decoder" }
+rv3:im-decoder = { path = "rv3:im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
