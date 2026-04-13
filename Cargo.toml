@@ -1,7 +1,11 @@
 [package]
-name = "zkvm-cli"
+name = "zkvm"
 version = "0.1.0"
 edition = "2021"
+
+[[bin]]
+name = "zkvm"
+path = "src/main.rs"
 
 [dependencies]
 ark-bn254 = "0.5.0"
@@ -13,7 +17,16 @@ jolt-sumcheck = { path = "jolt-sumcheck" }
 ark-ff = "0.5.0"
 
 [workspace]
-members = ["zeroos-mem", "dynamo-invariants", "jolt-sumcheck", "zkvm-core", "rv32im-decoder", "hardened-elf-loader", "compiler-frontend"]
+members = [
+    "zeroos-mem",
+    "dynamo-invariants",
+    "jolt-sumcheck",
+    "zkvm-core",
+    "rv32im-decoder",
+    "hardened-elf-loader",
+    "compiler-frontend",
+]
+exclude = ["guests/hello-world"]
 resolver = "2"
 
 [workspace.package]
@@ -33,6 +46,23 @@ sha2 = "0.10"
 dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
+zkvm-core = { path = "zkvm-core" }
 rv32im-decoder = { path = "rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
+
+[profile.release]
+panic = "abort"
+lto = true
+opt-level = 3
+
+[profile.dev]
+panic = "abort"
+lto = false
+opt-level = 0
+
+[profile.test]
+panic = "abort"
+
+[profile.bench]
+panic = "abort"

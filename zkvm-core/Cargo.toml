@@ -16,4 +16,4 @@ zeroos-mem.workspace = true
 goblin.workspace = true
 elf.workspace = true
 sha2.workspace = true
-rv32im-decoder = { path = "../rv32im-decoder" }
+rv32im-decoder.workspace = true

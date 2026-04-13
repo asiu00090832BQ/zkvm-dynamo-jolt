@@ -4,6 +4,9 @@ use crate::vm::ZkvmError;
 pub enum Instruction {
     Add { rd: usize, rs1: usize, rs2: usize },
     Sub { rd: usize, rs1: usize, rs2: usize },
+    Addi { rd: usize, rs1: usize, imm: i32 },
+    Lui { rd: usize, imm: i32 },
+    Jal { rd: usize, imm: i32 },
     Ecall,
     Ebreak,
     Invalid(u32),
@@ -24,7 +27,9 @@ pub struct Decoded {
 }
 
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    if (word & 0x3) != 0x3 { return Err(ZkvmError::DecodeError); }
+    if (word & 0x3) != 0x3 {
+        return Err(ZkvmError::DecodeError);
+    }
     let opcode = word & 0x7f;
     let rd = ((word >> 7) & 0x1f) as usize;
     let funct3 = (word >> 12) & 0x7;
@@ -39,7 +44,48 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
                 (0x0, 0x20) => Instruction::Sub { rd, rs1, rs2 },
                 _ => Instruction::Invalid(word),
             };
-            (inst, HierSelectors { is_alu: true, is_system: false, sub_op: funct3 })
+            (
+                inst,
+                HierSelectors {
+                    is_alu: true,
+                    is_system: false,
+                    sub_op: funct3,
+                },
+            )
+        }
+        0x13 => {
+            let imm = (word as i32) >> 20;
+            let inst = match funct3 {
+                0x0 => Instruction::Addi { rd, rs1, imm },
+                _ => Instruction::Invalid(word),
+            };
+            (
+                inst,
+                HierSelectors {
+                    is_alu: true,
+                    is_system: false,
+                    sub_op: funct3,
+                },
+            )
+        }
+        0x37 => {
+            let imm = (word & 0xfffff000) as i32;
+            (
+                Instruction::Lui { rd, imm },
+                HierSelectors::default(),
+            )
+        }
+        0x6f => {
+            let imm20 = (word >> 31) & 1;
+            let imm10_1 = (word >> 21) & 0x3ff;
+            let imm11 = (word >> 20) & 1;
+            let imm19_12 = (word >> 12) & 0xff;
+            let imm = ((imm20 as i32) << 20) | ((imm19_12 as i32) << 12) | ((imm11 as i32) << 11) | ((imm10_1 as i32) << 1);
+            let imm = if imm20 != 0 { imm | !0xfffff } else { imm };
+            (
+                Instruction::Jal { rd, imm },
+                HierSelectors::default(),
+            )
         }
         0x73 => {
             let inst = match word {
@@ -47,10 +93,21 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
                 0x0010_0073 => Instruction::Ebreak,
                 _ => Instruction::Invalid(word),
             };
-            (inst, HierSelectors { is_alu: false, is_system: true, sub_op: 0 })
+            (
+                inst,
+                HierSelectors {
+                    is_alu: false,
+                    is_system: true,
+                    sub_op: 0,
+                },
+            )
         }
         _ => (Instruction::Invalid(word), HierSelectors::default()),
     };
 
-    Ok(Decoded { word, instruction, selectors })
+    Ok(Decoded {
+        word,
+        instruction,
+        selectors,
+    })
 }

@@ -2,7 +2,7 @@ name: build
 
 on:
   push:
-    branches: [main]
+    branches: [ '**' ]
   pull_request:
   release:
     types: [created, published]
@@ -18,7 +18,7 @@ jobs:
       - name: Install build-essential
         run: sudo apt-get update && sudo apt-get install -y build-essential
 
-      - name: Install Rust toolchain
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -29,14 +29,11 @@ jobs:
         with:
           shared-key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Check formatting (Bypassed)
-        run: echo "Skipping Rustfmt as per Emergency Pivot"
-
-      - name: Lint (Bypassed)
-        run: echo "Skipping Clippy as per Emergency Pivot"
-
-      - name: Build
+      - name: Build Workspace
         run: cargo build --workspace --all-targets --all-features
+
+      - name: Build Guest
+        run: cargo build --manifest-path guests/hello-world/Cargo.toml --target riscv32im-unknown-none-elf
 
       - name: Test
         run: cargo test --workspace --all-features
