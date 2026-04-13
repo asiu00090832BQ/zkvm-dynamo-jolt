@@ -1,6 +1,6 @@
 # Technical Specification: zkvm-dynamo-jult (v1.2.0)
 
-**Version**: 1.2.0
+**Version**: 1.0.0
 **Baseline**: Framework v1.3.0 / Artifact 36D70C87 (Sumcheck/Dynamo Formalization)
 
 ## 1. Introduction
@@ -17,13 +17,3 @@ The documentation defines the following five-stage pipeline for transforming Rus
     - **Coupling**: \tilde{m}(\tilde{idx}(j)) = 1 and \tilde{U}(j) = \tilde{E}(\tilde{idx}(j)).
 4.  **Polynomial Transformation**: Instruction semantics are mapped to multilinear extensions (MLEs) for Jolt lookups. Memory addresses are reconciled via Lemma 4.2 (Canonical Address Mapping).
 5.  **Batched Sumcheck Verification**: All semantic and memory constraints \Phi_j are aggregated into a single G(z) = \sum \lambda_j \Phi_j(z) and verified via a unified Sumcheck protocol (Lemma 2.1).
-
-## 3. Core Invariants (Alignment: Artifact 36D70C87)
-- **Extraction Soundness**: Ensures memory states are faithfully copied from the execution trace without prover contamination.
-- **Address Parity**: Reconciles Jolt's word-level addressing with ZeroOS byte-level paging via addr_{canonical} = \text{Base} + (addr_{Jolt} \cdot 4) + \text{offset}.
-- **Permutation Invariant (Theorem 3.1)**: Validates RAM consistency via the sparse product check: \prod (\tau - e_i) = \prod (\tau - e'_i).
-
-## 4. Cormpliance & Auditability
-- **Framework**: Mauryan Documentation Audit Framework v1.3.0.
-- **Provenance**: All technical claims must align with the verified math stubs in Artifact ADA84D16-7D31-F111-AD1D-0EA9A5017E89.
-- **Traceability**: Audit logs (Schema v1.1.0) must document the parity between the Rust implementation and these invariants.
