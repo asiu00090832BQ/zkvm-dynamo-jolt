@@ -14,7 +14,7 @@ cargo build
 ## Running Arbitrary Rust File
 To build a guest rust file that shares the same project root directory:
 ```bash
-rustc --target riscv32im-unknown-none-elf -C panic=abort hello-world.rs --crate-type bin -o helo-world.elf
+rustc --target riscv32im-unknown-none-elf -C panic=abort hello-world.rs --crate-type bin -o hello-world.elf
 ```
 
 To run the zkvm with the guest program:
