@@ -26,7 +26,6 @@ members = [
     "hardened-elf-loader",
     "compiler-frontend",
 ]
-exclude = ["guests/hello-world"]
 resolver = "2"
 
 [workspace.package]
