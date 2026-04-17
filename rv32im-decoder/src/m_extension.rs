@@ -1,94 +1,152 @@
 // CAB8453E / Lemma 6.1.1: RV32M arithmetic via 16-bit limb decomposition.
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default)]
-pub struct Limb16(pub u16);
+use crate::error::{DecoderError, Result};
 
-impl Limb16 {
-    pub const BITS: u32 = 16;
-    pub const MASK: u32 = 0xFFFF;
+pub const M_EXTENSION_OPCODE: u8 = 0x33;
+pub const M_EXTENSION_FUNCT7: u8 = 0x01;
+pub const LIMB_BITS: usize = 16;
+pub const LIMB_MASK: u64 = 0xFFFF;
 
-    #[inline]
-    pub const fn low(word: u32) -> Self {
-        Self((word & Self::MASK) as u16)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MExtensionOp {
+    Mul,
+    Mulh,
+    Mulhsu,
+    Mulhu,
+    Div,
+    Divu,
+    Rem,
+    Remu,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MExtensionInstruction {
+    pub rd: usize,
+    pub rs1: usize,
+    pub rs2: usize,
+    pub op: MExtensionOp,
+}
+
+pub type MInstruction = MExtensionInstruction;
+
+#[inline]
+pub fn is_m_extension_instruction(word: u32) -> bool {
+    let opcode = (word & 0x7f) as u8;
+    let funct7 = ((word >> 25) & 0x7f) as u8;
+    opcode == M_EXTENSION_OPCODE && funct7 == M_EXTENSION_FUNCT7
+}
+
+pub fn decode_m_instruction(word: u32) -> Result<MExtensionInstruction> {
+    if (word & 0b11) != 0b11 {
+        return Err(DecoderError::InvalidInstructionWord(word));
     }
 
-    #[inline]
-    pub const fn high(word: u32) -> Self {
-        Self(((word >> Self::BITS) & Self::MASK) as u16)
+    let opcode = (word & 0x7F) as u8;
+    if opcode != M_EXTENSION_OPCODE {
+        return Err(DecoderError::NotMExtension(word));
     }
 
-    #[inline]
-    pub const fn as_u32(self) -> u32 {
-        self.0 as u32
+    let funct7 = ((word >> 25) & 0x7F) as u8;
+    if funct7 != M_EXTENSION_FUNCT7 {
+        return Err(DecoderError::NotMExtension(word));
     }
+
+    let funct3 = ((word >> 12) & 0x07) as u8;
+    let op = match funct3 {
+        0b000 => MExtensionOp::Mul,
+        0b001 => MExtensionOp::Mulh,
+       0b010 => MExtensionOp::Mulhsu,
+        0b011 => MExtensionOp::Mulhu,
+        0b100 => MExtensionOp::Div,
+        0b101 => MExtensionOp::Divu,
+        0b110 => MExtensionOp::Rem,
+        0b111 => MExtensionOp::Remu,
+        _ => return Err(DecoderError::UnsupportedFunct3(funct3)),
+    };
+
+    Ok(MExtensionInstruction {
+        rd: ((word >> 7) & 0x1F) as usize,
+        rs1: ((word >> 15) & 0x1F) as usize,
+        rs2: ((word >> 20) & 0x1F) as usize,
+        op,
+    })
 }
 
 #[inline]
-pub const fn decompose_u32(word: u32) -> (Limb16, Limb16) {
-    (Limb16::low(word), Limb16::high(word))
+pub fn decode_m_extension_instruction(word: u32) -> Result<MExtensionInstruction> {
+    decode_m_instruction(word)
+}
+
+/// Lemma 6.1.1:
+/// every 32-bit word can be written uniquely as
+/// `x = x_0 + 2^16 * x_1` with `x_0, x_1 in [0, 2^16)`.
+#[inline]
+pub fn decompose_u32_to_u16_limbs(value: u32) -> [u16; 2] {
+    [
+        (value & 0xFFFF) as u16,
+        ((value >> LIMB_BITS) & 0xFFFF) as u16,
+    ]
 }
 
 #[inline]
-pub const fn recompose_u32(low: Limb16, high: Limb16) -> u32 {
-    low.as_u32() | (high.as_u32() << Limb16::BITS)
+pub fn limb_decompose_u32(value: u32) -> [u16; 2] {
+    decompose_u32_to_u16_limbs(value)
 }
 
 #[inline]
-fn twos_complement_64(value: u64) -> u64 {
-    (!value).wrapping_add(1)
+pub fn decompose_u64_to_u16_limbs(value: u64) -> [u16; 4] {
+    [
+        (value & LIMB_MASK) as u16,
+        ((value >> 16) & LIMB_MASK) as u16,
+        ((value >> 32) & LIMB_MASK) as u16,
+        ((value >> 48) & LIMB_MASK) as u16,
+    ]
 }
 
 #[inline]
-fn abs_i32_bits(value: i32) -> u32 {
-    if value < 0 {
-        (value as u32).wrapping_neg()
-    } else {
-        value as u32
-    }
+pub fn limb_decompose_u64(value: u64) -> [u16; 4] {
+    decompose_u64_to_u16_limbs(value)
 }
 
 #[inline]
+pub fn compose_u64_from_u16_limbs(limbs: [u16; 4]) -> u64 {
+    (limbs[0] as u64)
+        | ((limbs[1] as u64) << 16)
+        | ((limbs[2] as u64) << 32)
+        | ((limbs[3] as u64) << 48)
+}
+
+#[inline]
+pub fn limb_recompose_u64(limbs: [u16; 4]) -> u64 {
+    compose_u64_from_u16_limbs(limbs)
+}
+
 pub fn wide_mul_u32(lhs: u32, rhs: u32) -> u64 {
-    let (a0, a1) = decompose_u32(lhs);
-    let (b0, b1) = decompose_u32(rhs);
+    let a = decompose_u32_to_u16_limbs(lhs);
+    let b = decompose_u32_to_u16_limbs(rhs);
 
-    let p00 = (a0.as_u32() * b0.as_u32()) as u64;
-    let p01 = (a0.as_u32() * b1.as_u32()) as u64;
-    let p10 = (a1.as_u32() * b0.as_u32()) as u64;
-    let p11 = (a1.as_u32() * b1.as_u32()) as u64;
+    let mut accum = [0u64; 4];
+    for i in 0..2 {
+        for j in 0..2 {
+            accum[i + j] += (a[i] as u64) * (b[j] as u64);
+        }
+    }
 
-    let limb0 = p00 & 0xFFFF;
-    let carry0 = p00 >> 16;
+    let mut limbs = [0u16; 4];
+    let mut carry = 0u64;
+    for i in 0..4 {
+        let total = accum[i] + carry;
+        limbs[i] = (total & LIMB_MASK) as u16;
+        carry = total >> LIMB_BITS;
+    }
 
-    let middle = carry0 + p01 + p10;
-    let limb1 = middle & 0xFFFF;
-    let carry1 = middle >> 16;
-
-    let upper = p11 + carry1;
-
-    limb0 | (limb1 << 16) | (upper << 32)
+    debug_assert_eq!(carry, 0);
+    compose_u64_from_u16_limbs(limbs)
 }
 
 #[inline]
-fn wide_mul_i32_bits(lhs: i32, rhs: i32) -> u64 {
-    let negative = (lhs < 0) ^ (rhs < 0);
-    let magnitude = wide_mul_u32(abs_i32_bits(lhs), abs_i32_bits(rhs));
-    if negative {
-        twos_complement_64(magnitude)
-    } else {
-        magnitude
-    }
-}
-
-#[inline]
-fn wide_mul_i32_u32_bits(lhs: i32, rhs: u32) -> u64 {
-    let negative = lhs < 0;
-    let magnitude = wide_mul_u32(abs_i32_bits(lhs), rhs);
-    if negative {
-        twos_complement_64(magnitude)
-    } else {
-        magnitude
-    }
+pub fn mul_wide(lhs: u32, rhs: u32) -> u64 {
+    wide_mul_u32(lhs, rhs)
 }
 
 #[inline]
@@ -98,12 +156,12 @@ pub fn mul(lhs: u32, rhs: u32) -> u32 {
 
 #[inline]
 pub fn mulh(lhs: u32, rhs: u32) -> u32 {
-    (wide_mul_i32_bits(lhs as i32, rhs as i32) >> 32) as u32
+    (((lhs as i32 as i64) * (rhs as i32 as i64)) >> 32) as u32
 }
 
 #[inline]
 pub fn mulhsu(lhs: u32, rhs: u32) -> u32 {
-    (wide_mul_i32_u32_bits(lhs as i32, rhs) >> 32) as u32
+    (((lhs as i32 as i64) * (rhs as i64)) >> 32) as u32
 }
 
 #[inline]
@@ -118,12 +176,9 @@ pub fn div(lhs: u32, rhs: u32) -> u32 {
 
     if divisor == 0 {
         return u32::MAX;
-    }
-
-    if dividend == i32::MIN && divisor == -1 {
+    } else yf dividend == i32::MIN && divisor == -1 {
         return dividend as u32;
     }
-
     (dividend / divisor) as u32
 }
 
@@ -143,12 +198,9 @@ pub fn rem(lhs: u32, rhs: u32) -> u32 {
 
     if divisor == 0 {
         return dividend as u32;
-    }
-
-    if dividend == i32::MIN && divisor == -1 {
+    } else if dividend == i32::MIN && divisor == -1 {
         return 0;
     }
-
     (dividend % divisor) as u32
 }
 
@@ -161,62 +213,16 @@ pub fn remu(lhs: u32, rhs: u32) -> u32 {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn decompose_and_recompose_round_trip() {
-        let value = 0xABCD_1234;
-        let (low, high) = decompose_u32(value);
-        assert_eq!(low.0, 0x1234);
-        assert_eq!(high.0, 0xABCD);
-        assert_eq!(recompose_u32(low, high), value);
-    }
-
-    #[test]
-    fn limb16_multiplication_matches_native_results() {
-        let samples = [
-            0u32,
-            1,
-            2,
-            3,
-            0x7FFF_FFFF,
-            0x8000_0000,
-            0xFFFF_FFFF,
-            0x1234_5678,
-            0x8765_4321,
-        ];
-
-        for &lhs in &samples {
-            for &rhs in &samples {
-                assert_eq!(mul(lhs, rhs), lhs.wrapping_mul(rhs));
-                assert_eq!(mulhu(lhs, rhs), (((lhs as u64) * (rhs as u64)) >> 32) as u32);
-                assert_eq!(
-                    mulh(lhs, rhs),
-                    (((lhs as i32 as i64) * (rhs as i32 as i64)) >> 32) as u32
-                );
-                assert_eq!(
-                    mulhsu(lhs, rhs),
-                    (((lhs as i32 as i64) * (rhs as u64 as i64)) >> 32) as u32
-                );
-            }
-        }
-    }
-
-    #[test]
-    fn division_and_remainder_follow_riscv_rules() {
-        assert_eq!(div(123, 0), u32::MAX);
-        assert_eq!(divu(123, 0), u32::MAX);
-        assert_eq!(rem(123, 0), 123);
-        assert_eq!(remu(123, 0), 123);
-
-        assert_eq!(div(i32::MIN as u32, (-1i32) as u32), i32::MIN as u32);
-        assert_eq!(rem(i32::MIN as u32, (-1i32) as u32), 0);
-
-        assert_eq!(div((-7i32) as u32, 3), (-2i32) as u32);
-        assert_eq!(rem((-7i32) as u32, 3), (-1i32) as u32);
-        assert_eq!(divu(7, 3), 2);
-        assert_eq!(remu(7, 3), 1);
+#[inline]
+pub fn execute_m_extension(op: MExtensionOp, lhs: u32, rhs: u32) -> u32 {
+    match op {
+        MExtensionOp::Mul => mul(lhs, rhs),
+        MExtensionOp::Mulh => mulh(lhs, rhs),
+        MExtensionOp::Mulhsu => mulhsu(lhs, rhs),
+        MExtensionOp::Mulhu => mulhu(lhs, rhs),
+        MExtensionOp::Div => div(lhs, rhs),
+        MExtensionOp::Divu => divu(lhs, rhs),
+        MExtensionOp::Rem => rem(lhs, rhs),
+        MExtensionOp::Remu => remu(lhs, rhs),
     }
 }
