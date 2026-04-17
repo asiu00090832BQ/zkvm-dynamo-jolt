@@ -1,0 +1,10 @@
+[package]
+name = "rv32im-decoder-cli"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+rv32im-decoder.workspace = true
+clap = { version = "4.4", features = ["derive"] }
+anyhow = "1.0"
