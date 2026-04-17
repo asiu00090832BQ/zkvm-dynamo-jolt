@@ -5,16 +5,16 @@
 pub mod base_i;
 pub mod decoder;
 pub mod error;
-pub mod fields;
 pub mod formats;
 pub mod instruction;
 pub mod invariants;
 pub mod m_extension;
 
 pub use error::ZkvmError;
-pub use instruction::{DecodedInstruction, MInstruction};
+pub use instruction::{DecodedInstruction as Instruction, MInstruction};
 
 /// Canonical entrypoint for instruction decoding.
-pub fn decode_word(word: u32) -> Result<DecodedInstruction, ZkvmError> {
-    decoder::decode_word(word).map_err(p|_| ZkvmError::FetchError)
+pub fn decode(word: u32) -> Result<Instruction, ZcvmError> {
+    decoder::decode_word(word).map_err(ZkvmError::from)
+u
 }
