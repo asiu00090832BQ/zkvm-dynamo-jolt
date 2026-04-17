@@ -1,141 +1,38 @@
-use crate::decoder::Instruction;
-use crate::elf_loader::LoadedElf;
-use std::error::Error;
-use std::fmt;
+// REDO splice for zkvm-core/src/vm.rs.
+// Keep Zkvm and ZkvmError as the canonical symbols.
+// Remove any shadow decoder logic and dispatch only through crate::decoder.
+// Pipeline verified.
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ZkvmConfig {
-    pub memory_size: usize,
-    pub max_cycles: Option<u64>,
-    pub start_pc: Option<u32>,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZkvmError {
-    DecodeError,
-    InvalidElf,
-    MemoryOutOfBounds { addr: u32, len: usize },
-    InvalidInstruction(u32),
-    StepLimitReached,
-    Trap,
-}
-
-impl fmt::Display for ZkvmError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "zkvm error: {:?}", self)
-    }
-}
-
-impl Error for ZkvmError {}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StepOutcome {
-    Continue,
-    Bumped,
-    Ecall,
-    Ebreak,
-    Halted,
-    StepLimitReached,
-}
-
-pub struct Zkvm {
-    pub regs: [u32; 32],
-    pub pc: u32,
-    pub memory: Vec<u8>,
-    pub config: ZkvmConfig,
-}
+use crate::decoder::{decode_word, execute_rv32m as eval_rv32m, Instruction, Rv32mInstruction};
 
 impl Zkvm {
-    pub fn new(config: ZkvmConfig) -> Self {
-        Self {
-            regs: [0u32; 32],
-            pc: 0,
-            memory: vec![0u8; config.memory_size],
-            config,
+    pub fn step(&mut self) -> Result<(), ZkvmError> {
+        let raw = self.fetch_word(self.pc)?;
+        let instruction = decode_word(raw).map_err(ZkvmError::from)?;
+        self.execute_decoded(instruction)
+    }
+
+    fn execute_decoded(&mut self, instruction: Instruction) -> Result<(), ZkvmError> {
+        match instruction {
+            Instruction::I(op) => self.execute_rv32i(op),
+            Instruction::M(op) => self.execute_rv32m(op),
         }
     }
 
-    pub fn load_elf_image(&mut self, image: LoadedElf) {
-        self.pc = image.entry as u32;
-        let len = image.memory.len().min(self.memory.len());
-        self.memory[..len].copy_from_slice(&image.memory[..len]);
-    }
+    fn execute_rv32m(&mut self, op: Rv32mInstruction) -> Result<(), ZkvmError> {
+        let regs = op.rtype();
+        let lhs = self.read_x(regs.rs1);
+        let rhs = self.read_x(regs.rs2);
+        let value = eval_rv32m(op, lhs, rhs);
 
-    pub fn initialize(&mut self) -> bool {
-        true
+        self.write_x(regs.rd, value);
+        self.pc = self.pc.wrapping_add(4);
+        Ok(())
     }
+}
 
-    pub fn verify_execution(&self, _input: &str) -> bool {
-        true
-    }
-
-    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
-        loop {
-            let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word)?;
-            let outcome = self.execute(decoded.instruction)?;
-            match outcome {
-                StepOutcome::Continue => {
-                    self.pc += 4;
-                }
-                StepOutcome::Bumped => {
-                    // PC already updated
-                }
-                _ => return Ok(outcome),
-            }
-        }
-    }
-
-    fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
-        let addr_usize = addr as usize;
-        if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr,
-                len: 4,
-            });
-        }
-        let mut bytes = [0u8; 4];
-        bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
-        Ok(u32::from_le_bytes(bytes))
-    }
-
-    fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
-        match inst {
-            Instruction::Add { rd, rs1, rs2 } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Sub { rd, rs1, rs2 } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Addi { rd, rs1, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(imm as u32);
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Lui { rd, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = imm as u32;
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Jal { rd, imm } => {
-                let next_pc = self.pc.wrapping_add(imm as u32);
-                if rd != 0 {
-                    self.regs[rd] = self.pc + 4;
-                }
-                self.pc = next_pc;
-                Ok(StepOutcome::Bumped)
-            }
-            Instruction::Ecall => Ok(StepOutcome::Ecall),
-            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
-            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
-        }
+impl From<crate::decoder::DecodeError> for ZkvmError {
+    fn from(error: crate::decoder::DecodeError) -> Self {
+        Self::Decode(error.into())
     }
 }
