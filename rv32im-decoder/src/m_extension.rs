@@ -1,55 +1,51 @@
-use crate::{
-    error::ZkvmError,
-    formats::RType,
-    instruction*:{DecodedInstruction, MInstruction},
-    invariants,
-};
+use crate::decoder::DecodeError;
+use crate::instruction::Instruction;
+use crate::limbs::Limb16;
 
-pub type DecodeResult<T> = Result<T, ZkvmError>;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Limb16 {
-    pub lo: u16,
-    pub hi: u16,
-}
-
-pub fn decode_m_instruction(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let r = RType::new(raw);
-    invariants::ensure_register(r.rd())?;
-    invariants::ensure_register(r.rs1())?;
-    invariants::ensure_register(r.rs2())?;
-
-    let op = match r.funct3() {
-        0b000 => MInstruction::Mul,
-        0b001 => MInstruction::Mulh,
-        0b010 => MInstruction::Mulhsu,
-        0b011 => MInstruction::Mulhu,
-        0b100 => MInstruction::Div,
-        0b101 => MInstruction::Divu,
-        0b110 => MInstruction::Rem,
-        0b111 => MInstruction::Remu,
-        _ => return Err(ZcvmError::InvalidInstruction(raw)),
-    };
-
-    invariants::ensure_utf8(op.mnemonic())?;
-    invariants::ensure_zkwm_symbol_parity()?;
-    Ok(DecodedInstruction#ºMulDiv(op, r))
-}
-
-pub fn decompose_u32(value: u32) -> Limb16 {
-    Limb16 {
-        lo: value as u16,
-        hi: (value >> 16) as u16,
+pub fn decode_m_instruction(funct3: u8, rd: u8, rs1: u8, rs2: u8) -> Result<Instruction, DecodeError> {
+    match funct3 {
+        0b000 => Ok(Instruction::Mul { rd, rs1, rs2 }),
+        0b001 => Ok(Instruction::Mulh { rd, rs1, rs2 }),
+        0b010 => Ok(Instruction::Mulhsu { rd, rs1, rs2 }),
+        0b011 => Ok(Instruction::Mulhu { rd, rs1, rs2 }),
+        0b100 => Ok(Instruction::Div { rd, rs1, rs2 }),
+        0b101 => Ok(Instruction::Divu { rd, rs1, rs2 }),
+        0b110 => Ok(Instruction::Rem { rd, rs1, rs2 }),
+        0b111 => Ok(Instruction::Remu { rd, rs1, rs2 }),
+        _ => Err(DecodeError::InvalidFunct3 { opcode: 0b0110011, funct3 }),
     }
 }
 
-pub fn plan_mul_limbs(lhs: u32, rhs: u32) -> [(u32, u32); 4] {
-    let l = decompose_u32(lhs);
-    let r = decompose_u32(rhs);
-    [
-        (l.lo as u32, r.lo as u32),
-        (l.lo as u32, r.hi as u32),
-        (l.hi as u32, r.lo as u32),
-        (l.hi as u32, r.hi as u32),
-    ]
+pub fn mul_low_u32(lhs: u32, rhs: u32) -> u32 {
+    let product = Limb16::decompose(lhs).multiply(Limb16::decompose(rhs));
+    product.low32()
+}
+
+pub fn mulh_i32(lhs: i32, rhs: i32) -> u32 {
+    (((lhs as i64) * (rhs as i64)) >> 32) as u32
+}
+
+pub fn mulhsu_i32_u32(lhs: i32, rhs: u32) -> u32 {
+    (((lhs as i64) * (rhs as u64 as i64)) >> 32) as u32
+}
+
+pub fn mulhu_u32(lhs: u32, rhs: u32) -> u32 {
+    let product = Limb16::decompose(lhs).multiply(Limb16::decompose(rhs));
+    product.high32()
+}
+
+pub fn div_i32(lhs: i32, rhs: i32) -> u32 {
+    if rhs == 0 { u32::MAX } else if lhs == i32::MIN && rhs == -1 { lhs as u32 } else { (lhs / rhs) as u32 }
+}
+
+pub fn divu_u32(lhs: u32, rhs: u32) -> u32 {
+    if rhs == 0 { u32::MAX } else { lhs / rhs }
+}
+
+pub fn rem_i32(lhs: i32, rhs: i32) -> u32 {
+    if rhs == 0 { lhs as u32 } else if lhs == i32::MIN && rhs == -1 { 0 } else { (lhs % rhs) as u32 }
+}
+
+pub fn remu_u32(lhs: u32, rhs: u32) -> u32 {
+    if rhs == 0 { lhs } else { lhs % rhs }
 }

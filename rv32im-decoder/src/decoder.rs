@@ -1,24 +1,42 @@
-use crate::{
-    base_i,
-    error::{DecodeResult, DecoderError},
-    formats::{RawFields, RType},
-    instruction::DecodedInstruction,
-    m_extension,
-};
+use crate::instruction::Instruction;
+use core::fmt;
 
-pub fn decode_word(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let fields = RawFields::new(raw);
-    match fields.opcode() {
-        0b0110011 => decode_op(raw),
-        opcode => base_i::decode_base(raw, opcode),
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DecodeError {
+    UnsupportedOpcode(u8),
+    InvalidFunct3 { opcode: u8, funct3: u8 },
+    InvalidFunct7 { opcode: u8, funct3: u8, funct7: u8 },
+    ReservedEncoding(u32),
+}
+
+impl fmt::Display for DecodeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedOpcode(opcode) => write!(f, "unsupported opcode 0b{opcode:07b}"),
+            Self::InvalidFunct3 { opcode, funct3 } => {
+                write!(
+                    f,
+                    "invalid funct3 0b{funct3:03b} for opcode 0b{opcode:07b}"
+                )
+            }
+            Self::InvalidFunct7 {
+                opcode,
+                funct3,
+                funct7,
+            } => {
+                write!(
+                    f,
+                    "invalid funct7 0b{funct7:07b} for opcode 0b{opcode:07b}, funct3 0b{funct3:03b}"
+                )
+            }
+            Self::ReservedEncoding(word) => write!(f, "reserved or illegal encoding 0x{word:08x}"),
+        }
     }
 }
 
-fn decode_op(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let r = RType::new(raw);
-    match r.funct7() {
-        0b0000001 => m_extension::decode_m_instruction(raw),
-        0b0000000 | 0b0100000 => base_i::decode_base_r(raw),
-        funct7 => Err(DecoderError::UnsupportedFunct7 { raw, funct7 }),
-    }
+impl std::error::Error for DecodeError {}
+
+#[inline]
+pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
+    crate::decode::decode_word(word)
 }

@@ -1,25 +1,15 @@
-pub mod error;
+#![forbid(unsafe_code)]
+
+mod decode;
+pub mod decoder;
 pub mod instruction;
-pub mod formats;
-pub mod base_i;
+pub mod limbs;
 pub mod m_extension;
-pub mod invariants;
 
-pub use crate::error::{DecodeResult, ZkvmError};
-pub use crate::instruction::Instruction;
-
-use crate::base_i::decode_i_instruction;
-use crate::invariants::ensure_zkvm_symbol_parity;
-use crate::m_extension::decode_m_instruction;
-
-pub fn decode(word: u32) -> DecodeResult<Instruction> {
-    ensure_zkvm_symbol_parity()?;
-
-    match (word & 0x7f) as u8 {
-        0x33 if ((word >> 25) & 0x7f) == 0x01 => decode_m_instruction(word),
-        0x03 | 0x13 | 0x17 | 0x23 | 0x33 | 0x37 | 0x63 | 0x67 | 0x6f | 0x73 => {
-            decode_i_instruction(word)
-        }
-        opcode => Err(ZkvmError::UnknownOpcode { raw: word, opcode }),
-    }
-}
+pub use decoder::{decode, DecodeError};
+pub use instruction::Instruction;
+pub use limbs::{Limb16, WideMul16};
+pub use m_extension::{
+    decode_m_instruction, div_i32, divu_u32, mul_low_u32, mulh_i32, mulhsu_i32_u32, mulhu_u32,
+    rem_i32, remu_u32,
+};
