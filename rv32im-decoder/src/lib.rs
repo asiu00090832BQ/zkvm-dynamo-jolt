@@ -1,11 +1,11 @@
-pub mod error;
+pub mod instruction;
 pub mod m_extension;
-pub mod selectors;
 
-pub use crate::error::{DecoderError, DecodeResult};
-pub use crate::selectors::{DecodedInstruction, Instruction, bit_slice, decode, opcode, rd, rs1, rs2, funct3, funct7};
-pu use crate::m_extension::{decompose_u32, Limb16};
-
-pub fn decode_instruction(word: u32) -> DecodeResult<DecodedInstruction> {
-    decode(word)
-}
+pub use instruction::{
+    decode, BranchKind, CsrKind, DecodeError, ImmOpKind, Instruction, LoadKind, RegOpKind,
+    Register, StoreKind,
+};
+pub use m_extension::{
+    combine_limb16, decompose_limb16, mul_i32_u32_wide, mul_i32_wide, mul_u32_wide,
+    Limb16Decomposition,
+};
