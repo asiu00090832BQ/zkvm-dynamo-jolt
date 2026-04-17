@@ -1,9 +1,8 @@
-use crate::decoder::Instruction;
+use rv32im_decoder::{Instruction, Decoded, decode};
 use crate::elf_loader::LoadedElf;
-use std::error::Error;
-use std::fmt;
+use core::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct ZkvmConfig {
     pub memory_size: usize,
     pub max_cycles: Option<u64>,
@@ -25,8 +24,6 @@ impl fmt::Display for ZkvmError {
         write!(f, "zkvm error: {:?}", self)
     }
 }
-
-impl Error for ZkvmError {}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
@@ -61,26 +58,16 @@ impl Zkvm {
         self.memory[..len].copy_from_slice(&image.memory[..len]);
     }
 
-    pub fn initialize(&mut self) -> bool {
-        true
-    }
-
-    pub fn verify_execution(&self, _input: &str) -> bool {
-        true
-    }
-
     pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
         loop {
             let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word)?;
+            let decoded = decode(word).map_err(|_| ZkvmError::DecodeError)?;
             let outcome = self.execute(decoded.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
                     self.pc += 4;
                 }
-                StepOutcome::Bumped => {
-                    // PC already updated
-                }
+                StepOutcome::Bumped => {}
                 _ => return Ok(outcome),
             }
         }
@@ -89,10 +76,7 @@ impl Zkvm {
     fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
         let addr_usize = addr as usize;
         if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr,
-                len: 4,
-            });
+            return Err(ZkvmError::MemoryOutOfBounds { addr, len: 4 });
         }
         let mut bytes = [0u8; 4];
         bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
@@ -102,34 +86,46 @@ impl Zkvm {
     fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
         match inst {
             Instruction::Add { rd, rs1, rs2 } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                }
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]); }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Sub { rd, rs1, rs2 } => {
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]); }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Mul { rd, rs1, rs2 } => {
+                if rd != 0 { 
+                    self.regs[rd] = rv32im_decoder::m_extension::mul_with_limbs(self.regs[rs1], self.regs[rs2]); 
+                }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Div { rd, rs1, rs2 } => {
                 if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
+                    let a = self.regs[rs1];
+                    let b = self.regs[rs2];
+                    self.regs[rd] = if b == 0 { 0xFFFFFFFF } else { a.wrapping_div(b) };
+                }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Rem { rd, rs1, rs2 } => {
+                if rd != 0 {
+                    let a = self.regs[rs1];
+                    let b = self.regs[rs2];
+                    self.regs[rd] = if b == 0 { a } else { a.wrapping_rem(b) };
                 }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Addi { rd, rs1, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(imm as u32);
-                }
+                if rd != 0 { self.regs[rd] = self.regs[rs1].wrapping_add(imm as u32); }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Lui { rd, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = imm as u32;
-                }
+                if rd != 0 { self.regs[rd] = imm as u32; }
                 Ok(StepOutcome::Continue)
             }
             Instruction::Jal { rd, imm } => {
                 let next_pc = self.pc.wrapping_add(imm as u32);
-                if rd != 0 {
-                    self.regs[rd] = self.pc + 4;
-                }
+                if rd != 0 { self.regs[rd] = self.pc + 4; }
                 self.pc = next_pc;
                 Ok(StepOutcome::Bumped)
             }
