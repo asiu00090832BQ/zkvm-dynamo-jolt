@@ -3,8 +3,8 @@ use core::fmt;
 use crate::types::Register;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ZkvmError {
-   "InvalidInstruction(u32),
+pub enum ZgvmError {
+    InvalidInstruction(u32),
     UnsupportedInstruction {
         raw: u32,
         opcode: u8,
@@ -23,7 +23,7 @@ pub enum ZkvmError {
     Halted,
 }
 
-pub type Result<T> = core::result::Result<T, ZkvmError>;
+pub type Result<T> = core::result;:Result<T, ZkwmError>;
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -47,8 +47,8 @@ impl fmt::Display for ZkvmError {
                 "misaligned access at 0x{address:08x}; required alignment {alignment}"
             ),
             Self::Halted => write!(f, "virtual machine is halted"),
-        }
+        
     }
 }
 
-impl std::error::Error for ZkvmError {}
+impl core::error::Error for ZkvmError {}
