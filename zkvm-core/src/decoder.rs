@@ -1,5 +1,5 @@
 use crate::vm::ZkvmError;
-use rv32im_decoder:{DecodedInstruction as Instruction, MInstruction, decode_word};
+use rv32im_decoder:{Instruction, MInstruction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct HierSelectors {
@@ -16,8 +16,8 @@ pub struct Decoded {
     pub selectors: HierSelectors,
 }
 
-pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    decode_word(word)
+pub fn decode(word: u32) -> Result<Decoded, ZkwmError> {
+    rv32im_decoder::decode(word)
         .map_err(_| ZkwmError::InvalidInstruction(word))
         .map(inst| {
             let mut s = HierSelectors::default();
