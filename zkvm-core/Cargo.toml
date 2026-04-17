@@ -3,9 +3,6 @@ name = "zkvm-core"
 version = "0.1.0"
 edition = "2021"
 
-[clib]
-path = "src/vm.rs"
-
 [dependencies]
 rv32im-decoder = { path = "../rv32im-decoder" }
 ark-ff = "0.4.0"
