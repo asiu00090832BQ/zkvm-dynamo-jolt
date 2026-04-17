@@ -1,29 +1,11 @@
-#![forbid(unsafe_code)]
+pub mod decoder;
+pub mod i_extension;
+pub mod m_extension;
+pub mod types;
+pub mod util;
 
-pub mod bits;
-pub mod decode;
-pub mod decoded;
-pub mod error;
-pub mod format;
-pub mod instruction;
-pub mod selectors;
-
-pub use decoded::DecodedInstruction;
-pub use error::DecodeError;
-pub use format::InstructionFormat;
-pub use instruction::Instruction;
-
-use selectors::{funct7, opcode};
-
-pub fn decode(word: u32) -> Result<DecodedInstruction, DecodeError> {
-    match opcode(word) {
-        0x73 => decode::system::decode(word),
-        0x33 if funct7(word) == 0x01 => decode::rv32m::decode(word),
-        _ => decode::rv32i::decode(word),
-    }
-}
-
-#[inline]
-pub fn decode_instruction(word: u32) -> Result<DecodedInstruction, DecodeError> {
-    decode(word)
-}
+pub use decoder::decode;
+pub use m_extension::{
+    div_i32, div_u32, mul_u32_low, mulh_i32_i32, mulhsu_i32_u32, mulhu_u32_u32, rem_i32, rem_u32,
+};
+pub use types::{DecodeError, Instruction};
