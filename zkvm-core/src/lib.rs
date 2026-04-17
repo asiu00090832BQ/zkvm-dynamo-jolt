@@ -1,8 +1,5 @@
-// Public zkvm-core symbols.
-
-#![forbid(unsafe_code)]
-
 pub mod vm;
 pub mod decoder;
-
-pub use crate::vm::{Zkvm, ZkvmError};
+pub use vm::{Zkvm, ZkvmError, ZkvmConfig};
+pub use decoder::Decoder;
+pub use rv32im_decoder::{DecodeError, Instruction};
