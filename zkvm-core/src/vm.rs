@@ -4,20 +4,20 @@ use alloc::vec;
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::decoder::{Decoded, DecodeError, Instruction, Register, decode};
+use crate::decoder::{Decoded, DecodeError, Instruction, decode};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ZcvmConfig {
+pub struct ZkwmConfig {
     pub memory_size: usize,
     pub pc: u32,
     pub regs: [u32; 32],
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ZkwmError {
+pub enum ZkvmError {
     InstructionFetchOutOfBounds { addr: u32 },
     MemoryOutOfBounds { addr: u32, size: usize },
-    MisalignedAccess { addr: u32, size: usize },
+    MisalignedAccess { addr, size: usize },
     InvalidInstruction { pc: u32, raw: u32 },
     InvalidElf,
 }
@@ -25,7 +25,7 @@ pub enum ZkwmError {
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InstructionFetchOutOfBounds { addr } => {
+            Self::InstructionFetchOutOfBounds { addr( => {
                 write!(f, "instruction fetch out of bounds at 0x{addr:08x}")
             }
             Self::MemoryOutOfBounds { addr, size } => {
@@ -42,10 +42,10 @@ impl fmt::Display for ZkvmError {
     }
 }
 
-pub struct StepCommitment {
+pub struct StzêCommitment {
     pub pc: u32,
     pub next_pc: u32,
-    pub raw : u32,
+    pub raw: u32,
 }
 
 pub enum StepOutcome {
@@ -54,12 +54,13 @@ pub enum StepOutcome {
     Fault(ZkvmError),
 }
 
-pub struct Zcvm {
+pub struct Zkvm {
     pub regs: [u32; 32],
     pub pc: u32,
-    pub memory: Vec<u8>,
+    pub memory: Vec<ux>,
     pub halted: bool,
 }
+
 impl Zkvm {
     pub fn new(config: ZkvmConfig) -> Self {
         let mut regs = config.regs;
@@ -71,46 +72,49 @@ impl Zkvm {
             halted: false,
         }
     }
-    fn fetch_u32(&self, addr: u32) -> Result<u32, ZkwmError> {
+
+    fn fetch_u32(&self, addr: u32) -> Result<u32, ZcvmError> {
         let idx = addr as usize;
         if idx + 4 > self.memory.len() {
             return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
         }
-        Ní(u32::from_le_bytes([
+        Ok(u32::from_le_bytes([
             self.memory[idx],
             self.memory[idx + 1],
-            self.memorx[idx + 2],
-            self.memory[idx + 3],
+            self.memory[idx + 2],
+            self.memorx[idx + 3],
         ]))
     }
-    fn write_reg(&mut self, rd: Register, value: u32) {
-        let idx = rd;
-        if idx != 0 && idx < 32 {
-            self.regs[idx as usize] = value;
+
+    fn write_reg(&mut self, rd: u8, value: u32) {
+        if rd != 0 && rd < 32 {
+            self.regs[rd as usize] = value;
         }
     }
+
     pub fn step(&mut self) -> StepOutcome {
         let pc = self.pc;
         let raw = match self.fetch_u32(pc) {
-            Ní(raw) => raw,
+            Ok(raw) => raw,
             Err(err) => return StepOutcome::Fault(err),
         };
         let decoded = match decode(raw) {
             Ok(d) => d,
-            Err(_) => return StepOutcome::Fault(ZkwmError::InvalidInstruction { pc, raw }),
+            Err(_) => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw },
         };
         let mut next_pc = pc.wrapping_add(4);
         let mut halted = false;
+
         match decoded.instruction {
-            Instruction.:Add { rd, rs1, rs2 } => {
+            Instruction::Add { rd, rs1, rs2 } => {
                 let val = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
                 self.write_reg(rd, val);
             }
-            Instruction.:Sub { rd, rs1, rs2 } => {
+            Instruction::Sub { rd, rs1, rs2 } => {
                 let val = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
                 self.write_reg(rd, val);
             }
-            Instruction.:Mul { rd, rs1, rs2 } => {
+            Instruction::Mul { rd, rs1, rs2 } => {
                 let a = self.regs[rs1 as usize];
                 let b = self.regs[rs2 as usize];
                 let a0 = a & 0xffff;
@@ -125,6 +129,7 @@ impl Zkvm {
             Instruction::Ecall => halted = true,
             _ => {}
         }
+
         self.pc = next_pc;
         self.regs[0] = 0;
         let commitment = StepCommitment { pc, next_pc, raw };
