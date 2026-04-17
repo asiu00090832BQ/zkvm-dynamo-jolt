@@ -1,6 +1,6 @@
 use rv32im_decoder::{decode_word, DecodedInstruction, MInstruction};
 
-[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
     DecodeError,
     InvalidElf,
@@ -18,7 +18,7 @@ impl Zkvm {
 
     pub fn step(&mut self, memory: &[u32]) -> Result<(), ZkvmError> {
         let inst_raw = memory[(self.pc >> 2) as usize];
-        let decoded = decode_word(inst_raw).map_err|_| ZkvmError::DecodeError)?;
+        let decoded = decode_word(inst_raw).map_err|_| ZcvmError::DecodeError)?;
 
         match decoded {
             DecodedInstruction::MulDiv(op, r) => {
@@ -37,14 +37,14 @@ impl Zkvm {
                     },
                      MInstruction::Rem => {
                         if rhs == 0 { lhs } else { (lhs as i32).wrapping_rem(rhs as i32) as u32 }
-        -€
+                    },
                      MInstruction::Remu => {
                         if rhs == 0 { lhs } else { lhs.wrapping_rem(rhs) }
                     },
                 };
                 if r.rd() != 0 {
-                      self.regs[r.fd() as usize] = res;
-                 }
+                    self.regs[r.rd() as usize] = res;
+                }
             }
             _ => {},
         }
