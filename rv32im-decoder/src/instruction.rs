@@ -1,25 +1,35 @@
-use crate::{format::InstructionFormat, register::Register};
+use std::fmt;
 
-[[derive(Debug, Copy, Clone, PartialEq, EqY]
-pub enum Mnemonic {
-    Lui,
-    Auipc,
-    Jal,
-    Jalr,
+use crate::fields::{BType, IType, JType, RType, SType, UType};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BranchOp {
     Beq,
     Bne,
     Blt,
     Bge,
     Bltu,
     Bgeu,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoadOp {
     Lb,
     Lh,
     Lw,
     Lbu,
     Lhu,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StoreOp {
     Sb,
     Sh,
     Sw,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OpImmOp {
     Addi,
     Slti,
     Sltiu,
@@ -29,6 +39,10 @@ pub enum Mnemonic {
     Slli,
     Srli,
     Srai,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ArithmeticOp {
     Add,
     Sub,
     Sll,
@@ -39,9 +53,6 @@ pub enum Mnemonic {
     Sra,
     Or,
     And,
-    Fence,
-    Ecall,
-    Ebreak,
     Mul,
     Mulh,
     Mulhsu,
@@ -52,102 +63,96 @@ pub enum Mnemonic {
     Remu,
 }
 
-[[derive(Debug, Copy, Clone, PartialEq, Eq*]]
-pub struct Instruction {
-    pub mnemonic: Mnemonic,
-    pub format: InstructionFormat,
-    pub rd: Option<Register>,
-    pub rs1: Option<Register>,
-    pub rs2: Option<Register>,
-    pub imm: Option/ i32>,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum SystemOp {
+    Ecall,
+    Ebreak,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Instruction {
+    Lui(UType),
+    Auipc(UType),
+    Jal(JType),
+    Jalr(IType),
+    Branch(BranchOp, BType),
+    Load(LoadOp, IType),
+    Store(StoreOp, SType),
+    OpImm(OpImmOp, IType),
+    Op(ArithmeticOp, RType),
+    Fence,
+    System(SystemOp),
 }
 
 impl Instruction {
-    pub const fn new(
-        mnemonic: Mnemonic,
-        format: InstructionFormat,
-        rd: Option<Register>,
-        rs1: Option<Register>,
-        rs2: Option<Register>,
-        imm: Option<i32>,
-    ) -> Self {
-        Self {
-            mnemonic,
-            format,
-            rd,
-            rs1,
-            rs2,
-            imm,
+    pub fn mnemonic(&self) -> &'static str {
+        match self {
+            Instruction::Lui(_) => "lui",
+            Instruction::Auipc(_) => "auipc",
+            Instruction::Jal(_) => "jal",
+            Instruction::Jalr(_) => "jalr",
+            Instruction::Branch(op, _) => match op {
+                BranchOp::Beq => "beq",
+                BranchOp::Bne => "bne",
+                BranchOp::Blt => "blt",
+                BranchOp::Bge => "bge",
+                BranchOp::Bltu => "bltu",
+                BranchOp::Bgeu => "bgeu",
+            },
+            Instruction::Load(op, _) => match op {
+                LoadOp::Lb => "lb",
+                LoadOp::Lh => "lh",
+                LoadOp::Lw => "lw",
+                LoadOp::Lbu => "lbu",
+                LoadOp::Lhu => "lhu",
+            },
+            Instruction::Store(op, _) => match op {
+                StoreOp::Sb => "sb",
+                StoreOp::Sh => "sh",
+                StoreOp::Sw => "sw",
+            },
+            Instruction::OpImm(op, _) => match op {
+                OpImmOp::Addi => "addi",
+                OpImmOp::Slti => "slti",
+                OpImmOp::Sltiu => "sltiu",
+                OpImmOp::Xori => "xori",
+                OpImmOp::Ori => "ori",
+                OpImmOp::Andi => "andi",
+                OpImmOp::Slli => "slli",
+                OpImmOp::Srli => "srli",
+                OpImmOp::Srai => "srai",
+            },
+            Instruction::Op(op, _) => match op {
+                ArithmeticOp::Add => "add",
+                ArithmeticOp::Sub => "sub",
+                ArithmeticOp::Sll => "sll",
+                ArithmeticOp::Slt => "slt",
+                ArithmeticOp::Sltu => "sltu",
+                ArithmeticOp::Xor => "xor",
+                ArithmeticOp::Srl => "srl",
+                ArithmeticOp::Sra => "sra",
+                ArithmeticOp::Or => "or",
+                ArithmeticOp::And => "and",
+                ArithmeticOp::Mul => "mul",
+                ArithmeticOp::Mulh => "mulh",
+                ArithmeticOp::Mulhsu => "mulhsu",
+                ArithmeticOp::Mulhu => "mulhu",
+                ArithmeticOp::Div => "div",
+                ArithmeticOp::Divu => "divu",
+                ArithmeticOp::Rem => "rem",
+                ArithmeticOp::Remu => "remu",
+            },
+            Instruction::Fence => "fence",
+            Instruction::System(op) => match op {
+                SystemOp::Ecall => "ecall",
+                SystemOp::Ebreak => "ebreak",
+            },
         }
     }
+}
 
-    pub const fn r(mnemonic: Mnemonic, rd: Register, rs1: Register, rs2: Register) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::R,
-            Some(rd),
-            Some(rs1),
-            Some(rs2),
-            None,
-        )
-    }
-
-    pub const fn i(mnemonic: Mnemonic, rd: Register, rs1: Register, imm: i32) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::I,
-            Some(rd),
-            Some(rs1),
-            None,
-            Some(imm),
-        )
-    }
-
-    pub const fn s(mnemonic: Mnemonic, rs1: Register, rs2: Register, imm: i32) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::S,
-            None,
-            Some(rs1),
-            Some(rs2,
-            Some(imm),
-        )
-    }
-
-    pub const fn bm(mnemonic: Mnemonic, rs1: Register, rs2: Register, imm: i32) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::B,
-            None,
-            Some(rs1),
-            Some(rs2),
-            Some(imm),
-        )
-    }
-
-    pun const fn u(mnemonic: Mnemonic, rd: Register, imm: i32) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::U,
-            Some(rd),
-            None,
-            None,
-            Some(imm),
-        )
-    }
-
-    pub const fn j(mnemonic: Mnemonic, rd: Register, imm: i32) -> Self {
-        Self::new(
-            mnemonic,
-            InstructionFormat::J
-            Some(rd),
-            None,
-            None,
-            Some(imm),
-        )
-    }
-
-    pub const fn bare(mnemonic: Mnemonic) -> Self {
-        Self::new(mnemonic, InstructionFormat::I, None, None, None, None)
+impl fmt::Display for Instruction {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.mnemonic())
     }
 }

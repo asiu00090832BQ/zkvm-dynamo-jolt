@@ -1,15 +1,15 @@
+pub mod decoder;
 pub mod error;
-pub mod format;
+pub mod fields;
 pub mod instruction;
-pub mod register;
 
-mod decode;
+pub use decoder::decode;
+pub use decoder::invariants;
+pub use error::{Result, ZkvmError};
+pub use fields::{BType, IType, JType, RType, RawInstruction, SType, UType};
+pub use instruction::{
+    ArithmeticOp, BranchOp, Instruction, LoadOp, OpImmOp, StoreOp, SystemOp,
+};
 
-pub use error::DecodeError;
-pub use format::InstructionFormat;
-pub use instruction::{Instruction, Mnemonic};
-pub use register::Register;
-
-pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
-    decode::decode(word)
-}
+#[cfg(test)]
+mod tests;
