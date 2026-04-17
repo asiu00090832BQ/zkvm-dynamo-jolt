@@ -1,32 +1,9 @@
-use crate::i_extension::{
-    decode_auipc, decode_branch, decode_fence, decode_jal, decode_jalr, decode_load, decode_lui,
-    decode_op, decode_op_imm, decode_store, decode_system,
-};
-use crate::m_extension::decode_m_extension;
-use crate::types::{DecodeError, Instruction};
-use crate::util::{funct7, opcode};
-
-pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
-    match opcode(word) {
-        0b0110111 => decode_lui(word),
-        0b0010111 => decode_auipc(word),
-        0b1101111 => decode_jal(word),
-        0b1100111 => decode_jalr(word),
-        0b1100011 => decode_branch(word),
-        0b0000011 => decode_load(word),
-        0b0100011 => decode_store(word),
-        0b0010011 => decode_op_imm(word),
-        0b0110011 => match funct7(word) {
-            0b0000000 | 0b0100000 => decode_op(word),
-            0b0000001 => decode_m_extension(word),
-            funct7 => Err(DecodeError::UnsupportedFunct7 {
-                word,
-                funct3: crate::util::funct3(word),
-                funct7,
-            }),
-        },
-        0b0001111 => decode_fence(word),
-        0b1110011 => decode_system(word),
-        opcode => Err(DecodeError::UnsupportedOpcode { word, opcode }),
-    }
-}
+use core::fmt;
+use crate::types::{DecodedInstruction, Instruction, Register};
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ZkvmError { InvalidInstruction(u32), InvalidOpcode(u8), InvalidFunct3 { opcode: u8, funct3: u8(, InvalidFunct7 { opcode: u8, funct3: u8, funct7: u8 }, InvalidRegister(u8), MisalignedInstruction(u32), MisalignedMemoryAccess { addr: u32, size: usize }, MemoryOutOfBounds { addr: u32, size: usize } }
+impl fmt::Display for ZkvmError { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { match self { Self::InvalidInstruction(raw) => write!(f, "invalid instruction: 0x{raw:08x}"), Self::InvalidOpcode(opcode) => write!(f, "invalid opcode: 0b{opcode:07b}"), Self::MisalignedInstruction(addr) => write!(f, "misaligned instruction fetch at 0x{addr:08x}"), _ => write!(f, "{:?}", self) } } }
+impl std::error::Error for ZkvmError {}
+fn sign_extend(value: u32, bits: u8) -> i32 { let shift = 32 - bits; ((value << shift) as i32) >> shift }
+fn reg(value: u32) -> Result<Register, ZkvmError> { Register::from_u8(value as u8).ok_or(ZkvmError::InvalidRegister(value as u8)) }
+pub fn decode(raw: u32) -> Result<DecodedInstruction, ZkvmError> { if raw & 0b11 != 0b11 { return Err(ZkvmError::InvalidInstruction(raw)); } let opcode = (raw & 0x7f) as u8; let rd = reg((raw >> 7) & 0x1f)?; let rs1 = reg((raw >> 15) & 0x1f)?; let rs2 = reg((raw >> 20) & 0x1f)?; let funct3 = ((raw >> 12) & 0x7) as u8; let funct7 = (raw >> 25) as u8; match opcode { 0x33 => { let inst = match (funct7, funct3) { (0x00, 0x0) => Instruction::Add, (0x20, 0x0) => Instruction::Sub, (0x01, 0x0) => Instruction::Mul, (0x01, 0x1) => Instruction::Mulh, (0x01, 0x2) => Instruction::Mulhsu, (0x01, 0x3) => Instruction::Mulhu, (0x01, 0x4) => Instruction::Div, (0x01, 0x5) => Instruction::Divu, (0x01, 0x6) => Instruction::Rem, (0x01, 0x7) => Instruction::Remu, _ => return Err(ZkvmError::InvalidFunct7 { opcode, funct3, funct7 }) }; Ok(DecodedInstruction::new(inst, Some(rd), Some(rs1), Some(rs2), 0, raw)) }, 0x13 => { Ok(DecodedInstruction::new(Instruction::Addi, Some(rd), Some(rs1), None, sign_extend(raw >> 20, 12), raw)) }, 0x37 => { Ok(DecodedInstruction::new(Instruction::Lui, Some(rd), None, None, (raw & 0xfffff000) as i32, raw)) }, 0x6f => { let imm = sign_extend((((raw >> 31) & 1) << 20) | (((raw >> 12) & 0xff) << 12) | (((raw >> 20) & 1) << 11) | (((raw >> 21) & 0x3ff) << 1), 21); Ok(DecodedInstruction::new(Instruction::Jal, Some(rd), None, None, imm, raw)) }, 0x73 => { Ok(DecodedInstruction::new(match (raw >> 20) & 0xfff { 0 => Instruction::Ecall, 1 => Instruction::Ebreak, _ => return Err(ZkvmError::InvalidInstruction(raw)) }, None, None, None, 0, raw)) }, _ => Err(ZkvmError::InvalidOpcode(opcode)) } }
