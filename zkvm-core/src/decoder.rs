@@ -1,18 +1,10 @@
-use crate::vm::ZkvmError;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Add { rd: u32, rs1: u32, rs2: u32 },
-    Sub { rd: u32, rs1: u32, rs2: u32 },
-    Ecall,
-    Invalid(u32),
-}
-
-pub struct Decoded {
-    pub word: u32,
-    pub instruction: Instruction,
-}
-
-pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    Ok(Decoded { word, instruction: Instruction::Ecall })
-}
+pub use rv32im_decoder::{
+    decode::m_extension::decode_m_extension,
+    error::ZkvmError,
+    isa::opcode::{
+        DecodedInstruction, InstructionWord, MFunct3, MInstruction, MInstructionKind, Opcode,
+        RegisterTriple, RV32M_FUNCT7,
+    },
+    verify::lemma_6_1_1::{decompose_u32_to_limbs_16, verify_lemma_6_1_1, Limb16Product},
+    zkvm::{ZkvmConfig, ZkvmDecoder},
+};
