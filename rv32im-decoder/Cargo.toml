@@ -1,11 +1,12 @@
 [package]
 name = "rv32im-decoder"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-seride = { version = "1.0", features = ["derive"] }
+ark-ff.workspace = true
+ark-std.workspace = true
 
-[features]
-default = ["mext"]
-mext = []
+[lints.rust]
+unsafe_code = "forbid"
