@@ -1,7 +1,7 @@
-use rv32im_decoder::{decode_word as rv_decode_word, DecodeError, Instruction};
-pub struct Decoder;
-impl Decoder {
-    pub fn decode(raw: u32) -> Result<Instruction, DecodeError> {
-        rv_decode_word(raw)
-    }
+use rv32im_decoder::{decode_word, DecodedInstruction};
+
+use crate::ZkvmError;
+
+pub fn decode_instruction(word: u32) -> Result<DecodedInstruction, ZkvmError> {
+    decode_word(word).map_err(ZkvmError::from)
 }
