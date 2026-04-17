@@ -1,3 +1,32 @@
-pub enum Instruction { Add { rd: u8, rs1: u8, rs2: u8 } }
-pub enum DecodeError { Invalid(u32) }
-pub fn decode_instruction(_: u32) -> Result<Instruction, DecodeError> { Ok(Instruction::Add { rd: 0, rs1: 0, rs2: 0 }) }
+#![cfg_attr(not(feature = "std"), no_std)]
+#![forbid(unsafe_code)]
+#![doc = include_str!("../docs/architecture.md")]
+
+pub mod compat;
+pub mod decode;
+pub mod error;
+pub mod fields;
+pub mod format;
+pub mod immediate;
+pub mod instruction;
+pub mod limb16;
+pub mod opcode;
+pub mod register;
+pub mod word;
+
+#[cfg(feature = "std")]
+pub mod cli;
+
+pub use compat::{Zkvm, ZkvmError};
+pub use decode::{decode, Decoder};
+pub use error::{DecodeError, DecodeResult};
+pub use fields::Fields;
+pub use format::Format;
+pub use instruction::{
+    BranchKind, CsrKind, Instruction, LoadKind, OpImmKind, OpKind, ShiftImmKind, StoreKind,
+    SystemKind,
+};
+pub use limb16::Limb16;
+pub use opcode::Opcode;
+pub use register::Register;
+pub use word::Word;
