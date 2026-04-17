@@ -1,3 +1,10 @@
-pub enum Instruction { Add { rd: u8, rs1: u8, rs2: u8 } }
-pub enum DecodeError { Invalid(u32) }
-pub fn decode_instruction(_: u32) -> Result<Instruction, DecodeError> { Ok(Instruction::Add { rd: 0, rs1: 0, rs2: 0 }) }
+mod error;
+mod instruction;
+pub mod decoder;
+
+pub use decoder::{
+    decode, decode_base, decode_m_extension, div_signed, div_unsigned, mul_low, mul_u32_wide,
+    mulh_signed, mulh_signed_unsigned, mulhu, rem_signed, rem_unsigned,
+};
+pub use error::ZkvmError;
+pub use instruction::{Instruction, Register};
