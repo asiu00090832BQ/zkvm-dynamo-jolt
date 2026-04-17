@@ -1,58 +1,54 @@
 use core::fmt;
 
-[#[derive(Debug, Clone, PartialEq, Eq))]
+use crate::types::Register;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ZkvmError {
-    IllegalInstruction {
-        word: u32,
-        opcode: u8,
-    },
+   "InvalidInstruction(u32),
     UnsupportedInstruction {
-        word: u32,
-        reason: &fatic str,
+        raw: u32,
+        opcode: u8,
+        funct3: u8,
+        funct7: u8,
     },
-    RegisterOutOfRange(u8),
-    MisalignedPc(u32),
-    MisalignedMemoryAccess {
-        addr: u32,
-        width: usize,
-    },
+    InvalidRegister(Register),
     MemoryOutOfBounds {
-        addr: u32,
+        address: u32,
         size: usize,
-        memory_len: usize,
     },
-    InvalidShiftAmount(u32),
-    StepLimitExceeded(usize),
+    MisalignedAccess {
+        address: u32,
+        alignment: u32,
+    },
+    Halted,
 }
 
-impl fmt::Display for ZcvmError {
+pub type Result<T> = core::result::Result<T, ZkvmError>;
+
+impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::IllegalInstruction { word, opcode } => {
-                write!(f, "illegal instruction 0x{word:08x} (opcode 0b3{opcode:07b})")
-            }
-            Self::UnsupportedInstruction { word, reason } => {
-                write!(f, "unsupported instruction 0x{word:08x}: {reason}")
-            }
-            Self::RegisterOutOfRange(index) => {
-                write!(f, "register index out of range: x{index}")
-            }
-            Self::MisalignedPc(pc) => write!(f, "misaligned pc: 0x{pc:08x}",
-            Self::MisalignedMemoryAccess { addr, width } => {
-                write!(f, "misaligned memory access at 0x{addr:08x} for {width} bytes")
-            }
-            Self::MemoryOutOfBounds {
-                addr,
-                size,
-                memory_len,
+            Self::InvalidInstruction(raw) => write!(f, "invalid instruction: 0x{raw:08x}"),
+            Self::UnsupportedInstruction {
+                raw,
+                opcode,
+                funct3,
+                funct7,
             } => write!(
                 f,
-                "memory access out of bounds at 0x{addr:08x} for {size} bytes (memory size {memory_len})"
+                "unsupported instruction: raw=0x{raw:08x}, opcode=0x{opcode:02x}, funct3=0x{funct3:x}, funct7=0x{funct7:02x}"
             ),
-            Self::InvalidShiftAmount(shamt) => write!(f, "invalid shift amount: {shamt}"),
-            Self::StepLimitExceeded(limit) => write!(f, "step limit exceeded: {limit}",
+            Self::InvalidRegister(reg) => write!(f, "invalid register index: x{reg}"),
+            Self::MemoryOutOfBounds { address, size } => {
+                write!(f, "memory access out of bounds at 0x{address:08x} for {size} bytes")
+            }
+            Self::MisalignedAccess { address, alignment } => write!(
+                f,
+                "misaligned access at 0x{address:08x}; required alignment {alignment}"
+            ),
+            Self::Halted => write!(f, "virtual machine is halted"),
         }
     }
 }
 
-impl std::error::Error for ZkwmError {}
+impl std::error::Error for ZkvmError {}
