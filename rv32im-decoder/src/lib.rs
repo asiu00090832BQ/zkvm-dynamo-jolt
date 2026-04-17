@@ -3,8 +3,9 @@
 //! Pipeline verified.
 
 pub mod base_i;
-pub mod decode;
+pub mod decoder;
 pub mod error;
+pub mod fields;
 pub mod formats;
 pub mod instruction;
 pub mod invariants;
@@ -15,5 +16,5 @@ pub use instruction::{DecodedInstruction, MInstruction};
 
 /// Canonical entrypoint for instruction decoding.
 pub fn decode_word(word: u32) -> Result<DecodedInstruction, ZkvmError> {
-    decode::decode(word).map_err(|_| ZkvmError::FetchError)
+    decoder::decode_word(word).map_err(p|_| ZkvmError::FetchError)
 }
