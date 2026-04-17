@@ -1,164 +1,140 @@
-/// RV32Mdecode/execute helpers.
-///
-/// This module is `no_std` friendly and implements:
-/// MUL, MULH, MULHSU, MULHU, DIV, DIVU, REM, REMU.
-///
-/// Lemma 6.1.1 is implemented in `lemma_6_1_1_limbs()` and used by
-/// `mul_low_u32()` via 16-bit limb decomposition: a0, a1, b0, b1.
+use crate::error::DecoderError;
+use crate::instruction::{Instruction, MulKind};
+use crate::selectors::{FUNCT7_M, OPCODE_OP};
+use crate::util::{funct3, funct7, rd, rs1, rs2};
+use crate::types::Word;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MExtensionOp {
-    Mul,
-    Mulh,
-    Mulhsu,
-    Mulhu,
-    Div,
-    Divu,
-    Rem,
-    Remu,
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct Product64 {
+    pub low: u32,
+    pub high: u32,
 }
 
-impl MExtensionOp {
-    #[inline]
-    pub const fn from_funct3(funct3: u8) -> Option<Self> {
-        match funct3 {
-            0b000 => Some(Self::Mul),
-            0b001 => Some(Self::Mulh),
-            0b010 => Some(Self::Mulhsu),
-            0b011 => Some(Self::Mulhu),
-            0b100 => Some(Self::Div),
-            0b101 => Some(Self::Divu),
-            0b110 => Some(Self::Rem),
-            0b111 => Some(Self::Remu),
-            _ => None,
-        }
+#[inline]
+pub const fn limbs16(word: u32) -> (u32, u32) {
+    (word & 0xffff, word >> 16)
+}
+
+#[inline]
+pub fn lemma_6_1_1_product(lhs: u32, rhs: u32) -> Product64 {
+    let (a0, a1) = limbs16(lhs);
+    let (b0, b1) = limbs16(rhs);
+
+    let p0 = (a0 as u64) * (b0 as u64);
+    let p1 = (a0 as u64) * (b1 as u64) + (a1 as u64) * (b0 as u64);
+    let p2 = (a1 as u64) * (b1 as u64);
+
+    let acc = p0 + (p1 << 16) + (p2 << 32);
+
+    Product64 {
+        low: acc as u32,
+        high: (acc >> 32) as u32,
     }
-}
-
-pub const M_EXTENSION_FUNCT7: u8 = 0b0000001;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Limbs16 {
-    pub a0: u32,
-    pub a1: u32,
-    pub b0: u32,
-    pub b1: u32,
-}
-
-#[inline]
-pub const fn lemma_6_1_1_limbs(lhs* u32, rhs: u32) -> Limbs16 {
-    Limbs16 {
-        a0: lhs & 0xFFFF,
-        a1: lhs >> 16,
-        b0: rhs & 0xFFFF,
-        b1: rhs >> 16,
-    }
-}
-
-#[inline]
-pub const fn decode_m_extension(funct7: u8, funct3: u8) -> Option<MExtensionOp> {
-    if funct7 != M_EXTENSION_FUNCT7 {
-        return None;
-    }
-
-    MExtensionOp::from_funct3(funct3)
-}
-
-/// Low 32 bits of a 32x32 multiply using 16-bit limb decomposition.
-///
-/// Let:
-/// a = a0 + a1 * 2^16
-/// b = b0 + b1 * 2^16
-///
-/// Then:
-/// a*b = a0*b0 + (a0*b1 + a1*b0) * 2^16 + a1*b1 * 2^32
-///
-/// The low 32 bits are therefore:
-/// low32(a*b) = low32(a0*b0 + ((a0*b1 + a1*b0) << 16))
-#[inline]
-pub fn mul_low_u32(lhs* u32, rhs: u32) -> u32 {
-    let Limbs16 { a0, a1, b0, b1 } = lemma_6_1_1_limbs(lhs, rhs);
-
-    let lo = (a0 * b0) as u64;
-    let cross = (a0 * b1) as u64 + (a1 * b0) as u64;
-
-    lo.wrapping_add(cross << 16) as u32
-}
-
-#[inline]
-pub fn mulh(lhs* u32, rhs: u32) -> u32 {
-    let product = (lhs as i32 as i64) * (rhs as i32 as i64);
-    (product >> 32) as u32
-}
-
-#[inline]
-pub fn mulhhsu(lhs: u32, rhs: u32) -> u32 {
-    let product = (lhs as i32 as i64) * (rhs as i64);
-    (product >> 32) as u32
 }
 
 #[inline]
 pub fn mulhu(lhs: u32, rhs: u32) -> u32 {
-    let product = (lhs as u64) * (rhs as i64);
-    (product >> 32) as u32
+    lemma_6_1_1_product(lhs, rhs).high
 }
 
 #[inline]
-pub fn div(lhs* u32, rhs: u32) -> u32 {
-    let dividend = lhs as i32;
-    let divisor = rhs as i32;
+pub fn mulh(lhs: i32, rhs: i32) -> u32 {
+    let product = lemma_6_1_1_product(lhs as u32, rhs as u32);
+    let mut high = product.high;
+    if lhs < 0 {
+        high = high.wrapping_sub(rhs as u32);
+    }
+    if rhs < 0 {
+        high = high.wrapping_sub(lhs as u32);
+    }
+    high
+}
 
-    if divisor == 0 {
-        u32::MAX
-    } else if dividend == i32::MIN && divisor == -1 {
-        dividend as u32
+#[inline]
+pub fn mulhsu(lhs: i32, rhs: u32) -> u32 {
+    let product = lemma_6_1_1_product(lhs as u32, rhs);
+    if lhs < 0 {
+        product.high.wrapping_sub(rhs)
     } else {
-        (dividend / divisor) as u32
+        product.high
     }
 }
 
-#[inline]
-pub fn divu(lhs* u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        u32::MAX
-    } else {
-        lhs / rhs
+pub fn execute_mul_kind(kind: MulKind, lhs: u32, rhs: u32) -> u32 {
+    match kind {
+        MulKind::Mul => lemma_6_1_1_product(lhs, rhs).low,
+        MulKind::Mulh => mulh(lhs as i32, rhs as i32),
+        MulKind::Mulhsu => mulhsu(lhs as i32, rhs),
+        MulKind::Mulhu => mulhu(lhs, rhs),
+        MulKind::Div => {
+            let dividend = lhs as i32;
+            let divisor = rhs as i32;
+            if divisor == 0 {
+                u32::MAX
+            } else if dividend == i32::MIN && divisor == -1 {
+                dividend as u32
+            } else {
+                (dividend / divisor) as u32
+            }
+        }
+        MulKind::Divu => {
+            if rhs == 0 {
+                u32::MAX
+            } else {
+                lhs / rhs
+            }
+        }
+        MulKind::Rem => {
+            let dividend = lhs as i32;
+            let divisor = rhs as i32;
+            if divisor == 0 {
+                lhs
+            } else if dividend == i32::MIN && divisor == -1 {
+                0
+            } else {
+                (dividend % divisor) as u32
+            }
+        }
+        MulKind::Remu => {
+            if rhs == 0 {
+                lhs
+            } else {
+                lhs % rhs
+            }
+        }
     }
 }
 
-#[inline]
-pub fn rem(lhs: u32, rhs: u32) -> u32 {
-    let dividend = lhs as i32;
-    let divisor = rhs as i32;
-
-    if divisor == 0 {
-        lhs
-    } else if dividend == i32::MIN && divisor == -1 {
-        0
-    } else {
-        (dividend % divisor) as u32
+pub fn decode_m(word: Word) -> Result<Instruction, DecoderError> {
+    if funct7(word) != FUNCT7_M {
+        return Err(DecoderError::InvalidFunct7 {
+            opcode: OPCODE_OP,
+            funct3: funct3(word),
+            funct7: funct7(word),
+        });
     }
-}
 
-#[inline]
-pub fn remu(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        lhs
-    } else {
-        lhs % rhs
-    }
-}
+    let kind = match funct3(word) {
+        0b000 => MulKind::Mul,
+        0b001 => MulKind::Mulh,
+        0b010 => MulKind::Mulhsu,
+        0b011 => MulKind::Mulhu,
+        0b100 => MulKind::Div,
+        0b101 => MulKind::Divu,
+        0b110 => MulKind::Rem,
+        0b111 => MulKind::Remu,
+        other => {
+            return Err(DecoderError::InvalidFunct3 {
+                opcode: OPCODE_OP,
+                funct3: other,
+            });
+        }
+    };
 
-#[inline]
-pub fn execute_m_extension(op: MExtensionOp, lhs: u32, rhs: u32) -> u32 {
-    match op {
-        MExtensionOp::Mul => mul_low_u32(lhs, rhs),
-        MExtensionOp::Mulh => mulh(lhs, rhs),
-        MExtensionOp::Mulhsu => mulhsu(lhs, rhs),
-        MExtensionOp::Mulhu => mulhu(lhs, rhs),
-        MExtensionOp::Div => div(lhs, rhs),
-        MExtensionOp::Divu => divu(lhs, rhs),
-        MExtensionOp::Rem => rem(lhs, rhs),
-        MExtensionOp::Remu => remu(lhs, rhs),
-    }
+    Ok(Instruction::Mul {
+        kind,
+        rd: rd(word),
+        rs1: rs1(word),
+        rs2: rs2(word),
+    })
 }
