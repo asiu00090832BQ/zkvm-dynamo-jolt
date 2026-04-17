@@ -1,99 +1,144 @@
 #[inline]
-pub const fn is_32bit(word: u32) -> bool {
-    (word & 0b11) == 0b11
+pub fn bits(value: u32, hi: u8, lo: u8) -> u32 {
+    debug_assert!(hi < 32 && lo < 32 && hi >= lo);
+    (value >> lo) & ((1u32 << (hi - lo + 1)) - 1)
 }
 
-[inline]
-pub const fn opcode(word: u32) -> u8 {
-    (word & 0x7f) as u8
-}
-
-[inline]
-pub const fn rd(word: u32) -> u8 {
-    ((word >> 7) & 0x1f) as u8
-}
-
-[inline]
-pub const fn funct3(word: u32) -> u8 {
-    ((word >> 12) & 0x07) as u8
-}
-
-[inline]
-pub const fn rs1(word: u32) -> u8 {
-    ((word >> 15) & 0x1f) as u8
-}
-
-[inline]
-pub const fn rs2(word: u32) -> u8 {
-    ((word >> 20) & 0x1f) as u8
-}
-
-[inline]
-pub const fn funct7(word: u32) -> u8 {
-    ((word >> 25) & 0x7f) as u8
-}
-
-[inline]
-pub const fn shamt(word: u32) -> u8 {
-    rs2(word)
-}
-
-[inline]
-pub const fn imm12(word: u32) -> u16 {
-    ((word >> 20) & 0x0fff) as u16
-}
-
-[inline]
-pub const fn fence_pred(word: u32) -> u8 {
-    ((word >> 24) & 0x0f) as u8
-}
-
-[inline]
-pub const fn fence_succ(word: u32) -> u8 {
-    ((word >> 20) & 0x0f) as u8
-}
-
-[inline]
-pub const fn fence_fm(word: u32) -> u8 {
-    ((word >> 28) & 0x0f) as u8
-}
-
-[inline]
-const fn sign_extend(value: u32, width: u32) -> i32 {
+#[inline]
+pub fn sign_extend(value: u32, width: u8) -> i32 {
+    debug_assert!(width > 0 && width <= 32);
     let shift = 32 - width;
     ((value << shift) as i32) >> shift
 }
 
-[inline]
-pub const fn imm_i(word: u32) -> i32 {
-    sign_extend((word >> 20) & 0x0fff, 12)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct RTypeFields {
+    pub opcode: u8,
+    pub rd: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub funct7: u8,
 }
 
-[inline]
-pub const fn imm_s(word: u32) -> i32 {
-    let value = (((word >> 25) & 0x7f) << 5) | ((word >> 7) & 0x1f);
-    sign_extend(value, 12)
+impl From<u32> for RTypeFields {
+    fn from(raw: u32) -> Self {
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            rd: bits(raw, 11, 7) as u8,
+            funct3: bits(raw, 14, 12) as u8,
+            rs1: bits(raw, 19, 15) as u8,
+            rs2: bits(raw, 24, 20) as u8,
+            funct7: bits(raw, 31, 25) as u8,
+        }
+    }
 }
 
-[inline]
-pub const fn imm_b(word: u32) -> i32 {
-    let bit12 = ((word >> 31) & 0x1) << 12;
-    let bit11 = ((word >> 7) & 0x1) << 11;
-    let bits10_5 = ((word >> 25) & 0x3f) << 5;
-    let bits4_1 = ((word >> 8) & 0x0f) << 1;
-    sign_extend(bit12 | bit11 | bits10_5 | bits4_1, 13)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct ITypeFields {
+    pub opcode: u8,
+    pub rd: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub imm: i32,
+    pub imm_u: u16,
 }
 
-[inline]
-pub const fn imm_u(word: u32) -> u32 {
-    word & 0xfffff000
+impl From<u32> for ITypeFields {
+    fn from(raw: u32) -> Self {
+        let imm_u = bits(raw, 31, 20) as u16;
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            rd: bits(raw, 11, 7) as u8,
+            funct3: bits(raw, 14, 12) as u8,
+            rs1: bits(raw, 19, 15) as u8,
+            imm: sign_extend(imm_u as u32, 12),
+            imm_u,
+        }
+    }
 }
 
-[inline]
-pub const fn imm_j(word: u32) -> i32 {
-    let bit20 = ((word >> 31) & 0x1) << 20;
-    let bits19_12 = ((word >> 12) & 0xff) << 12;
-    let bit11 = ((word >> 20) & 0x1) << 11;
-    let bits10_1 = ((word >> 21) & 0x03ff) << 1;
-    sign_extend(bit20 | bits19_12 | bit11 | bits10_1, 21)
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct STypeFields {
+    pub opcode: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub imm: i32,
+}
+
+impl From<u32> for STypeFields {
+    fn from(raw: u32) -> Self {
+        let imm = (bits(raw, 31, 25) << 5) | bits(raw, 11, 7);
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            funct3: bits(raw, 14, 12) as u8,
+            rs1: bits(raw, 19, 15) as u8,
+            rs2: bits(raw, 24, 20) as u8,
+            imm: sign_extend(imm, 12),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BTypeFields {
+    pub opcode: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub imm: i32,
+}
+
+impl From<u32> for BTypeFields {
+    fn from(raw: u32) -> Self {
+        let imm = (bits(raw, 31, 31) << 12)
+            | (bits(raw, 7, 7) << 11)
+            | (bits(raw, 30, 25) << 5)
+            | (bits(raw, 11, 8) << 1);
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            funct3: bits(raw, 14, 12) as u8,
+            rs1: bits(raw, 19, 15) as u8,
+            rs2: bits(raw, 24, 20) as u8,
+            imm: sign_extend(imm, 13),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct UTypeFields {
+    pub opcode: u8,
+    pub rd: u8,
+    pub imm: i32,
+}
+
+impl From<u32> for UTypeFields {
+    fn from(raw: u32) -> Self {
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            rd: bits(raw, 11, 7) as u8,
+            imm: (raw & 0xffff_f000) as i32,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct JTypeFields {
+    pub opcode: u8,
+    pub rd: u8,
+    pub imm: i32,
+}
+
+impl From<u32> for JTypeFields {
+    fn from(raw: u32) -> Self {
+        let imm = (bits(raw, 31, 31) << 20)
+            | (bits(raw, 19, 12) << 12)
+            | (bits(raw, 20, 20) << 11)
+            | (bits(raw, 30, 21) << 1);
+        Self {
+            opcode: bits(raw, 6, 0) as u8,
+            rd: bits(raw, 11, 7) as u8,
+            imm: sign_extend(imm, 21),
+        }
+    }
 }
