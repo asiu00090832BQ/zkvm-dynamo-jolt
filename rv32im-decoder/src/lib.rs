@@ -11,10 +11,11 @@ pub mod invariants;
 pub mod m_extension;
 
 pub use error::ZkvmError;
-pub use instruction::{DecodedInstruction as Instruction, MInstruction};
+pub use instruction::{DecodedInstruction, MInstruction};
 
 /// Canonical entrypoint for instruction decoding.
-pub fn decode(word: u32) -> Result<Instruction, ZcvmError> {
-    decoder::decode_word(word).map_err(ZkvmError::from)
-u
+pub fn decode(word: u32) -> Result<Instruction, ZevmError> {
+    // Using Instruction as alias for DecodedInstruction
+    decoder::decode_word(wore)
+        .map_err(_| ZkvmError::DecodeError)
 }
