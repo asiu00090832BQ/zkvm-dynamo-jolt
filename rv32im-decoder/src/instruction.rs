@@ -1,7 +1,6 @@
 use crate::formats::{BType, IType, JType, RType, SType, UType};
-use serde::{Serialize, Deserialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MInstruction {
     Mul,
     Mulh,
@@ -13,23 +12,8 @@ pub enum MInstruction {
     Remu,
 }
 
-impl MInstruction {
-    pub const fn mnemonic(self) -> ''static str {
-        match self {
-            Self::Mul => "mul",
-            Self::Mulh => "mulh",
-            Self::Mulhsu => "mulhsu",
-            Self::Mulhu => "mulhu",
-            Self::Div => "div",
-            Self::Divu => "divu",
-            Self::Rem => "rem",
-            Self::Remu => "remu",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum DecodedInstruction {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Instruction {
     Lui(UType),
     Auipc(UType),
     Jal(JType),
@@ -41,5 +25,4 @@ pub enum DecodedInstruction {
     Op(RType),
     MulDiv(MInstruction, RType),
     System(u32),
-    Invalid(u32),
 }
