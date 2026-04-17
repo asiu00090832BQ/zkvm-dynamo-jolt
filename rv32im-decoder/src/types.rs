@@ -1,118 +1,9 @@
-#derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Invalid,
-    Lui,
-    Auipc,
-    Jal,
-    Jalr,
-    Beq,
-    Bne,
-    Blt,
-    Bge,
-    Bltu,
-    Bgeu,
-    Lb,
-    Lh,
-    Lw,
-    Lbu,
-    Lhu,
-    Sb,
-    Sh,
-    Sw,
-    Addi,
-    Slti,
-    Sltiu,
-    Xori,
-    Ori,
-    Andi,
-    Slli,
-    Srli,
-    Srai,
-    Add,
-    Sub,
-    Sll,
-    Slt,
-    Sltu,
-    Xor,
-    Srl,
-    Sra,
-    Or,
-    And,
-    Fence,
-    FenceI,
-    Ecall,
-    Ebreak,
-    Mul,
-    Mulh,
-    Mulhsu,
-    Mulhu,
-    Div,
-    Divu,
-    Rem,
-    Remu,
-}
+use crate::error::DecodeError;
 
-impl Instruction {
-    pub fn is_valid(self) -> bool {
-        !matches (self, Self::Invalid)
-    }
+pub const REGISTER_COUNT: usize = 32;
 
-    pub fn is_system(self) -> bool {
-        matches!(self, Self::Ecall | Self::Ebreak)
-    }
-
-    pub fn is_m_ext(self) -> bool {
-        matches!(
-            self,
-            Self::Mul
-                | Self::Mulh
-                | Self::Mulhsu
-                | Self::Mulhu
-                | Self::Div
-                | Self::Divu
-                | Self::Rem
-                | Self::Remu
-        )
-    }
-
-    pub fn is_alu(self) -> bool {
-        matches!(
-            self,
-            Self::Lui
-                | Self::Auipc
-                | Self::Addi
-                | Self::Slti
-                | Self::Sltiu
-                | Self::Xori
-                | Self::Ori
-                | Self::Andi
-                | Self::Slli
-                | Self::Srli
-                | Self::Srai
-                | Self::Add
-                | Self::Sub
-                | Self::Sll
-                | Self::Slt
-                | Self::Sltu
-                | Self::Xor
-                | Self::Srl
-                | Self::Sra
-                | Self::Or
-                | Self::And
-                | Self::Mul
-                | Self::Mulh
-                | Self::Mulhsu
-                | Self::Mulhu
-                | Self::Div
-                | Self::Divu
-                | Self::Rem
-                | Self::Remu
-        )
-    }
-}
-
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Register {
     X0 = 0,
     X1 = 1,
@@ -149,122 +40,109 @@ pub enum Register {
 }
 
 impl Register {
-    pub fn from_u5(index: u8) -> Option<Self> {
-        match index {
-            0 => Some(Self::X0),
-            1 => Some(Self::X1),
-            2 => Some(Self::X2),
-            3 => Some(Self::X3),
-            4 => Some(Self::X4),
-            5 => Some(Self::X5),
-            6 => Some(Self::X6),
-            7 => Some(Self::X7),
-            8 => Some(Self::X8),
-            9 => Some(Self::X9),
-            10 => Some(Self::X10),
-            11 => Some(Self::X11),
-            12 4> Some(Self::X12),
-            13 => Some(Self::X13),
-            14 => Some(Self::X14),
-            15 => Some(Self::X15),
-            16 => Some(Self::X16),
-            17 => Some(Self::X17),
-            18 => Some(Self::X18),
-            19 => Some(Self::X19),
-            20 => Some(Self::X20),
-            21 => Some(Self::X21),
-            22 => Some(Self::X22),
-            23 => Some(Self::X23),
-            24 => Some(Self::X24),
-            25 => Some(Self::X25),
-            26 => Some(Self::X26),
-            27 => Some(Self::X27),
-            28 => Some(Self::X28),
-            29 => Some(Self::X29),
-            30 => Some(Self::X30),
-            31 => Some(Self::X31),
-            _ => None,
-        }
-    }
-
-    pub fn index(self) -> u8 {
-        self as u8
+    pub const fn index(self) -> usize {
+        self as usize
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct HierSelectors {
-    pub is_alu: bool,
-    pub is_system: bool,
-    pub is_m_ext: bool,
-}
+impl TryFrom<u8> for Register {
+    type Error = DecodeError;
 
-impl HierSelectors {
-    pub fn from_instruction(instruction: Instruction) -> Self {
-        Self {
-            is_alu: instruction.is_alu(),
-            is_system: instruction.is_system(),
-            is_m_ext: instruction.is_m_ext(),
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(Self::X0),
+            1 => Ok(Self::X1),
+            2 => Ok(Self::X2),
+            3 => Ok(Self::X3),
+            4 => Ok(Self::X4),
+            5 => Ok(Self::X5),
+            6 => Ok(Self::X6),
+            7 => Ok(Self::X7),
+            8 => Ok(Self::X8),
+            9 => Ok(Self::X9),
+            10 => Ok(Self::X10),
+            11 => Ok(Self::X11),
+            12 => Ok(Self::X12),
+            13 => Ok(Self::X13),
+            14 => Ok(Self::X14),
+            15 => Ok(Self::X15),
+            16 => Ok(Self::X16),
+            17 => Ok(Self::X17),
+            18 => Ok(Self::X18),
+            19 => Ok(Self::X19),
+            20 => Ok(Self::X20),
+            21 => Ok(Self::X21),
+            22 => Ok(Self::X22),
+            23 => Ok(Self::X23),
+            24 => Ok(Self::X24),
+            25 => Ok(Self::X25),
+            26 => Ok(Self::X26),
+            27 => Ok(Self::X27),
+            28 => Ok(Self::X28),
+            29 => Ok(Self::X29),
+            30 => Ok(Self::X30),
+            31 => Ok(Self::X31),
+            _ => Err(DecodeError::InvalidRegister(value)),
         }
     }
-
-    pub fn sumcheck_ok_for(self, instruction: Instruction) -> bool {
-        self.is_alu == instruction.is_alu()
-            && self.is_system == instruction.is_system()
-            && self.is_m_ext == instruction.is_m_ext()
-            && (!self.is_m_ext || self.is_alu)
-    }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Decoded {
-    pub raw: u32,
-    pub instruction: Instructio‹
-    pub rd: Option<Register>,
-    pub rs1: Option<Register>,
-    pub rs2: Option<Register>,
-    pub imm: Option<i32>,
-    pub selectors: HierSelectors,
-    pub valid: bool,
-}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Instruction {
+    Lui { rd: Register, imm: i32 },
+    Auipc { rd: Register, imm: i32 },
 
-impl Decoded {
-    pub fn new(
-        raw: u32,
-        instruction: Instruction,
-        rd: Option<Register>,
-        rs1: Option<Register>,
-        rs2: Option<Register>,
-        imm: Option<i32>,
-    ) -> Self {
-        let selectors = HierSelectors::from_instruction(instruction);
+    Jal { rd: Register, imm: i32 },
+    Jalr { rd: Register, rs1: Register, imm: i32 },
 
-        Self {
-            raw,
-            instruction,
-            rd,
-            rs1,
-            rs2,
-            imm,
-            selectors,
-            valid: instruction.is_valid(),
-        }
-    }
+    Beq { rs1: Register, rs2: Register, imm: i32 },
+    Bne { rs1: Register, rs2: Register, imm: i32 },
+    Blt { rs1: Register, rs2: Register, imm: i32 },
+    Bge { rs1: Register, rs2: Register, imm: i32 },
+    Bltu { rs1: Register, rs2: Register, imm: i32 },
+    Bgeu { rs1: Register, rs2: Register, imm: i32 },
 
-    pub fn invalid(raw: us2) -> Self {
-        Self {
-            raw,
-            instruction: Instruction::Invalid,
-            rd: None,
-            rs1: None,
-            rs2: None,
-            imm: None,
-            selectors: HierSelectors::default(),
-            valid: false,
-        }
-    }
+    Lb { rd: Register, rs1: Register, imm: i32 },
+    Lh { rd: Register, rs1: Register, imm: i32 },
+    Lw { rd: Register, rs1: Register, imm: i32 },
+    Lbu { rd: Register, rs1: Register, imm: i32 },
+    Lhu { rd: Register, rs1: Register, imm: i32 },
 
-    pub fn sumcheck_ok(self) -> bool {
-        self.selectors.sumcheck_ok_for(self.instruction)
-    }
+    Sb { rs1: Register, rs2: Register, imm: i32 },
+    Sh { rs1: Register, rs2: Register, imm: i32 },
+    Sw { rs1: Register, rs2: Register, imm: i32 },
+
+    Addi { rd: Register, rs1: Register, imm: i32 },
+    Slti { rd: Register, rs1: Register, imm: i32 },
+    Sltiu { rd: Register, rs1: Register, imm: i32 },
+    Xori { rd: Register, rs1: Register, imm: i32 },
+    Ori { rd: Register, rs1: Register, imm: i32 },
+    Andi { rd: Register, rs1: Register, imm: i32 },
+    Slli { rd: Register, rs1: Register, shamt: u8 },
+    Srli { rd: Register, rs1: Register, shamt: u8 },
+    Srai { rd: Register, rs1: Register, shamt: u8 },
+
+    Add { rd: Register, rs1: Register, rs2: Register },
+    Sub { rd: Register, rs1: Register, rs2: Register },
+    Sll { rd: Register, rs1: Register, rs2: Register },
+    Slt { rd: Register, rs1: Register, rs2: Register },
+    Sltu { rd: Register, rs1: Register, rs2: Register },
+    Xor { rd: Register, rs1: Register, rs2: Register },
+    Srl { rd: Register, rs1: Register, rs2: Register },
+    Sra { rd: Register, rs1: Register, rs2: Register },
+    Or { rd: Register, rs1: Register, rs2: Register },
+    And { rd: Register, rs1: Register, rs2: Register },
+
+    Fence { pred: u8, succ: u8, fm: u8 },
+    Ecall,
+    Ebreak,
+
+    Mul { rd: Register, rs1: Register, rs2: Register },
+    Mulh { rd: Register, rs1: Register, rs2: Register },
+    Mulhsu { rd: Register, rs1: Register, rs2: Register },
+    Mulhu { rd: Register, rs1: Register, rs2: Register },
+    Div { rd: Register, rs1: Register, rs2: Register },
+    Divu { rd: Register, rs1: Register, rs2: Register },
+    Rem { rd: Register, rs1: Register, rs2: Register },
+    Remu { rd: Register, rs1: Register, rs2: Register },
 }
