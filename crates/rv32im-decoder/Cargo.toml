@@ -1,0 +1,11 @@
+[package]
+name = "rv32im-decoder"
+version = "0.1.0"
+edition = "2021"
+description = "Canonical RV32IM decoder for zkvm"
+
+[lib]
+name = "rv32im_decoder"
+path = "src/lib.rs"
+
+[dependencies]

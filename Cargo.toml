@@ -22,7 +22,7 @@ members = [
     "dynamo-invariants",
     "jolt-sumcheck",
     "zkvm-core",
-    "rv32im-decoder",
+    "crates/rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
 ]
@@ -46,7 +46,7 @@ dynamo-invariants = { path = "dynamo-invariants" }
 jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 zkvm-core = { path = "zkvm-core" }
-rv32im-decoder = { path = "rv32im-decoder" }
+rv32im-decoder = { path = "crates/rv32im-decoder" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
 compiler-frontend = { path = "compiler-frontend" }
 
