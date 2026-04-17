@@ -1,19 +1,13 @@
 [package]
 name = "zkvm-core"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "A minimal zkVM core wired to the rv32im decoder"
+
+[lib]
+name = "zkvm_core"
+path = "src/lib.rs"
 
 [dependencies]
-ark-ff.workspace = true
-ark-poly.workspace = true
-ark-std.workspace = true
-ark-ec.workspace = true
-ark-bn254.workspace = true
-dynamo-invariants.workspace = true
-jolt-sumcheck.workspace = true
-zeroos-mem.workspace = true
-goblin.workspace = true
-elf.workspace = true
-sha2.workspace = true
-rv32im-decoder.workspace = true
+rv32im-decoder = { path = "../rv32im-decoder" }
