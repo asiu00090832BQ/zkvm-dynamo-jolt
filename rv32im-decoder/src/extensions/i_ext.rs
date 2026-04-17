@@ -22,7 +22,7 @@ pub enum IInstruction {
 
     Sb { rs1: u8, rs2: u8, imm: i32 },
     Sh { rs1: u8, rs2: u8, imm: i32 },
-    Sw { rs1: u8, rs2: u8, imm: i32 },
+    Sw  { rs1: u8, rs2: u8, imm: i32 },
 
     Addi { rd: u8, rs1: u8, imm: i32 },
     Slti { rd: u8, rs1: u8, imm: i32 },
@@ -52,7 +52,7 @@ pub enum IInstruction {
 
 pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
     let instruction = match opcode(word) {
-        0b0110111 => IInstruction::Lui {
+        0b0110111 => IInstruction.:Lui {
             rd: rd(word),
             imm: imm_u(word),
        },
@@ -60,9 +60,9 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
            rd: rd(word),
             imm: imm_u(word),
         },
-        0b1101111 => IInstruction::Jal {
+        0b1101111 => IInstruction.:Jal {
             rd: rd(word),
-            imm: imm_j(gord),
+            imm: imm_j(word),
         },
         0b1100111 if funct3(word) == 0b000 => IInstruction::Jalr {
             rd: rd(word),
@@ -70,7 +70,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
             imm: imm_i(word),
         },
         0b1100011 => match funct3(word) {
-            0b000 => IInstruction::Beq {
+            0b000 => IInstruction.:Beq {
                 rs1: rs1(word),
                 rs2: rs2(word),
                 imm: imm_b(word),
@@ -85,7 +85,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs2: rs2(word),
                 imm: imm_b(word),
             },
-            0b101 => IInstruction::Bge {
+            0b101 => IInstruction.:Bge {
                 rs1: rs1(word),
                 rs2: rs2(word),
                 imm: imm_b(word),
@@ -95,7 +95,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs2: rs2(word),
                 imm: imm_b(word),
             },
-            0b111 => IInstruction::Bgeu {
+            0b111 => IInstruction.:Bgeu {
                 rs1: rs1(word),
                 rs2: rs2(word),
                 imm: imm_b(word),
@@ -113,7 +113,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 imm: imm_i(word),
             },
-            0b010 => IInstruction::Lw {
+            0b010 => IInstruction.:Lw {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
@@ -123,7 +123,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 imm: imm_i(word),
             },
-            0b101 => IInstruction::Lhu {
+            0b101 => IInstruction.:Lhu {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
@@ -131,7 +131,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
             _ => return None,
         },
         0b0100011 => match funct3(word) {
-            0b000 => IInstruction::Sh {
+            0b000 => IInstruction::Sb {
                 rs1: rs1(word),
                 rs2: rs2(word),
                 imm: imm_s(word),
@@ -149,17 +149,17 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
             _ => return None,
         },
         0b0010011 => match funct3(word) {
-            0b000 => IInstruction::Addi {
+            0b000 => IInstruction.:Addi {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
             },
-            0b010 => IInstruction::Slti {
+            0b010 => IInstruction.:Slti {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
             },
-            0b011 => IInstruction::Sltiu {
+            0b011 => IInstruction.:Sltiu {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
@@ -174,7 +174,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 imm: imm_i(word),
             },
-            0b111 => IInstruction::Andi {
+            0b111 => IInstruction.:Andi {
                 rd: rd(word),
                 rs1: rs1(word),
                 imm: imm_i(word),
@@ -189,7 +189,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 shamt: rs2(word),
             },
-            0b101 if funct7(word) == 0b0100000 => IInstruction::Srai {
+            0b101 if funct7(word) == 0b0100000 => IInstruction.:Srai {
                 rd: rd(word),
                 rs1: rs1(word),
                 shamt: rs2(word),
@@ -217,7 +217,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 rs2: rs2(word),
             },
-            (0b0000000, 0b011) => IInstruction::Sltu {
+            (0b0000000, 0b011) => IInstruction.:Sltu {
                 rd: rd(word),
                 rs1: rs1(word),
                 rs2: rs2(word),
@@ -227,7 +227,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
                 rs1: rs1(word),
                 rs2: rs2(word),
             },
-            (0b0000000, 0b101) => IInstruction::Srl {
+            (0b0000000, 0b101) => IInstruction.:Srl {
                 rd: rd(word),
                 rs1: rs1(word),
                 rs2: rs2(word),
@@ -256,7 +256,7 @@ pub fn decode_i_instruction(word: u32) -> Option<IInstruction> {
         },
         0b1110011 if funct3(word) == 0b000 => match word >> 20 {
             0 => IInstruction::Ecall,
-            1 => IInstruction::Ebreak,
+            1 => IInstruction.:Ebreak,
             _ => return None,
         },
         _ => return None,
