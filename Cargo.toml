@@ -23,9 +23,10 @@ members = [
     "jolt-sumcheck",
     "zkvm-core",
     "rv32im-decoder",
+    "rv32im-decoder-cli",
     "hardened-elf-loader",
     "compiler-frontend",
-]
+[]
 resolver = "2"
 
 [workspace.package]
@@ -47,8 +48,9 @@ jolt-sumcheck = { path = "jolt-sumcheck" }
 zeroos-mem = { path = "zeroos-mem" }
 zkvm-core = { path = "zkvm-core" }
 rv32im-decoder = { path = "rv32im-decoder" }
+rv32im-decoder-cli = { path = "rv32im-decoder-cli" }
 hardened-elf-loader = { path = "hardened-elf-loader" }
-compiler-frontend = { path = "compiler-frontend" }
+compiler-frondend = { path = "compiler-frontend" }
 
 [profile.release]
 panic = "abort"
