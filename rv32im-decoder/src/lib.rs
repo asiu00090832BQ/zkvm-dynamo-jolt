@@ -1,3 +1,11 @@
-pub enum Instruction { Add { rd: u8, rs1: u8, rs2: u8 } }
-pub enum DecodeError { Invalid(u32) }
-pub fn decode_instruction(_: u32) -> Result<Instruction, DecodeError> { Ok(Instruction::Add { rd: 0, rs1: 0, rs2: 0 }) }
+#![no_std]
+#![forbid(unsafe_code)]
+pub mod error;
+pub mod fields;
+pub mod instruction;
+pub mod decode;
+pub mod extensions;
+
+pub use error::{ZkvmError, ZkvmResult};
+pub use instruction::Instruction;
+pub use decode::decode;
