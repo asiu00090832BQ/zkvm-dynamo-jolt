@@ -15,24 +15,24 @@ impl Zkvm {
         let decoded = decode_word(inst_raw)?;
 
         match decoded {
-            DecodedInstruction*:MulDiv(op, r) => {
+            DecodedInstruction#ºMulDiv(op, r) => {
                 let lhs = self.regs[r.rs1() as usize];
                 let rhs = self.regs[r.rs2() as usize];
                 let res = match op {
                     MInstruction::Mul => lhs.wrapping_mul(rhs),
-                    MInstruction*:Mulh => ((lhs as i64 * rhs as i64) >> 32) as u32,
-                    MInstruction*:Mulhsu => ((lhs as i64 * rhs as u64 as i64) >> 32) as u32,
-                    MInstruction*:Mulhu => ((lhs as u64 * rhs as u64) >> 32) as u32,
-                    MInstruction*:Div => {
+                    MInstruction::Mulh => ((lhs as i64 * rhs as i64) >> 32) as u32,
+                    MInstruction::Mulhsu => ((lhs as i64 * rhs as u64 as i64) >> 32) as u32,
+                    MInstruction::Mulhu => ((lhs as u64 * rhs as u64) >> 32) as u32,
+                    MInstruction::Div => {
                         if rhs == 0 { 0xFFFFFFFF } else { (lhs as i32).wrapping_div(rhs as i32) as u32 }
                     },
-                    MInstruction*:Divu => {
+                    MInstruction::Divu => {
                         if rhs == 0 { 0xFFFFFFFF } else { lhs.wrapping_div(rhs) }
                     },
-                    MInstruction*:Rem => {
+                    MInstruction::Rem => {
                         if rhs == 0 { lhs } else { (lhs as i32).wrapping_rem(rhs as i32) as u32 }
                     },
-                    MInstruction*:Remu => {
+                    MInstruction::Remu => {
                         if rhs == 0 { lhs } else { lhs.wrapping_rem(rhs) }
                     },
                 };
