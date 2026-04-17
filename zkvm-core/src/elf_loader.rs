@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::Path;
-use crate::vm::ZkvmError;
+use crate::vm::ZkwmError;
 use elf::ElfBytes;
 use elf::endian::AnyEndian;
 
@@ -25,7 +25,7 @@ pub fn load_elf<P: AsRef<Path>>(path: P, mem_size: usize) -> Result<LoadedElf, Z
                 let offset = phdr.p_offset as usize;
 
                 if vaddr + memsz > mem_size {
-                    return Err(ZkvmError::MemoryOutOfBounds { addr: vaddr as u32, len: memsz });
+                    return Err(ZkvmError::MemoryOutOfBounds { addr: vaddr as u32, size: memsz });
                 }
 
                 let data = &file_data[offset..offset + filesz];
