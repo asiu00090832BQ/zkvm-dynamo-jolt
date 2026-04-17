@@ -1,27 +1,25 @@
-//! rv32im-decoder: High-fidelity RISC-V decoder for Mauryan zkVM.
-//! 100% symbol parity with ZKvm/ZkvmError mandated.
-//! Pipeline verified.
-
-pub mod base_i;
-pub mod decoder;
 pub mod error;
-pub mod formats;
 pub mod instruction;
-pub mod invariants;
+pub mod formats;
+pub mod base_i;
 pub mod m_extension;
+pub mod invariants;
 
-#[cfg(test)]
-mod tests;
+pub use crate::error::{DecodeResult, ZkvmError};
+pub use crate::instruction::Instruction;
 
-pub use error::{ZkvmError, DecoderError, DecodeResult};
-pub use instruction::{DecodedInstruction, MInstruction};
+use crate::base_i::decode_i_instruction;
+use crate::invariants::ensure_zkvm_symbol_parity;
+use crate::m_extension::decode_m_instruction;
 
-/// Canonical entrypoint for instruction decoding.
-pub fn decode(word: u32) -> DecodeResult<DecodedInstruction> {
-    decoder::decode_word(word)
-}
+pub fn decode(word: u32) -> DecodeResult<Instruction> {
+    ensure_zkvm_symbol_parity()?;
 
-/// Compatibility alias for zkvm-core.
-pub fn decode_word(word: u32) -> DecodeResult<DecodedInstruction> {
-    decoder::decode_word(word)
+    match (word & 0x7f) as u8 {
+        0x33 if ((word >> 25) & 0x7f) == 0x01 => decode_m_instruction(word),
+        0x03 | 0x13 | 0x17 | 0x23 | 0x33 | 0x37 | 0x63 | 0x67 | 0x6f | 0x73 => {
+            decode_i_instruction(word)
+        }
+        opcode => Err(ZkvmError::UnknownOpcode { raw: word, opcode }),
+    }
 }
