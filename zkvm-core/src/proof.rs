@@ -1,5 +1,5 @@
 use ark-ff::PrimeField;
-use rv32im-decoder::{Limb16, plan_mul_limbs};
+use rv32im_decoder::{Limb16, plan_mul_limbs};
 
 pub struct MltProof <F : PrimeField> {
     pub values: Vec<F>,
@@ -15,7 +15,7 @@ impl ProofPipeline {
     pub fn prove_multiplication<F: PrimeField>(&self, l_raw: u32, r_raw: u32) -> MltProof<F> {
         let limbs = plan_mul_limbs(l_raw, r_raw);
         MltProof {
-            values: limbs.iter().map(((a, b)) => F::from(*a) *  F::from(*b)).collect(),
+            values: limbs.iter().map(|(a, b)| F::from(*a) *  F::from(*b)).collect(),
             degree: 2,
         }
     }
