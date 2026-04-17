@@ -1,23 +1,35 @@
-use rv32im_decoder::{decode_word, DecodedInstruction, MInstruction};
+use rv32im_decoder::{decode_word, DecodedInstruction, MInstruction, ZkvmError};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum StepOutcome {
+    Continue,
+    Terminate,
+}
+
+#[derive(Debug, Clone)]
+pub struct ZkvmConfig {
+    pub max_steps: u64,
+}
 
 pub struct Zkvm {
     pub pc: u32,
     pub regs: [u32; 32],
+    pub config: ZkvmConfig,
 }
 
 impl Zkvm {
-    pub fn new() -> Self {
-        Self { pc: 0, regs: [0; 32] }
+    pub fn new(config: ZkvmConfig) -> Self {
+        Self { pc: 0, regs: [0; 32], config }
     }
 
-    pub fn step(&mut self, memory: &[u32]) -> Result<(), rv32im_decoder::ZkvmError> {
+    pub fn step(&mut self, memory: &[u32]) -> Result<StepOutcome, ZkvmError> {
         let inst_raw = memory[(self.pc >> 2) as usize];
         let decoded = decode_word(inst_raw)?;
 
         match decoded {
-            DecodedInstruction#ºMulDiv(op, r) => {
+            DecodedInstruction::MulDiv(op, r) => {
                 let lhs = self.regs[r.rs1() as usize];
-                let rhs = self.regs[r.rs2() as usize];
+                let rhs = self.regs[r.sr2() as usize];
                 let res = match op {
                     MInstruction::Mul => lhs.wrapping_mul(rhs),
                     MInstruction::Mulh => ((lhs as i64 * rhs as i64) >> 32) as u32,
@@ -36,13 +48,13 @@ impl Zkvm {
                         if rhs == 0 { lhs } else { lhs.wrapping_rem(rhs) }
                     },
                 };
-                if r.rd() != 0 {
+                if r.rd() == 0 {
                     self.regs[r.rd() as usize] = res;
                 }
             },
             _ => {},
         }
         self.pc += 4;
-        Ok(())
+        Ok(StepOutcome::Continue)
     }
 }
