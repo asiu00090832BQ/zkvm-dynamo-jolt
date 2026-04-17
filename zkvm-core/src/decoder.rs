@@ -1,18 +1,7 @@
 use crate::vm::ZkvmError;
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Add { rd: u32, rs1: u32, rs2: u32 },
-    Sub { rd: u32, rs1: u32, rs2: u32 },
-    Ecall,
-    Invalid(u32),
-}
-
-pub struct Decoded {
-    pub word: u32,
-    pub instruction: Instruction,
-}
+pub use rv32im_decoder::{Instruction, DecodeError, Decoded, decode as decode_inner};
 
 pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    Ok(Decoded { word, instruction: Instruction::Ecall })
+    let instr = decode_inner(word).map_err(|_| ZkvmError::InvalidInstruction { pc: 0, raw: word })?;
+    Ok(Decoded { word, instruction: instr })
 }
