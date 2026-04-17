@@ -1,4 +1,4 @@
-use rv32im-decoder::{decode_word, DecodedInstruction, MInstruction};
+use rv32im_decoder::{decode_word, DecodedInstruction, MInstruction};
 
 pub struct Vm {
     pub pc: u32,
