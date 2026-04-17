@@ -1,10 +1,8 @@
-#![forbid(unsafe_code)]
-
+#![no_std]
 pub mod vm;
+pub mod error;
 pub mod elf_loader;
+pub mod proof;
 
-pub use rv32im_decoder as decoder;
-
-pub use vm::{Zkvm, ZkvmConfig, StepOutcome, ZkvmError};
-pub use decoder::{Instruction, Decoded, DecodeSelectors, decode};
-pub use elf_loader::{LoadedElf, load_elf};
+pub use vm::{Zkvm, ZkvmConfig};
+pub use error::ZkwmError;
