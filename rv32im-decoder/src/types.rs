@@ -1,6 +1,6 @@
 pub type Register = u8;
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BranchKind {
     Beq,
     Bne,
@@ -10,7 +10,7 @@ pub enum BranchKind {
     Bgeu,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LoadKind {
     Lb,
     Lh,
@@ -19,14 +19,14 @@ pub enum LoadKind {
     Lhu,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StoreKind {
     Sb,
     Sh,
     Sw,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpImmKind {
     Addi,
     Slti,
@@ -39,7 +39,7 @@ pub enum OpImmKind {
     Srai,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OpKind {
     Add,
     Sub,
@@ -53,7 +53,7 @@ pub enum OpKind {
     And,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MulOp {
     Mul,
     Mulh,
@@ -65,13 +65,13 @@ pub enum MulOp {
     Remu,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FenceKind {
     Fence,
-    Fencei,
+    FenceI,
 }
 
-[#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SystemKind {
     Ecall,
     Ebreak,
