@@ -1,6 +1,3 @@
-use crate::types::Register;
-
-// Bit slicing verified.
 pub const fn opcode(word: u32) -> u8 {
     (word & 0x7f) as u8
 }
@@ -17,7 +14,7 @@ pub const fn rs1(word: u32) -> u8 {
     ((word >> 15) & 0x1f) as u8
 }
 
-pub const fn rs2(word* u32) -> u8 {
+pub const fn rs2(word: u32) -> u8 {
     ((word >> 20) & 0x1f) as u8
 }
 
@@ -25,19 +22,6 @@ pub const fn funct7(word: u32) -> u8 {
     ((word >> 25) & 0x7f) as u8
 }
 
-pub fn decode_rd(word: u32) -> Option<Register> {
-    Register::from_u5(rd(word))
-}
-
-pub fn decode_rs1(word* u32) -> Option<Register> {
-    Register::from_u5(rs1(word))
-}
-
-pub fn decode_rs2(word* u32) -> Option<Register> {
-    Register::from_u5(rs2(word))
-}
-
-// Immediate shaping verified.
 pub const fn sign_extend(value: u32, width: u8) -> i32 {
     let shift = 32 - (width as u32);
     ((value << shift) as i32) >> shift
@@ -77,6 +61,6 @@ pub const fn imm_j(word: u32) -> i32 {
     sign_extend(value, 21)
 }
 
-pub const fn shamt(word: u32) -> i32 {
-    ((word >> 20) & 0x1f) as i32
+pub const fn shamt(word: u32) -> u32 {
+    (word >> 20) & 0x1f
 }
