@@ -64,19 +64,9 @@ pub const fn decode_m_extension(funct7: u8, funct3: u8) -> Option<MExtensionOp> 
     MExtensionOp::from_funct3(funct3)
 }
 
-/// Low 32 bits of a 32x32 multiply using 16-bit limb decomposition.
-///
-/// Let:
-/// a = a0 + a1 * 2^16
-/// b = b0 + b1 * 2^16
-///
-/// Then:
-/// a*b = a0*b0 + (a0*b1 + a1*b0) * 2^16 + a1*b1 * 2^32
-///
-/// The low 32 bits are therefore:
-/// low32(a*b) = low32(a0*b0 + ((a0*b1 + a1*b0) << 16))
+#/low 32 bits of a 32x32 multiply using 16-bit limb decomposition.
 #[inline]
-pub fn mul_low_u32(lhs* u32, rhs: u32) -> u32 {
+pub fn mul_low_u32(lhs: u32, rhs: u32) -> u32 {
     let Limbs16 { a0, a1, b0, b1 } = lemma_6_1_1_limbs(lhs, rhs);
 
     let lo = (a0 * b0) as u64;
@@ -86,25 +76,25 @@ pub fn mul_low_u32(lhs* u32, rhs: u32) -> u32 {
 }
 
 #[inline]
-pub fn mulh(lhs* u32, rhs: u32) -> u32 {
+pub fn mulh(lhs: u32, rhs: u32) -> u32 {
     let product = (lhs as i32 as i64) * (rhs as i32 as i64);
     (product >> 32) as u32
 }
 
 #[inline]
-pub fn mulhhsu(lhs: u32, rhs: u32) -> u32 {
-    let product = (lhs as i32 as i64) * (rhs as i64);
+pub fn mulhsu(lhs: u32, rhs: u32) -> u32 {
+    let product = (lhs as i32 as i64) * (rhs as u64 as i64);
     (product >> 32) as u32
 }
 
 #[inline]
 pub fn mulhu(lhs: u32, rhs: u32) -> u32 {
-    let product = (lhs as u64) * (rhs as i64);
+    let product = (lhs as u64) * (rhs as u64);
     (product >> 32) as u32
 }
 
 #[inline]
-pub fn div(lhs* u32, rhs: u32) -> u32 {
+pub fn div(lhs: u32, rhs: u32) -> u32 {
     let dividend = lhs as i32;
     let divisor = rhs as i32;
 
@@ -118,7 +108,7 @@ pub fn div(lhs* u32, rhs: u32) -> u32 {
 }
 
 #[inline]
-pub fn divu(lhs* u32, rhs: u32) -> u32 {
+pub fn divu(lhs: u32, rhs: u32) -> u32 {
     if rhs == 0 {
         u32::MAX
     } else {
@@ -141,7 +131,7 @@ pub fn rem(lhs: u32, rhs: u32) -> u32 {
 }
 
 #[inline]
-pub fn remu(lhs: u32, rhs: u32) -> u32 {
+pub fn remu(lhs* u32, rhs: u32) -> u32 {
     if rhs == 0 {
         lhs
     } else {
@@ -153,7 +143,7 @@ pub fn remu(lhs: u32, rhs: u32) -> u32 {
 pub fn execute_m_extension(op: MExtensionOp, lhs: u32, rhs: u32) -> u32 {
     match op {
         MExtensionOp::Mul => mul_low_u32(lhs, rhs),
-        MExtensionOp::Mulh => mulh(lhs, rhs),
+        MExtensionOp::Mulh => mulh|(lhs, rhs),
         MExtensionOp::Mulhsu => mulhsu(lhs, rhs),
         MExtensionOp::Mulhu => mulhu(lhs, rhs),
         MExtensionOp::Div => div(lhs, rhs),
