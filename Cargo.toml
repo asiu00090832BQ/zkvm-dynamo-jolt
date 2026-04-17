@@ -1,67 +1,11 @@
-[package]
-name = "zkvm"
-version = "0.1.0"
-edition = "2021"
-
-[[bin]]
-name = "zkvm"
-path = "src/main.rs"
-
-[dependencies]
-ark-bn254 = "0.5.0"
-zkvm-core = { path = "zkvm-core" }
-
-[dev-dependencies]
-zeroos-mem = { path = "zeroos-mem" }
-jolt-sumcheck = { path = "jolt-sumcheck" }
-ark-ff = "0.5.0"
-
 [workspace]
-members = [
-    "zeroos-mem",
-    "dynamo-invariants",
-    "jolt-sumcheck",
-    "zkvm-core",
-    "rv32im-decoder",
-    "hardened-elf-loader",
-    "compiler-frontend",
-]
+members = ["crates/rv32im-decoder", "zkvm-core"]
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
 edition = "2021"
-license = "MIT"
+license = "MIT OR Apache-2.0"
+version = "0.1.0"
 
 [workspace.dependencies]
-ark-ff = "0.5.0"
-ark-poly = "0.5.0"
-ark-std = "0.5.0"
-ark-ec = "0.5.0"
-ark-bn254 = "0.5.0"
-goblin = "0.8.0"
-elf = "0.7.0"
-sha2 = "0.10"
-dynamo-invariants = { path = "dynamo-invariants" }
-jolt-sumcheck = { path = "jolt-sumcheck" }
-zeroos-mem = { path = "zeroos-mem" }
-zkvm-core = { path = "zkvm-core" }
-rv32im-decoder = { path = "rv32im-decoder" }
-hardened-elf-loader = { path = "hardened-elf-loader" }
-compiler-frontend = { path = "compiler-frontend" }
-
-[profile.release]
-panic = "abort"
-lto = true
-opt-level = 3
-
-[profile.dev]
-panic = "abort"
-lto = false
-opt-level = 0
-
-[profile.test]
-panic = "abort"
-
-[profile.bench]
-panic = "abort"
+rv32im-decoder = { path = "crates/rv32im-decoder" }
