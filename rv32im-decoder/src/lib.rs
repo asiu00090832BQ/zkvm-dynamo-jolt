@@ -1,9 +1,27 @@
-extern crate alloc;
 pub mod decode;
 pub mod error;
-pub mod isa;
+pub mod instruction;
 pub mod m_extension;
-pub use decode::decore_word;
-pub use error::DecodeError;
-pub use isa::Instruction;
-pub use m_extension::{Limb16, plan_mul_limbs};
+pub mod types;
+
+pub use decode::decode_word;
+pub use error::ZkvmError;
+pub use instruction::DecodedInstruction;
+pub use m_extension::{
+    mul_high_signed_signed,
+    mul_high_signed_unsigned,
+    mul_high_unsigned_unsigned,
+    mul_low,
+    wide_mul_u32,
+};
+pub use types::{
+    BranchKind,
+    FenceKind,
+    LoadKind,
+    MulOp,
+    OpImmKind,
+    OpKind,
+    Register,
+    StoreKind,
+    SystemKind,
+};
