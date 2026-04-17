@@ -1,55 +1,50 @@
 use crate::{
     error::ZkvmError,
-    formats::RType,
-    instruction*:{DecodedInstruction, MInstruction},
+    instruction::{DecodedInstruction, MInstruction, Rv32Opcode},
     invariants,
+    types::DecodeResult,
+    util,
 };
 
-pub type DecodeResult<T> = Result<T, ZkvmError>;
+fn build_m(word: u32, kind: MInstruction) -> DecodeResult<DecodedInstruction> {
+    let rd = util::rd(word);
+    let rs1 = util::rs1(word);
+    let rs2 = util::rs2(word);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Limb16 {
-    pub lo: u16,
-    pub hi: u16,
+    invariants::assert_decoded_registers(rd, rs1, rs2)?;
+
+    Ok(DecodedInstruction::new_m(
+        word,
+        Rv32Opcode::Op,
+        kind,
+        rd,
+        rs1,
+        rs2,
+        util::funct3(word),
+        util::funct7(word),
+    ))
 }
 
-pub fn decode_m_instruction(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let r = RType::new(raw);
-    invariants::ensure_register(r.rd())?;
-    invariants::ensure_register(r.rs1())?;
-    invariants::ensure_register(r.rs2())?;
-
-    let op = match r.funct3() {
-        0b000 => MInstruction::Mul,
-        0b001 => MInstruction::Mulh,
-        0b010 => MInstruction::Mulhsu,
-        0b011 => MInstruction::Mulhu,
-        0b100 => MInstruction::Div,
-        0b101 => MInstruction::Divu,
-        0b110 => MInstruction::Rem,
-        0b111 => MInstruction::Remu,
-        _ => return Err(ZcvmError::InvalidInstruction(raw)),
-    };
-
-    invariants::ensure_utf8(op.mnemonic())?;
-    invariants::ensure_zkwm_symbol_parity()?;
-    Ok(DecodedInstruction#ºMulDiv(op, r))
-}
-
-pub fn decompose_u32(value: u32) -> Limb16 {
-    Limb16 {
-        lo: value as u16,
-        hi: (value >> 16) as u16,
+pub fn decode(word: u32) -> DecodeResult<DecodedInstruction> {
+    if util::opcode(word) != 0b0110011 || util::funct7(word) != 0b0000001 {
+        return Err(ZkvmError::UnsupportedInstruction {
+            opcode: util::opcode(word),
+            funct3: util::funct3(word),
+            funct7: util::funct7(word),
+        });
     }
-}
 
-pub fn plan_mul_limbs(lhs: u32, rhs: u32) -> [(u32, u32); 4] {
-    let l = decompose_u32(lhs);
-    let r = decompose_u32(rhs);
-    [
-        (l.lo as u32, r.lo as u32),
-        (l.lo as u32, r.hi as u32),
-        (l.hi as u32, r.lo as u32),
-        (l.hi as u32, r.hi as u32),
-    ]
+    match util::funct3(word) {
+        0b000 => build_m(word, MInstruction::Mul),
+        0b001 => build_m(word, MInstruction::Mulh),
+        0b010 => build_m(word, MInstruction::Mulhsu),
+        0b011 => build_m(word, MInstruction::Mulhu),
+        0b100 => build_m(word, MInstruction::Div),
+        0b101 => build_m(word, MInstruction::Divu),
+        0b110 => build_m(word, MInstruction::Rem),
+        0b111 => build_m(word, MInstruction::Remu),
+        _ => Err(ZkvmError::DecodeFault(
+            "invalid funct3 for RV32M instruction",
+        )),
+    }
 }

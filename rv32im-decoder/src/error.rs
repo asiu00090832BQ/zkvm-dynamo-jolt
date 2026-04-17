@@ -1,33 +1,33 @@
-//! Canonical error types for the Mauryan zkVM decoder.
-//! Pipeline verified.
-use serde::{Serialize, Deserialize};
-
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-pub enum ZcvmError {
-    InvalidInstruction(u32),
-    InvalidImmediate(i32),
-    InvalidElf,
-    FetchError,
-}
+use core::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DecoderError {
-    UnsupportedOpcode { raw: u32, opcode: u8 },
-    UnsupportedFunct3 { raw: u32, funct3: u8 },
-    UnsupportedFunct7 { raw: u32, funct7: u8 },
-    InvalidRegister(u8),
+pub enum ZkvmError {
+    UnsupportedOpcode { opcode: u8 },
+    UnsupportedInstruction { opcode: u8, funct3: u8, funct7: u8 },
+    InvalidRegister { index: u8 },
     InvariantViolation(&'static str),
+    DecodeFault(&'static str),
 }
 
-impl From<DecoderError> for ZkwmError {
-    fn from(err: DecoderError) -> Self {
-        match err {
-            DecoderError::UnsupportedOpcode { raw, .. } => ZkwmError::InvalidInstruction(raw),
-            DecoderError::UnsupportedFunct3 { raw, .. } => ZkvmError::InvalidInstruction(raw),
-            DecoderError::UnsupportedFunct7 { raw, .. } => ZcvmError::InvalidInstruction(raw),
-            _ => ZkwmError::InvalidInstruction(0),
+impl fmt::Display for ZkvmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::UnsupportedOpcode { opcode } => {
+                write!(f, "unsupported opcode: 0b{opcode:07b}")
+            }
+            Self::UnsupportedInstruction {
+                opcode,
+                funct3,
+                funct7,
+            } => write!(
+                f,
+                "unsupported instruction: opcode=0b{opcode:07b}, funct3=0b{funct3:03b}, funct7=0b{funct7:07b}"
+            ),
+            Self::InvalidRegister { index } => write!(f, "invalid register index: x{index}"),
+            Self::InvariantViolation(message) => write!(f, "invariant violation: {message}"),
+            Self::DecodeFault(message) => write!(f, "decode fault: {message}"),
         }
     }
 }
-pub type DecodeResult<T> = Result<T, DecoderError>;
+
+impl std::error::Error for ZkvmError {}

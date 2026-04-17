@@ -1,24 +1,40 @@
 use crate::{
-    base_i,
-    error::{DecodeResult, DecoderError},
-    formats::{RawFields, RType},
+    error::ZkvmError,
+    i_extension,
+    invariants,
     instruction::DecodedInstruction,
     m_extension,
+    types::{DecodeResult, OperandDecomposition},
+    util,
 };
 
-pub fn decode_word(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let fields = RawFields::new(raw);
-    match fields.opcode() {
-        0b0110011 => decode_op(raw),
-        opcode => base_i::decode_base(raw, opcode),
-    }
-}
+#[derive(Debug, Default, Clone, Copy)]
+pub struct Zkvm;
 
-fn decode_op(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let r = RType::new(raw);
-    match r.funct7() {
-        0b0000001 => m_extension::decode_m_instruction(raw),
-        0b0000000 | 0b0100000 => base_i::decode_base_r(raw),
-        funct7 => Err(DecoderError::UnsupportedFunct7 { raw, funct7 }),
+impl Zkvm {
+    pub const fn new() -> Self {
+        Self
+    }
+
+    pub fn decode_word(&self, word: u32) -> DecodeResult<DecodedInstruction> {
+        match util::opcode(word) {
+            0b0110011 if util::funct7(word) == 0b0000001 => m_extension::decode(word),
+            0b0110011
+            | 0b0010011
+            | 0b0000011
+            | 0b0100011
+            | 0b1100011
+            | 0b1101111
+            | 0b1100111
+            | 0b0110111
+            | 0b0010111
+            | 0b0001111
+            | 0b1110011 => i_extension::decode(word),
+            opcode => Err(ZkvmError::UnsupportedOpcode { opcode }),
+        }
+    }
+
+    pub fn decompose_operands(&self, a: u32, b: u32) -> DecodeResult<OperandDecomposition> {
+        invariants::verify_lemma_6_1_1(a, b)
     }
 }
