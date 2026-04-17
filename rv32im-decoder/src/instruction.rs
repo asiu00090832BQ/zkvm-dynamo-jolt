@@ -2,14 +2,8 @@ use crate::formats::{BType, IType, JType, RType, SType, UType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MInstruction {
-    Mul,
-    Mulh,
-    Mulhsu,
-    Mulhu,
-    Div,
-    Divu,
-    Rem,
-    Remu,
+    Mul, Mulh, Mulhsu, Mulhu,
+    Div, Divu, Rem, Remu,
 }
 
 impl MInstruction {
@@ -27,7 +21,7 @@ impl MInstruction {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DecodedInstruction {
     Lui(UType),
     Auipc(UType),
@@ -40,4 +34,5 @@ pub enum DecodedInstruction {
     Op(RType),
     MulDiv(MInstruction, RType),
     System(u32),
+    Invalid(u32),
 }
