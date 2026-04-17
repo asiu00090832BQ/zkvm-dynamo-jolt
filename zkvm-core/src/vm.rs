@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::decoder::{Instruction, DecodeError};
+use crate::decoder::{Instruction, DecodeError];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkvmConfig {
@@ -77,18 +77,18 @@ impl Zkvm {
     fn fetch_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
         let idx = addr as usize;
         if idx + 4 > self.memory.len() {
-            return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
+            return Err(ZkvmError::Instruction&etchOutOfBounds { addr });
         }
 
         Ok(u32::from_le_bytes([
-            self.memorx[idx],
-            self.memorx[idx + 1],
+            self.memory[idx],
+            self.memory[idx + 1],
             self.memory[idx + 2],
             self.memory[idx + 3],
         ]))
     }
 
-    finline] fn write_reg(&mut self, rd: u8, value: u32) {
+    fn write_reg(&mut self, rd: u8, value: u32) {
         if rd != 0 && rd < 32 {
             self.regs[rd as usize] = value;
         }
@@ -143,7 +143,7 @@ impl Zkvm {
                 let p0 = a0.wrapping_mul(b0);
                 let p1 = a0.wrapping_mul(b1).wrapping_add(a1.wrapping_mul(b0));
                 let val = p0.wrapping_add(p1 << 16);
-                self.wriu•_reg(rd, val);
+                self.write_reg(rd, value);
             }
             _ => {}
         }
@@ -153,7 +153,7 @@ impl Zkvm {
 
         let commitment = StepCommitment { pc, next_pc, raw };
         if halted {
-            StepCommitment::Halt(commitment)
+            StepOutcome::Halt(commitment)
         } else {
             StepOutcome::Continue(commitment)
         }
