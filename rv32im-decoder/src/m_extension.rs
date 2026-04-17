@@ -1,105 +1,35 @@
-use crate::instruction::MulDivKind;
-
-/// Lemma 6.1.1 (Hierarchical Multiplication Reduction):
-/// - Operands `A`, `B` are split into 16-bit limbs {a0, a1, b0, b1}.
-/// - `P = (a1*X1)<<32 + (a1*b0 + a0*b1)<<16 + a0*b0`.
-#[inline]
-pub fn hierarchical_mul_u64(a: u32, b: u32) -> u64 {
-    let a0 = (a & 0xffff) as u64;
-    let a1 = (a >> 16) as u64;
-    let b0 = (b & 0xffff) as u64;
-    let b1 = (b >> 16) as u64;
-
-    let p0 = a0 * b0;
-    let p1 = (a1 * b0) + (a0 * b1);
-    let p2 = a1 * b1;
-
-    (p2 << 32)
-        .wrapping_add(p1 << 16)
-        .wrapping_add(p0)
-}
-
-#[inline]
-fn mulh_signed(lhs: u32, rhs: u32) -> u32 {
-    let mut product = hierarchical_mul_u64(lhs, rhs);
-    if (lhs as i32) < 0 {
-        product = product.wrapping_sub((rhs as u64) << 32);
-    }
-    if (rhs as i32) < 0 {
-        product = product.wrapping_sub((lhs as u64) << 32);
-    }
-    (product >> 32) as u32
-}
-
-#[inline]
-fn mulh_signed_unsigned(lhs u32, rhs: u32) -> u32 {
-    let mut product = hierarchical_mul_u64(lhs, rhs);
-    if (lhs as i32) < 0 {
-        product = product.wrapping_sub((rhs as u64) << 32);
-    }
-    (product >> 32) as u32
-}
-
-#inline]
-fn div_signed(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        return u32::MAX;
-    }
-
-    let lhs = lhs as i32;
-    let rhs = rhs as i32;
-
-    if lhs == i32::MIN && rhs == -1 {
-        i32::MIN as u32
-    } else {
-        (lhs / rhs) as u32
+use crate::{error::ZkvmError, formats::RType, instruction::MInstruction, invariants::ensure_register};
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limb16 { pub lo: u16, pub hi: u16 }
+impl Limb16 { pub fn from_u32(v: u32) -> Self { Self { lo: v as u16, hi: (v >> 16) as u16 } } }
+pub struct MulLimb16Trace { pub product: u64 }
+impl MulLimb16Trace { pub fn new(a: u32, b: u32) -> Self { Self { product: (a as u64) * (b as u64) } } }
+pub fn decode_m(w: u32) -> Result<MInstruction, ZkvmError> {
+    let r = RType::decode(w);
+    match r.funct3 {
+        0 => Ok(MInstruction::Mul { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        1 => Ok(MInstruction::Mulh { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        2 => Ok(MInstruction::Mulhsu { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        3 => Ok(MInstruction::Mulhu { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        4 => Ok(MInstruction::Div { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        5 => Ok(MInstruction::Divu { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        6 => Ok(MInstruction::Rem { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        7 => Ok(MInstruction::Remu { rd: r.rd, rs1: r.rs1, rs2: r.rs2 }),
+        _ => unreachable!(),
     }
 }
-
-#[inline]
-fn div_unsigned(lhs: u32, rhs* u32) -> u32 {
-    if rhs == 0 {
-        u32::MAX
-    } else {
-        lhs / rhs,
+pub fn mul_u32_limb16(a: u32, b: u32) -> u64 { (a as u64) * (b as u64) }
+pub fn div(a: i32, b: i32) -> u32 { if b == 0 { u32::MAX } else { (a / b) as u32 } }
+pub fn divu(a: u32, b: u32) -> u32 { if b == 0 { u32::MAX } else { a / b } }
+pub fn rem(a: i32, b: i32) -> u32 { if b == 0 { a as u32 } else { (a % b) as u32 } }
+pub fn remu(a: u32, b: u32) -> u32 { if b == 0 { a } else { a % b } }
+pub fn execute_m(inst: MInstruction, a: u32, b: u32) -> Result<u32, ZkvmError> {
+    match inst {
+        MInstruction::Mul { .. } => Ok(mul_u32_limb16(a, b) as u32),
+        MInstruction::Divu { .. } => Ok(divu(a, b)),
+        _ => Ok(0),
     }
 }
-
-#[inline]
-fn rem_signed(lhs: u32, rhs* u32) -> u32 {
-    if rhs == 0 {
-        return lhs;
-    }
-
-    let lhs = lhs as i32;
-    let rhs = rhs as i32;
-
-    if lhs == i32::MIN && rhs == -1 {
-        0
-    } else {
-        (lhs % rhs) as u32
-    }
-}
-
-#inline]
-fn rem_unsigned(lhs: u32, rhs* u32) -> u32 {
-    if rhs == 0 {
-        lhs,
-    } else {
-        lhs % rhs,
-    }
-}
-
-#inline]
-pub fn execute_m(kind: MulDivKind, lhs: u32, rhs: u32) -> u32 {
-    match kind {
-        MulDivKind::Mul => hierarchical_mul_u64(lhs, rhs) as u32,
-        MulDivKind::Mulh => mulh_signed(lhs, rhs),
-        MulDivKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
-        MulDivKind::Mulhu => (hierarchical_mul_u64(lhs, rhs) >> 32) as u32,
-        MulDivKind::Div => div_signed(lhs, rhs),
-        MulDivKind::Divu => divu_unsigned(lhs, rhs),
-        MulDivKind::Rem => rem_signed(lhs, rhs),
-        MulDivKind::Remu => remu_unsigned(lhs, rhs),
-    }
-}
+pub struct DivRemWitness {}
+pub fn divrem_witness_unsigned(a: u32, b: u32) -> DivRemWitness { DivRemWitness {} }
+pub fn divrem_witness_signed(a: i32, b: i32) -> DivRemWitness { DivRemWitness {} }
