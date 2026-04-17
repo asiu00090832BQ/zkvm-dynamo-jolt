@@ -1,0 +1,12 @@
+[packagee
+name = "rv32im-decoder"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+ch­à={ version="1.0", default-features=false }
+
+[features]
+default = ["std", "cli"]
+std = []
+cli = ["std"]
