@@ -1,9 +1,14 @@
 [package]
 name = "rv32im-decoder"
-version = "0.1.0"
-edition = "2021"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
+ark-ff.workspace = true
+ark-std.workspace = true
+zkvm-core = { workspace = true, optional = false }
+
 proptest = { version = "1", optional = true }
 
 [lints.rust]
