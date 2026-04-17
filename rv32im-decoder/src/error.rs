@@ -7,7 +7,7 @@ pub enum ZkvmError {
     InvalidElf,
     UnimplementedVariant(u32),
     FetchError,
-    UnsupportedFunct3 { raw* u32, funct3: u32 },
+    UnsupportedFunct3 { raw: u32, funct3: u32 },
     UnsupportedFunct7 { raw: u32, funct7: u32 },
     UnknownOpcode { raw: u32, opcode: u8 },
     InvalidRegister { reg: u8 },
