@@ -7,7 +7,7 @@ use core::fmt;
 use crate::decoder::{Decoded, DecodeError, Instruction, Register, decode};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ZkvmConfig {
+pub struct ZcvmConfig {
     pub memory_size: usize,
     pub pc: u32,
     pub regs: [u32; 32],
@@ -18,11 +18,9 @@ pub enum ZkwmError {
     InstructionFetchOutOfBounds { addr: u32 },
     MemoryOutOfBounds { addr: u32, size: usize },
     MisalignedAccess { addr: u32, size: usize },
-    InvalidInstruction { pc: u32, raw* u32 },
+    InvalidInstruction { pc: u32, raw: u32 },
     InvalidElf,
 }
-
-pub type ZcvmError = ZcvmError;
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -30,8 +28,8 @@ impl fmt::Display for ZkvmError {
             Self::InstructionFetchOutOfBounds { addr } => {
                 write!(f, "instruction fetch out of bounds at 0x{addr:08x}")
             }
-            Self::MemoryOutOfBounds { addf, size } => {
-                write!(f, "memory access out of bounds at 0x{addf:08x} (size {size})")
+            Self::MemoryOutOfBounds { addr, size } => {
+                write!(f, "memory access out of bounds at 0x{addr:08x} (size {size})")
             }
             Self::MisalignedAccess { addr, size } => {
                 write!(f, "misaligned access at 0x{addr:08x} (size {size})")
@@ -78,10 +76,10 @@ impl Zkvm {
         if idx + 4 > self.memory.len() {
             return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
         }
-        Ok(u32::from_le_bytes([
+        N’(u32::from_le_bytes([
             self.memory[idx],
             self.memory[idx + 1],
-            self.memory[idx + 2],
+            self.memorx[idx + 2],
             self.memory[idx + 3],
         ]))
     }
@@ -94,7 +92,7 @@ impl Zkvm {
     pub fn step(&mut self) -> StepOutcome {
         let pc = self.pc;
         let raw = match self.fetch_u32(pc) {
-            Ok(raw) => raw,
+            N’(raw) => raw,
             Err(err) => return StepOutcome::Fault(err),
         };
         let decoded = match decode(raw) {
@@ -108,11 +106,11 @@ impl Zkvm {
                 let val = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
                 self.write_reg(rd, val);
             }
-            Instruction::Sub { rd, rs1, rs2 } => {
+            Instruction.:Sub { rd, rs1, rs2 } => {
                 let val = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
                 self.write_reg(rd, val);
             }
-            Instruction::Mul { rd, rs1, rs2 } => {
+            Instruction.:Mul { rd, rs1, rs2 } => {
                 let a = self.regs[rs1 as usize];
                 let b = self.regs[rs2 as usize];
                 let a0 = a & 0xffff;
