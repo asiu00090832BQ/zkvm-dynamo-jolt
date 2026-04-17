@@ -1,9 +1,22 @@
 [package]
 name = "rv32im-decoder"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "no_std-compatible RV32IM instruction decoder"
+
+[features]
+default = ["std"]
+std = []
 
 [dependencies]
-ark-ff.workspace = true
-ark-std.workspace = true
+
+[dev-dependencies]
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "rv32im-decoder"
+path = "src/bin/rv32im-decoder.rs"
+required-features = ["std"]

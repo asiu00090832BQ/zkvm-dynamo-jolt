@@ -1,55 +1,49 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+use core::fmt;
+
+pub type Register = u8;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RTypeFields { pub rd: Register, pub rs1: Register, pub rs2: Register }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ITypeFields { pub rd: Register, pub rs1: Register, pub imm: i32 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct STypeFields { pub rs1: Register, pub rs2: Register, pub imm: i32 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct BTypeFields { pub rs1: Register, pub rs2: Register, pub imm: i32 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct UTypeFields { pub rd: Register, pub imm: i32 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct JTypeFields { pub rd: Register, pub imm: i32 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct ShiftImmediateFields { pub rd: Register, pub rs1: Register, pub shamt: u8 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct FenceFields { pub pred: u8, pub succ: u8, pub fm: u8 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CsrFields { pub rd: Register, pub rs1: Register, pub csr: u16 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct CsrImmediateFields { pub rd: Register, pub zimm: u8, pub csr: u16 }
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Instruction {
-    // RV32I base
-    Add { rd: u8, rs1: u8, rs2: u8 },
-    Sub { rd: u8, rs1: u8, rs2: u8 },
-    Sll { rd: u8, rs1: u8, rs2: u8 },
-    Slt { rd: u8, rs1: u8, rs2: u8 },
-    Sltu { rd: u8, rs1: u8, rs2: u8 },
-    Xor { rd: u8, rs1: u8, rs2: u8 },
-    Srl { rd: u8, rs1: u8, rs2: u8 },
-    Sra { rd: u8, rs1: u8, rs2: u8 },
-    Or { rd: u8, rs1: u8, rs2: u8 },
-    And { rd: u8, rs1: u8, rs2: u8 },
-    Addi { rd: u8, rs1: u8, imm: i32 },
-    Slti { rd: u8, rs1: u8, imm: i32 },
-    Sltiu { rd: u8, rs1: u8, imm: i32 },
-    Xori { rd: u8, rs1: u8, imm: i32 },
-    Ori { rd: u8, rs1: u8, imm: i32 },
-    Andi { rd: u8, rs1: u8, imm: i32 },
-    Slli { rd: u8, rs1: u8, shamt: u8 },
-    Srli { rd: u8, rs1: u8, shamt: u8 },
-    Srai { rd: u8, rs1: u8, shamt: u8 },
-    Lb { rd: u8, rs1: u8, imm: i32 },
-    Lh { rd: u8, rs1: u8, imm: i32 },
-    Lw { rd: u8, rs1: u8, imm: i32 },
-    Lbu { rd: u8, rs1: u8, imm: i32 },
-    Lhu { rd: u8, rs1: u8, imm: i32 },
-    Sb { rs1: u8, rs2: u8, imm: i32 },
-    Sh { rs1: u8, rs2: u8, imm: i32 },
-    Sw { rs1: u8, rs2: u8, imm: i32 },
-    Beq { rs1: u8, rs2: u8, imm: i32 },
-    Bne { rs1: u8, rs2: u8, imm: i32 },
-    Blt { rs1: u8, rs2: u8, imm: i32 },
-    Bge { rs1: u8, rs2: u8, imm: i32 },
-    Bltu { rs1: u8, rs2: u8, imm: i32 },
-    Bgeu { rs1: u8, rs2: u8, imm: i32 },
-    Lui { rd: u8, imm: i32 },
-    Auipc { rd: u8, imm: i32 },
-    Jal { rd: u8, imm: i32 },
-    Jalr { rd: u8, rs1: u8, imm: i32 },
-    Ecall,
-    Ebreak,
-
-    // RV32M extension
-    Mul { rd: u8, rs1: u8, rs2: u8 },
-    Mulh { rd: u8, rs1: u8, rs2: u8 },
-    Mulhsu { rd: u8, rs1: u8, rs2: u8 },
-    Mulhu { rd: u8, rs1: u8, rs2: u8 },
-    Div { rd: u8, rs1: u8, rs2: u8 },
-    Divu { rd: u8, rs1: u8, rs2: u8 },
-    Rem { rd: u8, rs1: u8, rs2: u8 },
-    Remu { rd: u8, rs1: u8, rs2: u8 },
-
-    Invalid(u32),
+    Lui(UTypeFields), Auipc(UTypeFields), Jal(JTypeFields), Jalr(ITypeFields),
+    Beq(BTypeFields), Bne(BTypeFields), Blt(BTypeFields), Bge(BTypeFields), Bltu(BTypeFields), Bgeu(BTypeFields),
+    Lb(ITypeFields), Lh(ITypeFields), Lw(ITypeFields), Lbu(ITypeFields), Lhu(ITypeFields),
+    Sb(STypeFields), Sh(STypeFields), Sw(STypeFields),
+    Addi(ITypeFields), Slti(ITypeFields), Sltiu(ITypeFields), Xori(ITypeFields), Ori(ITypeFields), Andi(ITypeFields),
+    Slli(ShiftImmediateFields), Srli(ShiftImmediateFields), Srai(ShiftImmediateFields),
+    Add(RTypeFields), Sub(RTypeFields), Sll(RTypeFields), Slt(RTypeFields), Sltu(RTypeFields), Xor(RTypeFields), Srl(RTypeFields), Sra(RTypeFields), Or(RTypeFields), And(RTypeFields),
+    Fence(FenceFields), FenceI(ITypeFields),
+    Ecall, Ebreak, Csrrw(CsrFields), Csrrs(CsrFields), Csrrc(CsrFields), Csrrwi(CsrImmediateFields), Csrrsi(CsrImmediateFields), Csrrci(CsrImmediateFields),
+    Mul(RTypeFields), Mulh(RTypeFields), Mulhsu(RTypeFields), Mulhu(RTypeFields), Div(RTypeFields), Divu(RTypeFields), Rem(RTypeFields), Remu(RTypeFields),
 }
+
+impl fmt::Display for Instruction { fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result { write!(f, "{self:?}") } }

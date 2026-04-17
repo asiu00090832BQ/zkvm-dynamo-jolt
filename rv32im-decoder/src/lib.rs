@@ -1,12 +1,11 @@
-#![no_std]
+#![cfg_attr(not(feature = "std"), no_std)]
 #![forbid(unsafe_code)]
 
-pub mod decoder;
 pub mod instruction;
-pub mod m_extension;
-pub mod selectors;
+pub mod encoding;
+pub mod error;
+pub mod decoder;
 
-pub use decoder::{decode, DecodeError};
+pub use decoder::decode;
+pub use error::{DecodeError, DecodeResult, Zkvm, ZkvmError, ZkvmResult};
 pub use instruction::Instruction;
-pub use m_extension::decode_m_extension;
-pub use selectors::DecodeSelectors;
