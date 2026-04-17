@@ -47,3 +47,8 @@ pub struct DecodeSelectors {
     pub is_m_ext: bool,
     pub is_system: bool,
 }
+
+pub struct Decoded {
+    pub word: u32,
+    pub instruction: Instruction,
+}
