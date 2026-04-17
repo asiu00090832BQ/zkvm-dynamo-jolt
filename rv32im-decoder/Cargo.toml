@@ -1,9 +1,13 @@
 [package]
 name = "rv32im-decoder"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
 
 [dependencies]
-ark-ff.workspace = true
-ark-std.workspace = true
+zkvm-core = { path = "../zkvm-core" }
+
+[dev-dependencies]
+proptest = "1"
+
+[lints.rust]
+unsafe_code = "forbid"
