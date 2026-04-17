@@ -1,9 +1,12 @@
 [package]
 name = "rv32im-decoder"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Modular RV32IM decoder for zkVM integration"
+
+[lib]
+name = "rv32im_decoder"
+path = "src/lib.rs"
 
 [dependencies]
-ark-ff.workspace = true
-ark-std.workspace = true
