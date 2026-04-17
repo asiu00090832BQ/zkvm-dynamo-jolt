@@ -1,19 +1,18 @@
-use zkvm_core::ZkvmError;
+use core::fmt;
 
-pub type DecodeResult<T> = Result<T, DecoderError>;
-
-#[derive(Debug)]
-pub enum DecoderError {
-    UnknownOpcode { raw: u32, opcode: u8 },
-    UnsupportedFunct3 { raw: u32, funct3: u8 },
-    UnsupportedFunct7 { raw: u32, funct7: u8 },
-    InvalidRegister { reg: u8 },
-    InvariantViolation(&'static str),
-    Core(ZkvmError),
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ZkvmError {
+    InvalidElf,
+    InvalidInstruction(u32),
 }
 
-impl From<ZkvmError> for DecoderError {
-    fn from(err: ZkvmError) -> Self {
-        Self::Core(err)
+impl fmt::Display for ZkvmError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidElf => f.write_str("invalid ELF image"),
+            Self::InvalidInstruction(word) => {
+                write!(f, "invalid RV32IM instruction: 0x{word:08x}")
+            }
+        }
     }
 }

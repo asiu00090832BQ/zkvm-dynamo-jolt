@@ -1,7 +1,54 @@
-use crate::formats::{BType, IType, JType, RType, SType, UType};
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BranchKind {
+    Beq,
+    Bne,
+    Blt,
+    Bge,
+    Bltu,
+    Bgeu,
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MInstruction {
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LoadKind {
+    Lb,
+    Lh,
+    Lw,
+    Lbu,
+    Lhu,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum StoreKind {
+    Sb,
+    Sh,
+    Sw,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AluImmKind {
+    Addi,
+    Slti,
+    Sltiu,
+    Xori,
+    Ori,
+    Andi,
+    Slli,
+    Srli,
+    Srai,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AluRegKind {
+    Add,
+    Sub,
+    Sll,
+    Slt,
+    Sltu,
+    Xor,
+    Srl,
+    Sra,
+    Or,
+    And,
     Mul,
     Mulh,
     Mulhsu,
@@ -12,32 +59,53 @@ pub enum MInstruction {
     Remu,
 }
 
-impl MInstruction {
-    pub const fn mnemonic(self) -> &'static str {
-        match self {
-            Self::Mul => "mul",
-            Self::Mulh => "mulh",
-            Self::Mulhsu => "mulhsu",
-            Self::Mulhu => "mulhu",
-            Self::Div => "div",
-            Self::Divu => "divu",
-            Self::Rem => "rem",
-            Self::Remu => "remu",
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum DecodedInstruction {
-    Lui(UType),
-    Auipc(UType),
-    Jal(JType),
-    Jalr(IType),
-    Branch(BType),
-    Load(IType),
-    Store(SType),
-    OpImm(IType),
-    Op(RType),
-    MulDiv(MInstruction, RType),
-    System(u32),
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Instruction {
+    Lui {
+        rd: u8,
+        imm: u32,
+    },
+    Auipc {
+        rd: u8,
+        imm: u32,
+    },
+    Jal {
+        rd: u8,
+        imm: i32,
+    },
+    Jalr {
+        rd: u8,
+        rs1: u8,
+        imm: i32,
+    },
+    Branch {
+        kind: BranchKind,
+        rs1: u8,
+        rs2: u8,
+        imm: i32,
+    },
+    Load {
+        kind: LoadKind,
+        rd: u8,
+        rs1: u8,
+        imm: i32,
+    },
+    Store {
+        kind: StoreKind,
+        rs1: u8,
+        rs2: u8,
+        imm: i32,
+    },
+    OpImm {
+        kind: AluImmKind,
+        rd: u8,
+        rs1: u8,
+        imm: i32,
+    },
+    Op {
+        kind: AluRegKind,
+        rd: u8,
+        rs1: u8,
+        rs2: u8,
+    },
 }

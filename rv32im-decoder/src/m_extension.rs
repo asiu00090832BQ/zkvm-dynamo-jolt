@@ -1,57 +1,126 @@
-use crate::{
-    error::{DecodeResult, DecoderError},
-    formats::RType,
-    instruction::{DecodedInstruction, MInstruction},
-    invariants,
-};
+use crate::error::ZkvmError;
+use crate::formats::RType;
+use crate::instruction::{AluRegKind, Instruction};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Limb16 {
-    pub lo: u16,
-    pub hi: u16,
+#[inline(always)]
+pub const fn split_u32_to_u16_limbs(value: u32) -> (u16, u16) {
+    ((value & 0xffff) as u16, (value >> 16) as u16)
 }
 
-pub fn decode_m_instruction(raw: u32) -> DecodeResult<DecodedInstruction> {
-    let r = RType::new(raw);
-    invariants::ensure_register(r.rd())?;
-    invariants::ensure_register(r.rs1())?;
-    invariants::ensure_register(r.rs2())?;
+/// Lemma 6.1.1:
+/// P = (a1 * b1) << 32 + (a1 * b0 + a0 * b1) << 16 + a0 * b0
+#[inline]
+pub fn mul_u32_limb(a: u32, b: u32) -> u64 {
+    let (a0, a1) = split_u32_to_u16_limbs(a);
+    let (b0, b1) = split_u32_to_u16_limbs(b);
 
-    let op = match r.funct3() {
-        0b000 => MInstruction::Mul,
-        0b001 => MInstruction::Mulh,
-        0b010 => MInstruction::Mulhsu,
-        0b011 => MInstruction::Mulhu,
-        0b100 => MInstruction::Div,
-        0b101 => MInstruction::Divu,
-        0b110 => MInstruction::Rem,
-        0b111 => MInstruction::Remu,
-        funct3 => return Err(DecoderError::UnsupportedFunct3 { raw, funct3 }),
-    };
+    let a0 = a0 as u64;
+    let a1 = a1 as u64;
+    let b0 = b0 as u64;
+    let b1 = b1 as u64;
 
-    invariants::ensure_utf8(op.mnemonic())?;
-    invariants::ensure_zkvm_symbol_parity()?;
-    Ok(DecodedInstruction::MulDiv(op, r))
+    ((a1 * b1) << 32) + ((a1 * b0 + a0 * b1) << 16) + (a0 * b0)
 }
 
-pub fn decompose_u32(value: u32) -> Limb16 {
-    Limb16 {
-        lo: value as u16,
-        hi: (value >> 16) as u16,
+#[inline]
+fn mul_i32_full(a: i32, b: i32) -> i64 {
+    let a_negative = a < 0;
+    let b_negative = b < 0;
+    let a_mag = a.wrapping_abs() as u32;
+    let b_mag = b.wrapping_abs() as u32;
+    let magnitude = mul_u32_limb(a_mag, b_mag) as i64;
+
+    if a_negative ^ b_negative {
+        -magnitude
+    } else {
+        magnitude
     }
 }
 
-pub fn plan_mul_limbs(lhs: u32, rhs: u32) -> [(u32, u32); 4] {
-    let l = decompose_u32(lhs);
-    let r = decompose_u32(rhs);
-    [
-        (l.lo as u32, r.lo as u32),
-        (l.lo as u32, r.hi as u32),
-        (l.hi as u32, r.lo as u32),
-        (l.hi as u32, r.hi as u32),
-    ]
+#[inline]
+fn mul_i32_u32_full(a: i32, b: u32) -> i64 {
+    let a_negative = a < 0;
+    let a_mag = a.wrapping_abs() as u32;
+    let magnitude = mul_u32_limb(a_mag, b) as i64;
+
+    if a_negative {
+        -magnitude
+    } else {
+        magnitude
+    }
 }
 
-pub fn plan_div_semantics(_lhs: i32, _rhs: i32) -> DecodeResult<()> {
-    Ok(())
+#[inline]
+pub fn execute_m(kind: AluRegKind, lhs: u32, rhs: u32) -> Option<u32> {
+    let value = match kind {
+        AluRegKind::Mul => mul_u32_limb(lhs, rhs) as u32,
+        AluRegKind::Mulh => ((mul_i32_full(lhs as i32, rhs as i32) as u64) >> 32) as u32,
+        AluRegKind::Mulhsu => ((mul_i32_u32_full(lhs as i32, rhs) as u64) >> 32) as u32,
+        AluRegKind::Mulhu => (mul_u32_limb(lhs, rhs) >> 32) as u32,
+        AluRegKind::Div => {
+            let lhs = lhs as i32;
+            let rhs = rhs as i32;
+            if rhs == 0 {
+                u32::MAX
+            } else if lhs == i32::MIN && rhs == -1 {
+                lhs as u32
+            } else {
+                (lhs / rhs) as u32
+            }
+        }
+        AluRegKind::Divu => {
+            if rhs == 0 {
+                u32::MAX
+            } else {
+                lhs / rhs
+            }
+        }
+        AluRegKind::Rem => {
+            let lhs = lhs as i32;
+            let rhs = rhs as i32;
+            if rhs == 0 {
+                lhs as u32
+            } else if lhs == i32::MIN && rhs == -1 {
+                0
+            } else {
+                (lhs % rhs) as u32
+            }
+        }
+        AluRegKind::Remu => {
+            if rhs == 0 {
+                lhs
+            } else {
+                lhs % rhs
+            }
+        }
+        _ => return None,
+    };
+
+    Some(value)
+}
+
+pub fn decode_m_extension(word: u32) -> Result<Instruction, ZkvmError> {
+    let r = RType::decode(word);
+    if r.funct7 != 0x01 {
+        return Err(ZkvmError::InvalidInstruction(word));
+    }
+
+    let kind = match r.funct3 {
+        0x0 => AluRegKind::Mul,
+        0x1 => AluRegKind::Mulh,
+        0x2 => AluRegKind::Mulhsu,
+        0x3 => AluRegKind::Mulhu,
+        0x4 => AluRegKind::Div,
+        0x5 => AluRegKind::Divu,
+        0x6 => AluRegKind::Rem,
+        0x7 => AluRegKind::Remu,
+        _ => return Err(ZkvmError::InvalidInstruction(word)),
+    };
+
+    Ok(Instruction::Op {
+        kind,
+        rd: r.rd,
+        rs1: r.rs1,
+        rs2: r.rs2,
+    })
 }
