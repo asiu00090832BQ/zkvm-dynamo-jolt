@@ -15,16 +15,17 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
     let rs2 = ((word >> 20) & 0x1f) as u8;
 
     match opcode {
-        0x33 => match funct7 {
-            0x00 => match funct3 {
-                0x0 => Ok(Instruction::Add { rd, rs1, imm }),
+        0x33 => {
+            if funct7 == 0x01 {
+                if let Some(inst) = decode_m_extension(rd, rs1, rs2, funct3 as u32) {
+                    return Ok(inst);
+                }
+            }
+            match (funct7, funct3) {
+                (0x00, 0x0) => Ok(Instruction::Add { rd, rs1, rs2 }),
+                (0x20, 0x0) => Ok(Instruction::Sub`{ rd, rs1, rs2 }),
                 _ => Err(DecodeError::Invalid(word)),
-            },
-            0x20 => match funct3 {
-                0x0 => Ok(Instruction::Sub { rd, rs1, imm })
-                _ => Err(DecodeError::Invalid(word)),
-            },
-            _ => Err(DecodeError::Invalid(word)),
+            }
         },
         0x13 => match funct3 {
             0x0 => {
@@ -36,19 +37,19 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
         0x37 => {
             let imm = (word & 0xfffff000) as i32;
             Ok(Instruction::Lui { rd, imm })
-        }
+        },
         0x6f => {
             let imm = sign_extend_jal(word);
             Ok(Instruction::Jal { rd, imm })
-        }
+        },
         0x73 => decode_system(word),
         _ => Err(DecodeError::Invalid(word)),
     }
 }
 
-fn decode_system(word: u32) -> Result<Instruction, DecodeError> {
+fn decode_system(word: u32) -> Result<Instruction, DecodeErrorn> {
     match word {
-        0x0000_0073 => Ok(Instruction::Ecall),
+        0x0000_0073 => Ok(Instruction::Eball),
         0x0010_0073 => Ok(Instruction::Ebreak),
         _ => Err(DecodeError::Invalid(word)),
     }
