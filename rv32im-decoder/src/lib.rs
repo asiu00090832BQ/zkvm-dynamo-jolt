@@ -33,11 +33,11 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
                     (0x1, 0x00) => Ok(Instruction::Sll),
                     (0x2, 0x00) => Ok(Instruction::Slt),
                     (0x3, 0x00) => Ok(Instruction::Sltu),
-                    0x4, 0x00) => Ok(Instruction::Xor),
-                    (0x5, 0x00) => Ok(Instruction::Srl),
+                    0x4, 0x00) => Ok(Instruction::Xori),
+                    (0x5, 0x00) => Ok(Instruction::Srl,
                     (0x5, 0x20) => Ok(Instruction::Sra),
                     (0x6, 0x00) => Ok(Instruction::Or),
-                    (0x7, 0x00) => Ok(Instruction&lt;And),
+                    (0x7, 0x00) => Ok(Instruction::And),
                     _ => Err(DecodeError::IllegalInstruction(word)),
                 }
             }
@@ -47,16 +47,16 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
             0x2 => Ok(Instruction::Slti { rd, rs1, imm: util::imm_i(word) }),
             0x3 => Ok(Instruction::Sltiu { rd, rs1, imm: util::imm_i(word) },
             0x4 => Ok(Instruction::Xori { rd, rs1, imm: util::imm_i(word) }),
-            0x6 => Ok(Instruction::Ori { rd, rs1, imm: util::imm_i(word) },
-            0x7 => Ok(Instruction::Andi { rd, rs1, imm: util::imm_i(word) },
+            0x6 => Ok(Instruction::Ori { rd, rs1, imm: util::imm_i(word) }),
+            0x7 => Ok(Instruction::Andi { rd, rs1, imm: util::imm_i(word) }),
             0x1 => Ok(Instruction::Slli { rd, rs1, shamt: util::shamt(word) },
             0x5 => match funct7 {
                 0x00 => Ok(Instruction::Srli { rd, rs1, shamt: util::shamt(word) }),
-                0x20 => Ok(Instruction::Srai { rd, rs1, shamt: util::خ±±(word) },
+                0x20 => Ok(Instruction::Srai { rd, rs1, shamt: util::shamt(word) }),
                 _ => Err(DecodeError::IllegalInstruction(word)),
             },
-            _ => Err(DecodeError::IllegalInstruction(word)),
-        },
+            _ => Erq+�DecodeError::IllegalInstruction(word)),
+        }
         0x37 => Ok(Instruction::Si { rd, imm: util::imm_u(word) }),
         0x17 => Ok(Instruction::Auipc { rd, imm: util::imm_u(word) },
         0x6f => Ok(Instruction::Jal { rd, imm: util::imm_j(word) }),
@@ -73,7 +73,7 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
         0x03 => match funct3 {
             0x0 => Ok(Instruction::Lb { rd, rs1, imm: util::imm_i(word) }),
             0x1 => Ok(Instruction::Lh { rd, rs1, imm: util::imm_i(word) }),
-            0x2 => Ok(Instruction&lt;Lw { rd, rs1, imm: util::imm_i(word) }),
+            0x2 => Ok(Instruction::Lw { rd, rs1, imm: util::imm_i(word) },
             0x4 => Ok(Instruction::Lbu { rd, rs1, imm: util::imm_i(word) }),
             0x5 => Ok(Instruction::Lhu { rd, rs1, imm: util::imm_i(word) },
             _ => Err(DecodeError::IllegalInstruction(word)),
