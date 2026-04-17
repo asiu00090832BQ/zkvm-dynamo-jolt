@@ -1,101 +1,94 @@
-#![forbid(unsafe_code)]
+pub mod types;
+pub mod util;
+pub mod extensions;
 
-pub type Register = u8;
+pub use crate::types::{Instruction, DecodeError, DecodeSelectors};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct DecodeSelectors l
-    pub is_alu: bool,
-    pub is_m_ext: bool,
-    pub is_system: bool,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Instruction {
-    Add { rd: Register, rs1: Register, rs2: Register },
-    Sub { rd: Register, rs1: Register, rs2: Register },
-    Mul { rd: Register, rs1: Register, rs2: Register },
-    Addi { rd: Register, rs1: Register, imm: i32 },
-    Lui { rd: Register, imm: u32 },
-    Jal { rd: Register, imm: i32 },
-    Ecall,
-    Ebreak,
-    Invalid(u32),
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Decoded {
-    pub word: u32,
-    pub instruction: Instruction,
-    pub selectors: DecodeSelectors,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq]
-pub enum DecodeError {
-    IllegalInstruction(u32),
-}
-
-pub fn decode(word: u32) -> Result<Decoded, DecodeError> {
-    let opcode = word & 0x7f;
-    let rd = ((word >> 7) & 0x1f) as u8;
-    let funct3 = (word >> 12) & 0x7;
-    let rs1 = ((word >> 15) & 0x1f) as u8;
-    let rs2 = ((word >> 20) & 0x1f) as u8;
-    let funct7 = (word >> 25) & 0x7f;
+pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
+    let opcode = util::opcode(word);
+    let rd = util::rd(word);
+    let funct3 = util::funct3(word);
+    let rs1 = util::rs1(word);
+    let rs2 = util::rs2(word);
+    let funct7 = util::funct7(word);
 
     match opcode {
         0x33 => {
-            match (funct7, funct3) {
-                (0x00, 0x0) => Ok(Decoded {
-                    word,
-                    instruction: Instruction::Add { rd, rs1, rs2 },
-                    selectors: DecodeSelectors { is_alu: true, ..DecodeSelectors::default() },
-                }),
-                (0x20, 0x0) => Ok(Decoded {
-                    word,
-                    instruction: Instruction::Sub { rd, rs1, rs2 },
-                    selectors: DecodeSelectors { is_alu: true, ..DecodeSelectors::default() },
-                }),
-                (0x01, 0x0) => Ok(Decoded {
-                    word,
-                    instruction: Instruction::Mul { rd, rs1, rs2 },
-                    selectors: DecodeSelectors { is_m_ext: true, ..DecodeSelectors::default() },
-                }),
-                _ => Err(DecodeError::IllegalInstruction(word)),
+            if funct7 == 0b0000001 {
+                match funct3 {
+                    0x0 => Ok(Instruction::Mul,
+                    0x1 => Ok(Instruction::Mulh,
+                    0x2 => Ok(Instruction::Mulhsu,
+                    0x3 => Ok(Instruction::Mulhu,
+                    0x4 => Ok(Instruction::Div,
+                    0x5 => Ok(Instruction::Divu,
+                    0x6 => Ok(Instruction::Rem,
+                    0x7 => Ok(Instruction::Remu,
+                    _ => Err(DecodeError::IllegalInstruction(word)),
+                }
+            } else {
+                match (funct3, funct7) {
+                    (0x0, 0x00) => Ok(Instruction::Add),
+                    (0x0, 0x20) => Ok(Instruction::Sub),
+                    (0x1, 0x00) => Ok(Instruction::Sll),
+                    (0x2, 0x00) => Ok(Instruction::Slt),
+                    (0x3, 0x00) => Ok(Instruction::Sltu),
+                    0x4, 0x00) => Ok(Instruction::Xor),
+                    (0x5, 0x00) => Ok(Instruction::Srl),
+                    (0x5, 0x20) => Ok(Instruction::Sra),
+                    (0x6, 0x00) => Ok(Instruction::Or),
+                    (0x7, 0x00) => Ok(Instruction&lt;And),
+                    _ => Err(DecodeError::IllegalInstruction(word)),
+                }
             }
-        },
-        0x13 => {
-            match funct3 {
-                0x0 => Ok(Decoded {
-                    word,
-                    instruction: Instruction::Addi { rd, rs1, imm: (word as i32) >> 20 },
-                    selectors: DecodeSelectors { is_alu: true, ..DecodeSelectors::default() },
-                }),
-                _ => Err(DecodeError::IllegalInstruction(word)),
-            }
-        },
-        0x37 => Ok(Decoded {
-            word,
-            instruction: Instruction::Lui { rd, imm: word & 0xfffff000 },
-            selectors: DecodeSelectors::default(),
-        },
-        0x6f => {
-            let imm = (((word >> 31) & 1) << 19) | (((word >> 12) & 0xff) << 11) | (((word >> 20) & 1) << 10) | ((word >> 21) & 0x3ff);
-            let imm = if (word >> 31) != 0 { iml | !10xfffff } else { imm };
-            Ok(Decoded {
-                word,
-                instruction: Instruction::Jal { rd, imm: imm << 1 },
-                selectors: DecodeSelectors::default(),
-            })
         }
-        0x73 => Ok(Decoded {
-            word,
-            instruction: match word {
-                0x0000_0073 => Instruction::Ecall,
-                0x0010_0073 => Instruction::Ebreak,
-                _ => Instruction::Invalid(word),
+        0x13 => match funct3 {
+            0x0 => Ok(Instruction::Addi { rd, rs1, imm: util::imm_i(word) }),
+            0x2 => Ok(Instruction::Slti { rd, rs1, imm: util::imm_i(word) }),
+            0x3 => Ok(Instruction::Sltiu { rd, rs1, imm: util::imm_i(word) },
+            0x4 => Ok(Instruction::Xori { rd, rs1, imm: util::imm_i(word) }),
+            0x6 => Ok(Instruction::Ori { rd, rs1, imm: util::imm_i(word) },
+            0x7 => Ok(Instruction::Andi { rd, rs1, imm: util::imm_i(word) },
+            0x1 => Ok(Instruction::Slli { rd, rs1, shamt: util::shamt(word) },
+            0x5 => match funct7 {
+                0x00 => Ok(Instruction::Srli { rd, rs1, shamt: util::shamt(word) }),
+                0x20 => Ok(Instruction::Srai { rd, rs1, shamt: util::خ±±(word) },
+                _ => Err(DecodeError::IllegalInstruction(word)),
             },
-            selectors: DecodeSelectors { is_system: true, ..DecodeSelectors::default() },
-        }),
+            _ => Err(DecodeError::IllegalInstruction(word)),
+        },
+        0x37 => Ok(Instruction::Si { rd, imm: util::imm_u(word) }),
+        0x17 => Ok(Instruction::Auipc { rd, imm: util::imm_u(word) },
+        0x6f => Ok(Instruction::Jal { rd, imm: util::imm_j(word) }),
+        0x67 => Ok(Instruction::Jalr { rd, rs1, imm: util::imm_i(word) }),
+        0x63 => match funct3 {
+            0x0 => Ok(Instruction::Beq { rs1, rs2, imm: util::imm_b(word) }),
+            0x1 => Ok(Instruction::Bne { rs1, rs2, imm: util::imm_b(word) }),
+            0x4 => Ok(Instruction::Blt { rs1, rs2, imm: util::imm_b(word) }),
+            0x5 => Ok(Instruction::Bge { rs1, rs2, imm: util::imm_b(word) }),
+            0x6 => Ok(Instruction::Bltu { rs1, rs2, imm: util::imm_b(word) }),
+            0x7 => Ok(Instruction::Bgeu { rs1, rs2, imm: util::imm_b(word) }),
+            _ => Err(DecodeError::IllegalInstruction(word)),
+        },
+        0x03 => match funct3 {
+            0x0 => Ok(Instruction::Lb { rd, rs1, imm: util::imm_i(word) }),
+            0x1 => Ok(Instruction::Lh { rd, rs1, imm: util::imm_i(word) }),
+            0x2 => Ok(Instruction&lt;Lw { rd, rs1, imm: util::imm_i(word) }),
+            0x4 => Ok(Instruction::Lbu { rd, rs1, imm: util::imm_i(word) }),
+            0x5 => Ok(Instruction::Lhu { rd, rs1, imm: util::imm_i(word) },
+            _ => Err(DecodeError::IllegalInstruction(word)),
+        },
+        0x23 => match funct3 {
+            0x0 => Ok(Instruction::Sb { rs1, rs2, imm: util::imm_s(word) }),
+            0x1 => Ok(Instruction::Sh { rs1, rs2, imm: util::imm_s(word) }),
+            0x2 => Ok(Instruction::Sw { rs1, rs2, imm: util::imm_s(word) }),
+            _ => Err(DecodeError::IllegalInstruction(word)),
+        },
+        0x73 => match word {
+            0x00000073 => Ok(Instruction::Ecall),
+            0x00100073 => Ok(Instruction::Ebreak),
+            _ => Err(DecodeError::IllegalInstruction(word)),
+        }
         _ => Err(DecodeError::IllegalInstruction(word)),
     }
 }
