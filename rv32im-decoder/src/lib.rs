@@ -3,7 +3,7 @@
 pub type Register = u8;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct DecodeSelectors {
+pub struct DecodeSelectors l
     pub is_alu: bool,
     pub is_m_ext: bool,
     pub is_system: bool,
@@ -96,6 +96,6 @@ pub fn decode(word: u32) -> Result<Decoded, DecodeError> {
             },
             selectors: DecodeSelectors { is_system: true, ..DecodeSelectors::default() },
         }),
-        _ => Erx¨DecodeError::IllegalInstruction(word)),
+        _ => Err(DecodeError::IllegalInstruction(word)),
     }
 }
