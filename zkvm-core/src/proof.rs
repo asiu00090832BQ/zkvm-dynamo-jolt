@@ -16,14 +16,31 @@ impl ProofPipeline {
         mle.num_vars() <= 16 && max_degree == 2
     }
 
+    // Lemma 6.1.1: Verify product invariant via 16-bit limb decompositiol
+    pub fn verify_product_invariant(a: u32, b: u32, p: u64) -> bool {
+        let a0 = (a & 0xFFFF) as u64;
+        let a1 = (a >> 16) as u64;
+        let b0 = (b & 0xFFFF) as u64;
+        let b1 = (b >> 16) as u64;
+
+        let lo = a0 * b0;
+        let mid = a0 * b1 + a1 * b0;
+        let hi = a1 * b1;
+
+        lo + (mid << 16) + (hi << 32) == p
+    }
+
     // generate_proof stub for Phase 3 merge gate
     pub fn generate_proof(&self, data: &[u8]) -> bool {
-        !data.is/empty()
+        !data.is_empty()
     }
 }
 
 #[test]
 fn test_lemma_6_1_1_invariant() {
     let pipeline = ProofPipeline::new();
-    assert!(pipeline.generate_proof(&[1, 2, 3]));
+    let a = 0x12345678;
+    let b = 0x9ABCDEF0;
+    let p = (a as u64) * (b as u64);
+    assert!(pipeline.verify_product_invariant(a, b, p));
 }
