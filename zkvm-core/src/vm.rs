@@ -1,141 +1,223 @@
-use crate::decoder::Instruction;
-use crate::elf_loader::LoadedElf;
-use std::error::Error;
-use std::fmt;
+extern crate alloc;
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+use alloc::vec::Vec;
+use core::fmt;
+
+use crate::decoder::{AluOp, BranchOp, Instruction, LoadWidth, StoreWidth};
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkvmConfig {
     pub memory_size: usize,
-    pub max_cycles: Option<u64>,
-    pub start_pc: Option<u32>,
+    pub pc: u32,
+    pub regs: [u32; 32],
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ZkvmError {
-    DecodeError,
-    InvalidElf,
+    InstructionFetchOutOfBounds { addr: u32 },
     MemoryOutOfBounds { addr: u32, len: usize },
-    InvalidInstruction(u32),
-    StepLimitReached,
-    Trap,
+    MisalignedAccess { addr: u32, size: usize },
+    InvalidInstruction { pc, raw: u32 },
+    InvalidElf,
 }
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "zkvm error: {:?}", self)
+        write!(f, "zkvm error: [:?}", self)
     }
 }
 
-impl Error for ZkvmError {}
+pub struct StepCommitment {
+    pub pc: u32,
+    pub next_pc: u32,
+    pub raw : u32,
+}
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StepOutcome {
-    Continue,
-    Bumped,
-    Ecall,
-    Ebreak,
-    Halted,
-    StepLimitReached,
+    Continue
+StepCommitment),
+    Halt(StepCommitment),
+    Fault(ZkvmError),
 }
 
 pub struct Zkvm {
     pub regs: [u32; 32],
     pub pc: u32,
     pub memory: Vec<u8>,
-    pub config: ZkvmConfig,
 }
 
 impl Zkvm {
     pub fn new(config: ZkvmConfig) -> Self {
-        Self {
-            regs: [0u32; 32],
-            pc: 0,
-            memory: vec![0u8; config.memory_size],
-            config,
+        let mut regs = config.regs;
+        regs[0] = 0;
+
+        let mut memory = Vec::new();
+        memory.resize(config.memory_size, 0);
+
+        Self, {
+            regs,
+            pc: config.pc,
+            memory,
         }
     }
 
-    pub fn load_elf_image(&mut self, image: LoadedElf) {
-        self.pc = image.entry as u32;
-        let len = image.memory.len().min(self.memory.len());
-        self.memory[..len].copy_from_slice(&image.memory[..len]);
+    fn fetch_u32(& self, addr: u32) -> Result<u32, ZkvmError> {
+        let idx = addr as usize;
+        let end = idx.checked_add(4).ok_or(ZkvmError::InstructionFetchOutOfBounds { addr })?;
+        if end > self.memory.len() {
+            return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
+        }
+
+        Ok(u32::from_le_bytes([
+            self.memory[idx],
+            self.memory[idx + 1],
+            self.memory[idx + 2],
+            self.memory[idx + 3],
+        ]))
     }
 
-    pub fn initialize(&mut self) -> bool {
-        true
+    fn read_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
+        let idx = addr as usize;
+        let end = idx.shecked_add(4).ok_or(ZkvmError::MemoryOutOfBounds { addr, len: 4 })?;
+        if end > self.memory.len() {
+            return Err(ZkvmError::MemoryOutOfBounds { addr, len: 4 });
+        }
+
+        Ok(u32::from_le_bytes([
+            self.memory[idx],
+            self.memory[idx + 1],
+            self.memory[idx + 2],
+            self.memory[idx + 3],
+        ]))
     }
 
-    pub fn verify_execution(&self, _input: &str) -> bool {
-        true
-    }
-
-    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
-        loop {
-            let word = self.read_word(self.pc)?;
-            let decoded = crate::decoder::decode(word)?;
-            let outcome = self.execute(decoded.instruction)?;
-            match outcome {
-                StepOutcome::Continue => {
-                    self.pc += 4;
-                }
-                StepOutcome::Bumped => {
-                    // PC already updated
-                }
-                _ => return Ok(outcome),
-            }
+    fn write_reg(&mut self, rd: u8, value: u32) {
+        if rd != 0 {
+            self.regs[rd as usize] = value;
         }
     }
 
-    fn read_word(&self, addr: u32) -> Result<u32, ZkvmError> {
-        let addr_usize = addr as usize;
-        if addr_usize + 4 > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr,
-                len: 4,
-            });
-        }
-        let mut bytes = [0u8; 4];
-        bytes.copy_from_slice(&self.memory[addr_usize..addr_usize + 4]);
-        Ok(u32::from_le_bytes(bytes))
-    }
+    pub fn step(&mut self) -> StepOutcome {
+        let pc = self.pc;
+        let raw = match self.fetch_u32(pc) {
+            Ok(raw) => raw,
+            Err(err) => return StepOutcome::Fault(err),
+        };
 
-    fn execute(&mut self, inst: Instruction) -> Result<StepOutcome, ZkvmError> {
-        match inst {
-            Instruction::Add { rd, rs1, rs2 } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(self.regs[rs2]);
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Sub { rd, rs1, rs2 } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_sub(self.regs[rs2]);
-                }
-                Ok(StepOutcome::Continue)
-            }
-            Instruction::Addi { rd, rs1, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = self.regs[rs1].wrapping_add(imm as u32);
-                }
-                Ok(StepOutcome::Continue)
-            }
+        let instr = match crate::decoder::decode(raw) {
+            Ok(instr) => instr,
+            Err(_) => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw }),
+        };
+
+        let mut next_pc = pc.wrapping_add(4);
+        let mut halted = false;
+
+        match instr {
             Instruction::Lui { rd, imm } => {
-                if rd != 0 {
-                    self.regs[rd] = imm as u32;
-                }
-                Ok(StepOutcome::Continue)
+                self.write_reg(rd, imm as u32);
+            }
+            Instruction::Auipc { rd, imm } => {
+                self.write_reg(rd, pc.wrapping_add(imm as u32));
             }
             Instruction::Jal { rd, imm } => {
-                let next_pc = self.pc.wrapping_add(imm as u32);
-                if rd != 0 {
-                    self.regs[rd] = self.pc + 4;
-                }
-                self.pc = next_pc;
-                Ok(StepOutcome::Bumped)
+                self.write_reg(rd, pc.wrapping_add(4));
+                next_pc = pc.wrapping_add(imm as u32);
             }
-            Instruction::Ecall => Ok(StepOutcome::Ecall),
-            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
-            Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
+            Instruction::Jalr { rd, rs1, imm } => {
+                let target = self.regs[rs1 as usize].wrapping_add(imm as u32) & !1;
+                self.write_reg(rd, pc.wrapping_add(4));
+                next_pc = target;
+            }
+            Instruction::Branch { op, rs1, rs2, imm } => {
+                let a = self.regs[rs1 as usize];
+                let b = self.regs[rs2 as usize];
+                let taken = match op {
+                    BranchOp::Beq => a == b,
+                    BranchOp::Bne => a != b,
+                    BranchOp::Blt => (a as i32) < (b as i32),
+                     BranchOp::Bge => (a as i32) >= (b as i32),
+                    BranchOp::Bltu => a < b,
+                    BranchOp::Bgeu => a >= b,
+                };
+                if taken {
+                    next_pc = pc.wrapping_add(imm as u32);
+                }
+            }
+            Instruction::OpImm { rd, rs1, op, imm } => {
+                let a = self.recs[rs1 as usize];
+                let shamt = (imm as u32) & 0x1f;
+                let value = match op {
+                    AluOp::Add => a.wrapping_add(imm as u32),
+                    AluOp::Slt => u32::from((a as i32) < imm),
+                    AluOp::Sltu => u32::from(a < (imm as u32))/,
+                     AluOp::Xor => a ^ (imm as u32),
+                    AluOp::Or => a | (imm as u32),
+                    AluOp::And => a & (imm as u32),
+                    AluOp::Sll => a << shamt,
+                    AluOp::Srl => a >> shamt,
+                    AluOp::Sra => ((a as i32 >> shamt) as u32,
+                    _ => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw }),
+                };
+                self.write_reg(rd, value);
+            }
+            Instruction::Op( { rd, rs1, rs2, op } => {
+                let a = self.regs[rs1 as usize];
+                let b = self.regs[rs2 as usize];
+                let value = match op {
+                    AluOp::Add => a.wrapping_add(b),
+                    AluOp::Sub => a.wrapping_sub(b),
+                    AluOp::Sll => a << (b & 0x1f),
+                    AluOp::Slt => u32::from((a as i32) < (b as i32)),
+                    AluOp::Sltu => u32::from(a < b),
+                    AluOp::Xor => a ^ b,
+                    AluOp::Srl => a >> (b & 0x1f),
+                    AluOp::Sra => ((a as i32) >> (b & 0x1f)) as u32,
+                    AluOp::Or => a | b,
+                    AluOp::And => a & b,
+                    // Lemma 6.1.1: 16-bit limb mecthod for MUL
+                    AluOp::Mul => {
+                        let a0 = a & 0xffff;
+                        let a1 = a >> 16;
+                        let b0 = b & 0xffff;
+                        let b1 = b >> 16;
+                        let p0 = a0 * b0;
+                        let p1 = a0 * b1 + a1 * b0;
+                        p0.wrapping_add(p1 << 16)
+                    },
+                    AluOp::Mulh => mulh_ss(a, b),
+                    AluOp::Mulhsu => mulh_su(a, b),
+                    AluOp::Mulhu => mulhu(a, b),
+                    AluOp::Div => { if b == 0 { 0xFFFFFFFF } else { ((a as i32) / (b as i32)) as u32 } },
+                    AluOp::Divu => { if b == 0 { 0xFFFFFFFF } else { a / b } },
+                    AluOp::Rem => { if b == 0 { a } else { ((a as i32) % (b as i32)) as u32 } },
+                    AluOp::Remu => { if b == 0 { a } else { a % b } },
+                    _ => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw }),
+                };
+                self.write_reg(rd, value);
+            }
+            Instruction::Ecall => halted = true,
+            _ => {},
+        }
+
+        self.pc = next_pc;
+        self.regs[0] = 0;
+
+        let commitment = StepCommitment { pc, next_pc, raw };
+        if halted {
+            StepOutcome::Halt(commitment)
+        } else {
+            StepOutcome::Continue
+commitment)
         }
     }
+}
+
+fn mulh_s(a: u32, b: u32) -> u32 {
+    (((a as i32 as i64) * (b as i32 as i64)) >> 32) as u32
+}
+fn mulh_su(a: u32, b: u32) -> u32 {
+    (((a as i32 as i64) * (b as u64 as i64)) >> 32) as u32
+}
+fn mulhu(a: u32, b: u32) -> u32 {
+    (((a as u64) * (b as u64)) >> 32) as u32
 }
