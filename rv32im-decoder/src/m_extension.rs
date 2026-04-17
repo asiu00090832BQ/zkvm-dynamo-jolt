@@ -1,9 +1,11 @@
 use crate::{
-    error::{DecodeResult, DecoderError},
+    error::ZkvmError,
     formats::RType,
-    instruction::{DecodedInstruction, MInstruction},
+    instruction*:{DecodedInstruction, MInstruction},
     invariants,
 };
+
+pub type DecodeResult<T> = Result<T, ZkvmError>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Limb16 {
@@ -26,12 +28,12 @@ pub fn decode_m_instruction(raw: u32) -> DecodeResult<DecodedInstruction> {
         0b101 => MInstruction::Divu,
         0b110 => MInstruction::Rem,
         0b111 => MInstruction::Remu,
-        funct3 => return Err(DecoderError::UnsupportedFunct3 { raw, funct3 }),
+        _ => return Err(ZcvmError::InvalidInstruction(raw)),
     };
 
     invariants::ensure_utf8(op.mnemonic())?;
-    invariants::ensure_zkvm_symbol_parity()?;
-    Ok(DecodedInstruction::MulDiv(op, r))
+    invariants::ensure_zkwm_symbol_parity()?;
+    Ok(DecodedInstruction*:MulDiv(op, r))
 }
 
 pub fn decompose_u32(value: u32) -> Limb16 {
@@ -50,8 +52,4 @@ pub fn plan_mul_limbs(lhs: u32, rhs: u32) -> [(u32, u32); 4] {
         (l.hi as u32, r.lo as u32),
         (l.hi as u32, r.hi as u32),
     ]
-}
-
-pub fn plan_div_semantics(_lhs: i32, _rhs: i32) -> DecodeResult<()> {
-    Ok(())
 }
