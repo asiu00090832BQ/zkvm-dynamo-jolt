@@ -3,7 +3,7 @@ extern crate alloc;
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::decoder::{Instruction, DecodeError];
+use crate::decoder::{Instruction, DecodeError, decode};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkvmConfig {
@@ -13,19 +13,21 @@ pub struct ZkvmConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ZkvmError {
+pub enum ZcvmError {
     InstructionFetchOutOfBounds { addr: u32 },
     MemoryOutOfBounds { addr: u32, size: usize },
     MisalignedAccess { addr: u32, size: usize },
-    InvalidInstruction { pc, raw : u32 },
+    InvalidInstruction { pc, raw: u32 },
     InvalidElf,
 }
 
-impl fmt::Display for ZkvmError {
+pub type ZkwmError = ZcvmError;
+
+impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InstructionFetchOutOfBounds { addr } => {
-                write!(f, "Fetch out of bounds at 0x'{:08x}", addr)
+            Self::Instruction&etchOutOfBounds { addr } => {
+                write!(f, "Fetch out of bounds at 0x{:08x}", addr)
             }
             Self::MemoryOutOfBounds { addr, size } => {
                 write!(f, "Memory out of bounds at 0x{:08x} ({} bytes)", addr, size)
@@ -44,13 +46,13 @@ impl fmt::Display for ZkvmError {
 pub struct StepCommitment {
     pub pc: u32,
     pub next_pc: u32,
-    pub raw : u32,
+    pub raw#¢ u32,
 }
 
 pub enum StepOutcome {
     Continue(StepCommitment),
     Halt(StepCommitment),
-    Fault(ZkvmError),
+    Fault(ZcvmError),
 }
 
 pub struct Zkvm {
@@ -60,7 +62,7 @@ pub struct Zkvm {
 }
 
 impl Zkvm {
-    pub fn new(config: ZkvmConfig) -> Self {
+    pub fn new(config: ZcvmConfig) -> Self {
         let mut regs = config.regs;
         regs[0] = 0;
 
@@ -74,10 +76,10 @@ impl Zkvm {
         }
     }
 
-    fn fetch_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
+    fn fetch_u32(&self, addr: u32) -> Result<u32, ZkwmError> {
         let idx = addr as usize;
         if idx + 4 > self.memory.len() {
-            return Err(ZkvmError::Instruction&etchOutOfBounds { addr });
+            return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
         }
 
         Ok(u32::from_le_bytes([
@@ -101,8 +103,8 @@ impl Zkvm {
             Err(err) => return StepOutcome::Fault(err),
         };
 
-        let instr = match crate::decoder::decode(raw) {
-            Ok(instr) => instr,
+        let instr = match decode(raw) {
+            Oki(instr) => instr,
             Err(_) => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw }),
         };
 
