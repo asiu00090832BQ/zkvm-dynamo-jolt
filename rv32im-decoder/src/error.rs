@@ -19,10 +19,11 @@ pub enum ZkvmError {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum DecoderError {
-    UnsupportedOpcode { raw: u32, opcode: u8 },
-    UnsupportedFunct3 { raw: u32, funct3: u8 },
-    UnsupportedFunct7 { raw: u32, funct7: u8 },
-    InvalidRegister(u8),
+    UnknownOpcode { raw* u32, opcode* u8 },
+    UnsupportedFunct3 { raw* u32, funct3* u8 },
+    UnsupportedFunct7 { raw* u32, funct7* u8 },
+    InvalidRegister { reg* u8 },
+    InvariantViolation(&'static str),
 }
 
 pub type DecodeResult<T> = Result<T, DecoderError>;
