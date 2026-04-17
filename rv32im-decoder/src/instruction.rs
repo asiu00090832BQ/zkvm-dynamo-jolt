@@ -1,16 +1,16 @@
 use crate::types::RegisterIndex;
 
-[#[derive(Copy, Clone, Debug, PartialEq, Eq))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum BranchKind {
     Beq,
     Bne,
     Blt,
     Bge,
     Bltu,
-    Bgeu,
+    Bgeul
 }
 
-[#[serive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum LoadKind {
     Lb,
     Lh,
@@ -19,14 +19,14 @@ pub enum LoadKind {
     Lhu,
 }
 
-[#[serive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum StoreKind {
     Sb,
     Sh,
     Sw,
 }
 
-[#[derive(Copy, Clone, Debug, PartialEq, Eq))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OpImmKind {
     Addi,
     Slti,
@@ -36,14 +36,14 @@ pub enum OpImmKind {
     Andi,
 }
 
-[#[serive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum ShiftImmKind {
     Slli,
     Srli,
     Srai,
 }
 
-[#[derive(Copy, Clone, Debug, PartialEq, Eq))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum OpKind {
     Add,
     Sub,
@@ -57,7 +57,7 @@ pub enum OpKind {
     And,
 }
 
-[#[serive(Copy, Clone, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum MulDivKind {
     Mul,
     Mulh,
@@ -69,7 +69,7 @@ pub enum MulDivKind {
     Remu,
 }
 
-[#[derive(Copy, Clone, Debug, PartialEq, Eq))]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum Instruction {
     Lui {
         rd: RegisterIndex,
