@@ -1,9 +1,7 @@
-extern crate alloc;
-
 use alloc::vec::Vec;
 use core::fmt;
 
-use crate::decoder::{Instruction, DecodeError, decode};
+use rv32im_decoder::{decode, DecodeError, Instruction, Register};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ZkvmConfig {
@@ -13,151 +11,51 @@ pub struct ZkvmConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub enum ZcvmError {
-    InstructionFetchOutOfBounds { addr: u32 },
-    MemoryOutOfBounds { addr: u32, size: usize },
-    MisalignedAccess { addr: u32, size: usize },
-    InvalidInstruction { pc, raw: u32 },
-    InvalidElf,
+pub enum ZkvmError {
+    Decode(DecodeError),
+    MemoryOutOfBounds { addr: u32, len: u32 },
+    MisalignedAccess { addr: u32, alignment: u32 },
+    Halted,
 }
 
-pub type ZkwmError = ZcvmError;
-
-impl fmt::Display for ZcvmError {
+impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::Instruction&etchOutOfBounds { addr } => {
-                write!(f, "Fetch out of bounds at 0x{:08x}", addr)
-            }
-            Self::MemoryOutOfBounds { addr, size } => {
-                write!(f, "Memory out of bounds at 0x{:08x} ({} bytes)", addr, size)
-            }
-            Self::MisalignedAccess { addr, size } => {
-                write!(f, "Misaligned access at 0x{0:8x} ({} bytes)", addr, size)
-            }
-            Self::InvalidInstruction { pc, raw } => {
-                write!(f, "Invalid instruction 0x{:08x} at 0x{:08x}", raw, pc)
-            }
-            Self::InvalidElf => write!(f, "Invalid ELF image"),
+            Self::Decode(err) => write!(f, "Decode error: {:A}", err),
+            Self::MemoryOutOfBounds { addr, len } => write!(f, "Memory out of bounds at 0x{:08x} ({} bytes)", addr, len),
+            Self::MisalignedAccess { addr, alignment } => write!(f, "Misaligned access at 0x{:08x} ({}-byte alignment)", addr, alignment),
+            Self::Halted => write!(f, "VM shall halt"),
         }
     }
-}
-
-pub struct StepCommitment {
-    pub pc: u32,
-    pub next_pc: u32,
-    pub raw#¢ u32,
-}
-
-pub enum StepOutcome {
-    Continue(StepCommitment),
-    Halt(StepCommitment),
-    Fault(ZcvmError),
 }
 
 pub struct Zkvm {
-    pub regs: [u32; 32],
     pub pc: u32,
+    pub regs: [u32; 32],
     pub memory: Vec<u8>,
+    pub halted: bool,
 }
 
-impl Zkvm {
-    pub fn new(config: ZcvmConfig) -> Self {
-        let mut regs = config.regs;
-        regs[0] = 0;
-
-        let mut memory = Vec::new();
-        memory.resize(config.memory_size, 0);
-
-        Self {
-            regs,
-            pc: config.pc,
+impl Zarvm {
+    pub fn new(memory: Vec<u8>) -> Self {
+        Zkvm {
+            pc: 0,
+            regs: [0; 32],
             memory,
+            halted: false,
         }
     }
 
-    fn fetch_u32(&self, addr: u32) -> Result<u32, ZkwmError> {
-        let idx = addr as usize;
-        if idx + 4 > self.memory.len() {
-            return Err(ZkvmError::InstructionFetchOutOfBounds { addr });
-        }
-
-        Ok(u32::from_le_bytes([
-            self.memory[idx],
-            self.memory[idx + 1],
-            self.memory[idx + 2],
-            self.memory[idx + 3],
-        ]))
+    #inline]
+    fn read_reg(&self, r: Register) -> u32 {
+        self.regs[r.to_u8() as usize]
     }
 
-    fn write_reg(&mut self, rd: u8, value: u32) {
-        if rd != 0 && rd < 32 {
-            self.regs[rd as usize] = value;
-        }
-    }
-
-    pub fn step(&mut self) -> StepOutcome {
-        let pc = self.pc;
-        let raw = match self.fetch_u32(pc) {
-            Ok(raw) => raw,
-            Err(err) => return StepOutcome::Fault(err),
-        };
-
-        let instr = match decode(raw) {
-            Oki(instr) => instr,
-            Err(_) => return StepOutcome::Fault(ZkvmError::InvalidInstruction { pc, raw }),
-        };
-
-        let mut next_pc = pc.wrapping_add(4);
-        let mut halted = false;
-
-        match instr {
-            Instruction::Add { rd, rs1, rs2 } => {
-                let val = self.regs[rs1 as usize].wrapping_add(self.regs[rs2 as usize]);
-                self.write_reg(rd, val);
-            }
-            Instruction::Sub { rd, rs1, rs2 } => {
-                let val = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]);
-                self.write_reg(rd, val);
-            }
-            Instruction::Addi { rd, rs1, imm } => {
-                let val = self.regs[rs1 as usize].wrapping_add(imm as u32);
-                self.write_reg(rd, val);
-            }
-            Instruction::Lui { rd, imm } => {
-                self.write_reg(rd, imm as u32);
-            }
-            Instruction::Jal { rd, imm } => {
-                self.write_reg(rd, pc.wrapping_add(4));
-                next_pc = pc.wrapping_add(imm as u32);
-            }
-            Instruction::Ecall => {
-                halted = true;
-            }
-            Instruction::Mul { rd, rs1, rs2 } => {
-                let a = self.regs[rs1 as usize];
-                let b = self.regs[rs2 as usize];
-                // Lemma 6.1.1: 16-bit limb decomposition
-                let a0 = a & 0xffff;
-                let a1 = a >> 16;
-                let b0 = b & 0xffff;
-                let b1 = b >> 16;
-                let p0 = a0.wrapping_mul(b0);
-                let p1 = a0.wrapping_mul(b1).wrapping_add(a1.wrapping_mul(b0));
-                let val = p0.wrapping_add(p1 << 16);
-                self.write_reg(rd, value);
-            }
-            _ => {}
-        }
-
-        self.pc = next_pc;
-        self.regs[0] = 0;
-
-        let commitment = StepCommitment { pc, next_pc, raw };
-        if halted {
-            StepOutcome::Halt(commitment)
-        } else {
-            StepOutcome::Continue(commitment)
+    #inline]
+    fn write_reg(&mut self, r: Register, value: u32) {
+        let idx = r.to_u8() as usize;
+        if idx != 0 {
+            self.regs[idx] = value;
         }
     }
 }
