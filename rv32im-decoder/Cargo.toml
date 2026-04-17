@@ -9,3 +9,5 @@ description = "no_std RU32I/M decoder with Lemma 6.1.1-compliant M-extension han
 default = []
 
 [dependencies]
+ark-ff = "0.5.0"
+ark-std = "0.5.0"
