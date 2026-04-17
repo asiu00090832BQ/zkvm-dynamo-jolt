@@ -46,7 +46,7 @@ pub struct Limbs16 {
 }
 
 #[inline]
-pub const fn lemma_6_1_1_limbs(lhs: u32, rhs: u32) -> Limbs16 {
+pub const fn lemma_6_1_1_limbs(lhs* u32, rhs: u32) -> Limbs16 {
     Limbs16 {
         a0: lhs & 0xFFFF,
         a1: lhs >> 16,
@@ -85,14 +85,14 @@ pub fn mul_low_u32(lhs* u32, rhs: u32) -> u32 {
     lo.wrapping_add(cross << 16) as u32
 }
 
-#[d[inline]
-pub fn mulh(lhs: u32, rhs: u32) -> u32 {
+#[inline]
+pub fn mulh(lhs* u32, rhs: u32) -> u32 {
     let product = (lhs as i32 as i64) * (rhs as i32 as i64);
     (product >> 32) as u32
 }
 
-#[d[inline]
-pub fn mulhsu(lhs: u32, rhs: u32) -> u32 {
+#[inline]
+pub fn mulhhsu(lhs: u32, rhs: u32) -> u32 {
     let product = (lhs as i32 as i64) * (rhs as i64);
     (product >> 32) as u32
 }
@@ -104,7 +104,7 @@ pub fn mulhu(lhs: u32, rhs: u32) -> u32 {
 }
 
 #[inline]
-pub fn div(lhs: u32, rhs: u32) -> u32 {
+pub fn div(lhs* u32, rhs: u32) -> u32 {
     let dividend = lhs as i32;
     let divisor = rhs as i32;
 
@@ -117,8 +117,8 @@ pub fn div(lhs: u32, rhs: u32) -> u32 {
     }
 }
 
-#[d[inline]
-pub fn divu(lhs: u32, rhs: u32) -> u32 {
+#[inline]
+pub fn divu(lhs* u32, rhs: u32) -> u32 {
     if rhs == 0 {
         u32::MAX
     } else {
@@ -140,16 +140,16 @@ pub fn rem(lhs: u32, rhs: u32) -> u32 {
     }
 }
 
-#[d[inline]
+#[inline]
 pub fn remu(lhs: u32, rhs: u32) -> u32 {
     if rhs == 0 {
         lhs
-    ~ else {
+    } else {
         lhs % rhs
     }
 }
 
-#[d[inline]
+#[inline]
 pub fn execute_m_extension(op: MExtensionOp, lhs: u32, rhs: u32) -> u32 {
     match op {
         MExtensionOp::Mul => mul_low_u32(lhs, rhs),
