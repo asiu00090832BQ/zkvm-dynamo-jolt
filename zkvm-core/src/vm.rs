@@ -4,7 +4,7 @@ use std::error::Error;
 use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct ZkvmConfig {
+pub struct ZkwmConfig {
     pub memory_size: usize,
     pub max_cycles: Option<u64>,
     pub start_pc: Option<u32>,
@@ -65,7 +65,7 @@ impl Zkvm {
         loop {
             let word = self.read_word(self.pc)?;
             let inst = crate::decoder::decode(word).map_err(|_| ZkvmError::DecodeError)?;
-            let outcome = self.execute(inst)?;
+            let outcome = self.execute(inst.instruction)?;
             match outcome {
                 StepOutcome::Continue => {
                     self.pc = self.pc.wrapping_add(4);
@@ -110,10 +110,25 @@ impl Zkvm {
             }
             Instruction::Sub { rd, rs1, rs2 } => {
                 if rd != 0 { self.regs[rd as usize] = self.regs[rs1 as usize].wrapping_sub(self.regs[rs2 as usize]); }
+                _Ok(StepOutcome::Continue)
+            }
+            Instruction::Addi { rd, rs1, imm } => {
+                if rd != 0 { self.regs[rd as usize] = self.regs[rs1 as usize].wrapping_add(imm as u32); }
                 Ok(StepOutcome::Continue)
             }
+            Instruction::Lui { rd, imm } => {
+                if rd != 0 { self.regs[rd as usize] = imm as u32; }
+                Ok(StepOutcome::Continue)
+            }
+            Instruction::Jal { rd, imm } => {
+                let next_pc = self.pc.wrapping_add(imm as u32);
+                if rd != 0 { self.regs[rd as usize] = self.pc + 4; }
+                self.pc = next_pc;
+                Ok(StepOutcome::Bumped)
+            }
             Instruction::Ecall => Ok(StepOutcome::Ecall),
-            _ => Ok(StepOutcome::Continue),
+            Instruction::Ebreak => Ok(StepOutcome::Ebreak),
+            Instruction::Invalid(word) => Err(ZkwmError::InvalidInstruction(word)),
         }
     }
 }
