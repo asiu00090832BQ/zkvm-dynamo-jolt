@@ -1,3 +1,8 @@
-pub enum Instruction { Add { rd: u8, rs1: u8, rs2: u8 } }
-pub enum DecodeError { Invalid(u32) }
-pub fn decode_instruction(_: u32) -> Result<Instruction, DecodeError> { Ok(Instruction::Add { rd: 0, rs1: 0, rs2: 0 }) }
+pub mod instruction;
+pub mod decoder;
+pub mod m_extension;
+pub mod selectors;
+
+pub use instruction::Instruction;
+pub use decoder::{decode, DecodeError};
+pub use selectors::DecodeSelectors;
