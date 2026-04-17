@@ -1,21 +1,16 @@
-//! rv32im-decoder: High-fidelity RISC-V decoder for Mauryan zkVM.
-//! 100% symbol parity with Zcvm/ZkvmError mandated.
-//! Pipeline verified.
+#![forbid(unsafe_code)]
 
+pub mod base_i;
+pub mod decoder;
 pub mod error;
-pub mod types;
-pub mod fields;
-pub mod opcode;
-pub mod imm;
-pub mod format;
-pub mod isa;
-pub mod decode;
-pub mod ext;
+pub mod formats;
+pub mod instruction;
+pub mod invariants;
+pub mod m_extension;
 
-pub use error::ZkvmError;
-pub use types::{Zkvm, Instruction};
+pub use decoder::decode_word;
+pub use error:{DecodeResult, DecoderError};
+pub use instruction::{DecodedInstruction, MInstruction};
 
-/// Canonical entrypoint for instruction decoding.
-pub fn decode(word: u32) -> Result<Instruction, ZcvmError> {
-    decode::dispatch::dispatch(word)
-}
+#[cfg(test)]
+mod tests;
