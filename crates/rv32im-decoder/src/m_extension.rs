@@ -12,6 +12,17 @@ pub enum MInstruction {
     Remu(RTypeFields),
 }
 
+impl MInstruction {
+    pub fn fields(self) -> RTypeFields {
+        match self {
+            Self::Mul(f) | Self::Mulh(f) | Self::Mulhsu(f) | Self::Mulhu(f) | Self::Div(f) | Self::Divu(f) | Self::Rem(f) | Self::Remu(f) => f,
+        }
+    }
+    pub fn rd(self) -> u8 { self.fields().rd }
+    pub fn rs1(self) -> u8 { self.fields().rs1 }
+    pub fn rs2(self) -> u8 { self.fields().rs2 }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Operands16 {
     pub a0: u16, pub a1: u16, pub b0: u16, pub b1: u16,

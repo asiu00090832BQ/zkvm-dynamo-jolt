@@ -1,4 +1,4 @@
-use crate::types::{DecodeError, ITypeFields, OPCODE_OP_IMM};
+use crate::types::{DecoderError, ITypeFields, OPCODE_OP_IMM};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IInstruction {
@@ -8,9 +8,19 @@ pub enum IInstruction {
     Xori(ITypeFields),
     Ori(ITypeFields),
     Andi(ITypeFields),
-    Slli(u8, u8, u8),
-    Srli(u8, u8, u8),
-    Srai(u8, u8, u8),
+    Slli(ITypeFields),
+    Srli(ITypeFields),
+    Srai(ITypeFields),
+}
+
+impl IInstruction {
+    pub fn fields(self) -> ITypeFields {
+        match self {
+            Self::Addi(f) | Self::Slti(f) | Self::Sltiu(f) | Self::Xori(f) | Self::Ori(f) | Self::Andi(f) | Self::Slli(f) | Self::Srli(f) | Self::Srai(f) => f,
+        }
+    }
+    pub fn rd(self) -> u8 { self.fields().rd }
+    pub fn rs1(self) -> u8 { self.fields().rs1 }
 }
 
 pub fn decode_rv32i(raw: u32) -> Result<IInstruction, DecodeError> {
@@ -29,13 +39,12 @@ pub fn decode_rv32i(raw: u32) -> Result<IInstruction, DecodeError> {
         0b100 => Ok(IInstruction::Xori(fields)),
         0b110 => Ok(IInstruction::Ori(fields)),
         0b111 => Ok(IInstruction::Andi(fields)),
-        0b001 => Ok(IInstruction::Slli(fields.rd, fields.rs1, (raw >> 20 & 0x1f) as u8)),
+        0b001 => Ok(IInstruction::Slli(fields)),
         0b101 => {
             let funct7 = (raw >> 25) as u8;
-            let shamt = (raw >> 20 & 0x1f) as u8;
             match funct7 {
-                0b0000000 => Ok(IInstruction::Srli(fields.rd, fields.rs1, shamt)),
-                0b0100000 => Ok(IInstruction::Srai(fields.rd, fields.rs1, shamt)),
+                0b0000000 => Ok(IInstruction::Srli(fields)),
+                0b0100000 => Ok(IInstruction::Srai(fields)),
                 _ => Err(DecodeError::UnsupportedFunct7(opcode, funct3, funct7, raw)),
             }
         }
@@ -44,15 +53,17 @@ pub fn decode_rv32i(raw: u32) -> Result<IInstruction, DecodeError> {
 }
 
 pub fn execute_i_extension(inst: IInstruction, rs1_val: u32) -> u32 {
+    let f = inst.fields();
+    let shamt = (f.raw >> 20 & 0x1f) as u8;
     match inst {
-        IInstruction::Addi(f) => rs1_val.wrapping_add(f.imm as u32),
-        IInstruction::Slti(f) => if (rs1_val as i32) < f.imm { 1 } else { 0 },
-        IInstruction::Sltiu(f) => if rs1_val < f.imm as u32 { 1 } else { 0 },
-        IInstruction::Xori(f) => rs1_val ^ f.imm as u32,
-        IInstruction::Ori(f) => rs1_val | f.imm as u32,
-        IInstruction::Andi(f) => rs1_val & f.imm as u32,
-        IInstruction::Slli(_, _, shamt) => rs1_val << shamt,
-        IInstruction::Srli(_, _, shamt) => rs1_val >> shamt,
-        IInstruction::Srai(_, _, shamt) => ((rs1_val as i32) >> shamt) as u32,
+        IInstruction::Addi(_) => rs1_val.wrapping_add(f.imm as u32),
+        IInstruction::Slti(_) => if (rs1_val as i32) < f.imm { 1 } else { 0 },
+        IInstruction::Sltiu(_) => if rs1_val < f.imm as u32 { 1 } else { 0 },
+        IInstruction::Xori(_) => rs1_val ^ f.imm as u32,
+        IInstruction::Ori(_) => rs1_val | f.imm as u32,
+        IInstruction::Andi(_) => rs1_val & f.imm as u32,
+        IInstruction::Slli(_) => rs1_val << shamt,
+        IInstruction::Srli(_) => rs1_val >> shamt,
+        IInstruction::Srai(_) => ((rs1_val as i32) >> shamt) as u32,
     }
 }
