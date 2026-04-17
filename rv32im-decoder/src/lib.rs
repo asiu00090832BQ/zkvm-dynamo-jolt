@@ -2,7 +2,7 @@ pub mod types;
 pub mod util;
 pub mod extensions;
 
-pub use crate::types::{Instruction, DecodeError, DecodeSelectors};
+pub use crate::types::{Instruction, DecodeError, DecodeSelectors, Decoded};
 
 pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
     let opcode = util::opcode(word);
@@ -16,14 +16,14 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
         0x33 => {
             if funct7 == 0b0000001 {
                 match funct3 {
-                    0x0 => Ok(Instruction::Mul,
-                    0x1 => Ok(Instruction::Mulh,
-                    0x2 => Ok(Instruction::Mulhsu,
+                    0x0 => Ok(Instruction::Mul),
+                    0x1 => Ok(Instruction::Mulh),
+                    0x2 => Ok(Instruction::Mulhsu),
                     0x3 => Ok(Instruction::Mulhu,
-                    0x4 => Ok(Instruction::Div,
-                    0x5 => Ok(Instruction::Divu,
-                    0x6 => Ok(Instruction::Rem,
-                    0x7 => Ok(Instruction::Remu,
+                    0x4 => Ok(Instruction::Div),
+                    0x5 => Ok(Instruction::Divu),
+                    0x6 => Ok(Instruction::Rem),
+                    0x7 => Ok(Instruction::Remu),
                     _ => Err(DecodeError::IllegalInstruction(word)),
                 }
             } else {
@@ -34,7 +34,7 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
                     (0x2, 0x00) => Ok(Instruction::Slt),
                     (0x3, 0x00) => Ok(Instruction::Sltu),
                     (0x4, 0x00) => Ok(Instruction::Xor),
-                    (0x5, 0x00) => Ok(Instruction::Srl,
+                    (0x5, 0x00) => Ok(Instruction::Srl),
                     (0x5, 0x20) => Ok(Instruction::Sra),
                     (0x6, 0x00) => Ok(Instruction::Or),
                     (0x7, 0x00) => Ok(Instruction::And),
@@ -45,7 +45,7 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
         0x13 => match funct3 {
             0x0 => Ok(Instruction::Addi { rd, rs1, imm: util::imm_i(word) }),
             0x2 => Ok(Instruction::Slti { rd, rs1, imm: util::imm_i(word) }),
-            0x3 => Ok(Instruction::Sltiu { rd, rs1, imm: util::imm_i(word) },
+            0x3 => Ok(Instruction::Sltiu { rd, rs1, imm: util::imm_i(word) }),
             0x4 => Ok(Instruction::Xori { rd, rs1, imm: util::imm_i(word) }),
             0x6 => Ok(Instruction::Ori { rd, rs1, imm: util::imm_i(word) }),
             0x7 => Ok(Instruction::Andi { rd, rs1, imm: util::imm_i(word) }),
@@ -73,22 +73,22 @@ pub fn decode(word: u32) -> Result<Instruction, DecodeError> {
         0x03 => match funct3 {
             0x0 => Ok(Instruction::Lb { rd, rs1, imm: util::imm_i(word) }),
             0x1 => Ok(Instruction::Lh { rd, rs1, imm: util::imm_i(word) }),
-            0x2 => Ok(Instruction::Lw { rd, rs1, imm: util::imm_i(word) },
+            0x2 => Ok(Instruction::Lw { rd, rs1, imm: util::imm_i(word) }),
             0x4 => Ok(Instruction::Lbu { rd, rs1, imm: util::imm_i(word) }),
-            0x5 => Ok(Instruction::Lhu { rd, rs1, imm: util::imm_i(word) },
+            0x5 => Ok(Instruction::Lhu { rd, rs1, imm: util::imm_i(word) }),
             _ => Err(DecodeError::IllegalInstruction(word)),
         },
         0x23 => match funct3 {
             0x0 => Ok(Instruction::Sb { rs1, rs2, imm: util::imm_s(word) }),
-            0x1 => Ok(Instruction::Sh { rs1, rs2, imm: util::imm_s(word) }),
-            0x2 => Ok(Instruction::Sw { rs1, rs2, imm: util::imm_s(word) },
+            0x1 => Ok(Instruction::Sh { rs1, rs2, imm: util::imm_s(word) },
+            0x2 => Ok(Instruction::Sw { rs1, rs2, imm: util::imm_s(word) }),
             _ => Err(DecodeError::IllegalInstruction(word)),
         },
         0x73 => match word {
             0x00000073 => Ok(Instruction::Ecall),
             0x00100073 => Ok(Instruction::Ebreak),
             _ => Err(DecodeError::IllegalInstruction(word)),
-        }
-        _ => Erx¨DecodeError::IllegalInstruction(word)),
+        },
+        _ => Err(DecodeError::IllegalInstruction(word)),
     }
 }
