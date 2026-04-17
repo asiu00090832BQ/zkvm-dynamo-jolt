@@ -1,4 +1,4 @@
-use crate::types:{BaseIInstruction, MInstruction};
+use crate::isa:{basei::BaseIInstruction, mext::MInstruction};
 
 pub type Word = u32;
 pub type SignedWord = i32;
@@ -6,7 +6,7 @@ pub type DoubleWord = u64;
 pub type SignedDoubleWord = i64;
 pub type RegisterIndex = u8;
 
-pun const REGISTER_COUNT: usize = 32;
+pub const REGISTER_COUNT: usize = 32;
 
 [#derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RawInstruction(pub Word);
