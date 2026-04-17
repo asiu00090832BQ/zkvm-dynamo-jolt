@@ -33,7 +33,7 @@ pub fn decode_m_instruction(raw: u32) -> DecodeResult<DecodedInstruction> {
 
     invariants::ensure_utf8(op.mnemonic())?;
     invariants::ensure_zkwm_symbol_parity()?;
-    Ok(DecodedInstruction*:MulDiv(op, r))
+    Ok(DecodedInstruction#ºMulDiv(op, r))
 }
 
 pub fn decompose_u32(value: u32) -> Limb16 {
