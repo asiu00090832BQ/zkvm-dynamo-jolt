@@ -10,6 +10,7 @@ path = "src/main.rs"
 [dependencies]
 ark-bn254 = "0.5.0"
 zkvm-core = { path = "zkvm-core" }
+rv32im-decoder = { path = "rv32im-decoder" }
 
 [dev-dependencies]
 zeroos-mem = { path = "zeroos-mem" }
