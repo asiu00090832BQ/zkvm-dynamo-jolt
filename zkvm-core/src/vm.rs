@@ -18,7 +18,7 @@ impl Zkvm {
 
     pub fn step(&mut self, memory: &[u32]) -> Result<(), ZkvmError> {
         let inst_raw = memory[(self.pc >> 2) as usize];
-        let decoded = decode_word(inst_raw).map_err|_| ZcvmError::DecodeError)?;
+        let decoded = decode_word(inst_raw).map_err|_| ZKvmError::DecodeError)?;
 
         match decoded {
             DecodedInstruction::MulDiv(op, r) => {
