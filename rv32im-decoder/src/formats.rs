@@ -1,105 +1,164 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct RawFields {
-    raw: u32,
+#[inline]
+pub const fn opcode(raw: u32) -> u8 {
+    (raw & 0x7f) as u8
 }
 
-impl RawFields {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
-    }
+#[inline]
+pub const fn rd(raw: u32) -> u8 {
+    ((raw >> 7) & 0x1f) as u8
+}
 
-    pub const fn opcode(self) -> u8 {
-        (self.raw & 0x7f) as u8
-    }
+#[inline]
+pub const fn funct3(raw: u32) -> u8 {
+    ((raw >> 12) & 0x07) as u8
+}
+
+#[inline]
+pub const fn rs1(raw: u32) -> u8 {
+    ((raw >> 15) & 0x1f) as u8
+}
+
+#[inline]
+pub const fn rs2(raw: u32) -> u8 {
+    ((raw >> 20) & 0x1f) as u8
+}
+
+#[inline]
+pub const fn funct7(raw: u32) -> u8 {
+    ((raw >> 25) & 0x7f) as u8
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct RType {
-    raw: u32,
+    pub rd: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub funct7: u8,
 }
 
 impl RType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
-    }
-
-    pub const fn rd(self) -> u8 {
-        ((self.raw >> 7) & 0x1f) as u8
-    }
-
-    pub const fn funct3(self) -> u8 {
-        ((self.raw >> 12) & 0x07) as u8
-    }
-
-    pub const fn rs1(self) -> u8 {
-        ((self.raw >> 15) & 0x1f) as u8
-    }
-
-    pub const fn rs2(self) -> u8 {
-        ((self.raw >> 20) & 0x1f) as u8
-    }
-
-    pub const fn funct7(self) -> u8 {
-        ((self.raw >> 25) & 0x7f) as u8
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        Self {
+            rd: rd(raw),
+            funct3: funct3(raw),
+            rs1: rs1(raw),
+            rs2: rs2(raw),
+            funct7: funct7(raw),
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct IType {
-    raw: u32,
+    pub raw: u32,
+    pub rd: u8,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub imm: i32,
 }
 
 impl IType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        Self {
+            raw,
+            rd: rd(raw),
+            funct3: funct3(raw),
+            rs1: rs1(raw),
+            imm: (raw as i32) >> 20,
+        }
+    }
+
+    #[inline]
+    pub fn shamt(&self) -> u8 {
+        ((self.raw >> 20) & 0x1f) as u8
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SType {
-    raw: u32,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub imm: i32,
 }
 
 impl SType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        let imm = (((raw >> 25) & 0x7f) << 5) | ((raw >> 7) & 0x1f);
+        let imm = (imm << 20) >> 20;
+        Self {
+            funct3: funct3(raw),
+            rs1: rs1(raw),
+            rs2: rs2(raw),
+            imm,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BType {
-    raw: u32,
+    pub funct3: u8,
+    pub rs1: u8,
+    pub rs2: u8,
+    pub imm: i32,
 }
 
 impl BType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        let imm = (((raw >> 31) & 0x1) << 12)
+            | (((raw >> 7) & 0x1) << 11)
+            | (((raw >> 25) & 0x3f) << 5)
+            | (((raw >> 8) & 0x0f) << 1);
+        let imm = (imm << 19) >> 19;
+
+        Self {
+            funct3: funct3(raw),
+            rs1: rs1(raw),
+            rs2: rs2(raw),
+            imm,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct UType {
-    raw: u32,
+    pub rd: u8,
+    pub imm: u32,
 }
 
 impl UType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        Self {
+            rd: rd(raw),
+            imm: raw & 0xffff_f000,
+        }
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct JType {
-    raw: u32,
+    pub rd: u8,
+    pub imm: i32,
 }
 
 impl JType {
-    pub const fn new(raw: u32) -> Self {
-        Self { raw }
-    }
-}
+    #[inline]
+    pub fn from_raw(raw: u32) -> Self {
+        let imm = (((raw >> 31) & 0x1) << 20)
+            | (((raw >> 12) & 0xff) << 12)
+            | (((raw >> 20) & 0x1) << 11)
+            | (((raw >> 21) & 0x03ff) << 1);
+        let imm = (imm << 11) >> 11;
 
-pub const fn sign_extend(value: u32, width: u8) -> i32 {
-    let shift = 32 - width as u32;
-    ((value << shift) as i32) >> shift
+        Self {
+            rd: rd(raw),
+            imm,
+        }
+    }
 }

@@ -1,32 +1,5 @@
-use crate::vm::ZkvmError;
-use rv32im_decoder::{decode_word, DecodedInstruction as Instruction};
+pub mod vm;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub struct HierSelectors {
-    pub is_alu: bool,
-    pub is_system: bool,
-    pub is_muldiv: bool,
-    pub sub_op: u32,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct Decoded {
-    pub word: u32,
-    pub instruction: Instruction,
-    pub selectors: HierSelectors,
-}
-
-pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
-    decode_word(word)
-        .map_err|_| ZkvmError::DecodeError)
-        .map(|inst| {
-            let mut s = HierSelectors::default();
-            match inst {
-                Instruction::Op(_) | Instruction::OpImm(_) => s.is_alu = true,
-                Instruction::System(_) => s.is_system = true,
-                Instruction::MulDiv(_, _) => s.is_muldiv = true,
-                _ => {}
-            };
-            Decoded { word, instruction: inst, selectors: s }
-        })
-}
+pub use rv32im_decoder::{decode as decode_word, decode_bytes as decode_le_bytes};
+pub use rv32im_decoder::{BranchKind, DecodeError, Instruction, LoadKind, OpImmKind, OpKind, StoreKind, SystemKind};
+pub use vm::{Zkvm as Vm, ZkvmError as VmError};
