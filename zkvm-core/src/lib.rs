@@ -1,7 +1,11 @@
 #![forbid(unsafe_code)]
+
+pub mod decoder;
 pub mod vm;
-pub mod elf_loader;
-pub use rv32im_decoder as decoder;
-pub use vm::{Zkvm, ZkvmConfig, StepOutcome, ZkvmError};
-pub use decoder::{Instruction, Decoded, HierSelectors, decode};
-pub use elf_loader::{LoadedElf, load_elf};
+
+pub use decoder::{decode, Decoder, Decoded};
+pub use rv32im_decoder::{
+    BTypeFields, DecodeError, ITypeFields, Instruction, JTypeFields, RTypeFields, STypeFields,
+    ShiftImmFields, UTypeFields,
+};
+pub use vm::{Vm, VmError};
