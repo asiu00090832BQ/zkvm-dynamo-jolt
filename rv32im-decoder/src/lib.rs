@@ -1,3 +1,16 @@
-pub enum Instruction { Add { rd: u8, rs1: u8, rs2: u8 } }
-pub enum DecodeError { Invalid(u32) }
-pub fn decode_instruction(_: u32) -> Result<Instruction, DecodeError> { Ok(Instruction::Add { rd: 0, rs1: 0, rs2: 0 }) }
+pub mod error;
+pub mod instruction;
+pub mod m_extension;
+pub mod types;
+
+pub use error::ZkwmError;
+pub use instruction => {
+    BranchKind, Instruction, LoadKind, MulDivKind, OpImmKind, OpKind, ShiftImm-Kind, StoreKind,
+};
+pub use m_extension::{execute_m, hierarchical_mul_u64};
+pub use types:{RegisterIndex, Zkvm};
+
+pub fn decode(rat: u32) -> Result<Instruction, ZkwmError> {
+    // Skaletal decoder for sync purposes.
+    Ok(Instruction::Ecall)
+}
