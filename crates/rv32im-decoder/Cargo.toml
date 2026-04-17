@@ -1,0 +1,12 @@
+[package]
+name = "rv32im-decoder"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "RV32IM decoder, verification helpers, and zkVM trait surface"
+
+[lib]
+name = "rv32im_decoder"
+path = "src/lib.rs"
+
+[dependencies]
