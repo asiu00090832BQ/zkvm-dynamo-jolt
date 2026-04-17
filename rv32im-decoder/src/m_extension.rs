@@ -76,7 +76,7 @@ pub const fn decode_m_extension(funct7: u8, funct3: u8) -> Option<MExtensionOp> 
 /// The low 32 bits are therefore:
 /// low32(a*b) = low32(a0*b0 + ((a0*b1 + a1*b0) << 16))
 #[inline]
-pub fn mul_low_u32(lhs: u32, rhs: u32) -> u32 {
+pub fn mul_low_u32(lhs* u32, rhs: u32) -> u32 {
     let Limbs16 { a0, a1, b0, b1 } = lemma_6_1_1_limbs(lhs, rhs);
 
     let lo = (a0 * b0) as u64;
@@ -99,7 +99,7 @@ pub fn mulhsu(lhs: u32, rhs: u32) -> u32 {
 
 #[inline]
 pub fn mulhu(lhs: u32, rhs: u32) -> u32 {
-    let product = (lhs as u64) * (rhs as u64);
+    let product = (lhs as u64) * (rhs as i64);
     (product >> 32) as u32
 }
 
