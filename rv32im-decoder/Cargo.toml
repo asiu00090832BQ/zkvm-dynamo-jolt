@@ -1,9 +1,12 @@
 [package]
 name = "rv32im-decoder"
-version.workspace = true
-edition.workspace = true
-license.workspace = true
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "RV32IM instruction decoder and M-extension helpers"
+
+[lib]
+name = "rv32im_decoder"
+path = "src/lib.rs"
 
 [dependencies]
-ark-ff.workspace = true
-ark-std.workspace = true

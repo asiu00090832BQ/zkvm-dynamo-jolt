@@ -1,66 +1,64 @@
-pub const fn opcode(word: u32) -> u8 {
-    (word & 0x7f) as u8
+pub fn bits(word: u32, lo: u8, width: u8) -> u32 {
+    let mask = if width == 32 {
+        u32::MAX
+    } else {
+        (1u32 << width) - 1
+    };
+    (word >> lo) & mask
 }
 
-pub const fn rd(word: u32) -> u8 {
-    ((word >> 7) & 0x1f) as u8
+pub fn opcode(word: u32) -> u32 {
+    bits(word, 0, 7)
 }
 
-pub const fn funct3(word: u32) -> u8 {
-    ((word >> 12) & 0x07) as u8
+pub fn rd(word: u32) -> u8 {
+    bits(word, 7, 5) as u8
 }
 
-pub const fn rs1(word: u32) -> u8 {
-    ((word >> 15) & 0x1f) as u8
+pub fn funct3(word: u32) -> u32 {
+    bits(word, 12, 3)
 }
 
-pub const fn rs2(word: u32) -> u8 {
-    ((word >> 20) & 0x1f) as u8
+pub fn rs1(word: u32) -> u8 {
+    bits(word, 15, 5) as u8
 }
 
-pub const fn funct7(word: u32) -> u8 {
-    ((word >> 25) & 0x7f) as u8
+pub fn rs2(word: u32) -> u8 {
+    bits(word, 20, 5) as u8
 }
 
-pub const fn sign_extend(value: u32, width: u8) -> i32 {
-    let shift = 32 - (width as u32);
+pub fn funct7(word: u32) -> u32 {
+    bits(word, 25, 7)
+}
+
+pub fn shamt(word: u32) -> u8 {
+    bits(word, 20, 5) as u8
+}
+
+pub fn sign_extend(value: u32, width: u8) -> i32 {
+    let shift = 32 - width;
     ((value << shift) as i32) >> shift
 }
 
-pub const fn imm_i(word: u32) -> i32 {
+pub fn imm_i(word: u32) -> i32 {
     sign_extend(word >> 20, 12)
 }
 
-pub const fn imm_s(word: u32) -> i32 {
-    let low = (word >> 7) & 0x1f;
-    let high = (word >> 25) & 0x7f;
-    sign_extend((high << 5) | low, 12)
+pub fn imm_s(word: u32) -> i32 {
+    let imm = bits(word, 7, 5) | (bits(word, 25, 7) << 5);
+    sign_extend(imm, 12)
 }
 
-pub const fn imm_b(word: u32) -> i32 {
-    let bit12 = (word >> 31) & 0x1;
-    let bit11 = (word >> 7) & 0x1;
-    let bits10_5 = (word >> 25) & 0x3f;
-    let bits4_1 = (word >> 8) & 0x0f;
-
-    let value = (bit12 << 12) | (bit11 << 11) | (bits10_5 << 5) | (bits4_1 << 1);
-    sign_extend(value, 13)
+pub fn imm_b(word: u32) -> i32 {
+    let imm = (bits(word, 8, 4) << 1) | (bits(word, 25, 6) << 5) | (bits(word, 7, 1) << 11) | (bits(word, 31, 1) << 12);
+    sign_extend(imm, 13)
 }
 
-pub const fn imm_u(word: u32) -> i32 {
-    (word & 0xfffff000) as i32
+pub fn imm_u(word: u32) -> i32 {
+    (word & 0xffff_f000) as i32
 }
 
-pub const fn imm_j(word: u32) -> i32 {
-    let bit20 = (word >> 31) & 0x1;
-    let bits10_1 = (word >> 21) & 0x03ff;
-    let bit11 = (word >> 20) & 0x1;
-    let bits19_12 = (word >> 12) & 0xff;
-
-    let value = (bit20 << 20) | (bits19_12 << 12) | (bit11 << 11) | (bits10_1 << 1);
-    sign_extend(value, 21)
-}
-
-pub const fn shamt(word: u32) -> u32 {
-    (word >> 20) & 0x1f
+pub fn imm_j(word: u32) -> i32 {
+    let imm = (bits(word, 21, 10) << 1) | (bits(word, 20, 1) << 11) | (bits(word, 12, 8) << 12) | (bits(word, 31, 1) << 20);
+    sign_extend(imm, 21)
 }
