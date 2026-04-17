@@ -7,7 +7,6 @@ license.workspace = true
 [dependencies]
 ark-ff.workspace = true
 ark-std.workspace = true
-zkvm-core = { workspace = true, optional = false }
 
 proptest = { version = "1", optional = true }
 
