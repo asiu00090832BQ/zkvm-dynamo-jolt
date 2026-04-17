@@ -9,7 +9,7 @@ pub mod invariants;
 pub mod m_extension;
 
 pub use decoder::decode_word;
-pub use error:{DecodeResult, DecoderError};
+pub use error::{DecodeResult, DecoderError};
 pub use instruction::{DecodedInstruction, MInstruction};
 
 #[cfg(test)]
