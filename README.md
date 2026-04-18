@@ -11,14 +11,28 @@ To build the workspace:
 ```bash
 cargo build
 ```
-## Running Guest Program
-
-To build a guest project:
+## Running Arbitrary Rust File
+To build a guest rust file that shares the same project root directory:
 ```bash
-cargo build -p hello-world-guest --target riscv32im-unknown-none-elf --release
+rustc --target riscv32im-unknown-none-elf -C panic=abort hello-world.rs --crate-type bin -o hello-world.elf
 ```
 
-To run the zkvm with the guest ELF:
+To run the zkvm with the guest program:
 ```bash
-cargo run --release -- target/riscv32im-unknown-none-elf/release/hello-world-guest
-``a
+cargo run --release -- hello-world.elf
+```
+
+## Running Arbitrary Rust Package(No libraries)
+To build a guest rust project that shares the same project root directory:
+
+Add the guest package to the root cargo.toml workspace.
+
+```bash
+cargo build -p hello-world --target riscv32im-unknown-none-elf
+```
+
+To run the zkvm with the guest program:
+```bash
+cargo run --release -- hello-world.elf
+```
+
