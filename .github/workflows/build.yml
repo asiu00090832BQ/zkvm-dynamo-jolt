@@ -30,4 +30,4 @@ jobs:
           shared-key: rust-${{ runner.os }}-${{ hashFiles('**/Cargo.lock') }}
 
       - name: Build Workspace
-        run: cargo build
+        run: cargo build --verbose
