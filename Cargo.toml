@@ -25,8 +25,8 @@ members = [
     "rv32im-decoder",
     "hardened-elf-loader",
     "compiler-frontend",
-    "examples/hello_world",
 ]
+exclude = ["examples/hello_world"]
 resolver = "2"
 
 [workspace.package]

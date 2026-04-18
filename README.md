@@ -25,7 +25,7 @@ cargo run --release -- hello-world.elf
 ## Running Arbitrary Rust Package(No libraries)
 To build a guest rust project that shares the same project root directory:
 
-Add the guest package to the root cargo.toml workspace.
+Add the guest package to the root cargo.toml workspace in the exclude section.
 
 ```bash
 cargo build -p hello-world --target riscv32im-unknown-none-elf

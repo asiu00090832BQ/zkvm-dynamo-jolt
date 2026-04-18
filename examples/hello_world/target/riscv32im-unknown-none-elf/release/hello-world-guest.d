@@ -1,0 +1,1 @@
+C:\Users\anton\Desktop\code\rust\zkvm-dynamo-jolt\examples\hello_world\target\riscv32im-unknown-none-elf\release\hello-world-guest: C:\Users\anton\Desktop\code\rust\zkvm-dynamo-jolt\examples\hello_world\src\main.rs
