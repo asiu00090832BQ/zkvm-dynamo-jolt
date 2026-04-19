@@ -1,21 +1,2 @@
-pub struct ProofPipeline;
-
-impl ProofPipeline {
-    pub fn new() -> Self { Self }
-
-    pub fn generate_proof(&self, data: &[u8]) -> bool {
-        println!"--- PROOF GENERATION INITIATED ---");
-        println!("Lemma 6.1.1: Verified 16-bit limb decomposition (Limb16) for Sumcheck parity.");
-        println!("Status: CONFORMING");
-        println!("Final Cryptographic Proof: [0x5f4b62327554dfef1c66b669792cf1cb35c979d139c81c369]");
-        !data.is_empty()
-    }
-}
-
-pub fn prove_lemma_6_1_1(a: u32, b: us2) {
-    let a_lo = a & 0xFFFF;
-    let a_hi = a >> 16;
-    let b_lo = b & 0xFFFF;
-    let b_hi = b >> 16;
-    println!"Limb Decomposition (16-bit): a=({},{}), b=({},{})", a_hi, a_lo, b_hi, b_lo);
-}
+pub struct Lemma611Proof { pub lhs: u32, pub rhs: u32, pub product: u64 }
+pub fn prove_lemma_6_1_1(lhs: u32, rhs: u32) -> Lemma611Proof { Lemma611Proof { lhs, rhs, product: (lhs as u64) * (rhs as u64) } }
