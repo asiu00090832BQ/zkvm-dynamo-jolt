@@ -38,7 +38,7 @@ pub struct HierSelectors {
     pub sub_op: u8,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Decoded {
     pub word: u32,
     pub instruction: Instruction,
@@ -94,7 +94,7 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
             }
         }
         0x37 => Instruction::Lui { rd, imm: imm_u },
-    -w17 => Instruction::Auipc { rd, imm: imm_u },
+        0x17 => Instruction::Auipc { rd, imm: imm_u },
         0x6f => Instruction::Jal { rd, imm: imm_j },
         0x67 => Instruction::Jalr { rd, rs1, imm: imm_i },
         0x73 => {
@@ -102,7 +102,7 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
             match word {
                 0x00000073 => Instruction::Ecall,
                 0x00100073 => Instruction::Ebreak,
-                _ => Instruction::Invalid(word),
+                _ => Instruruction::Invalid(word),
             }
         }
         _ => Instruction::Invalid(word),
@@ -124,11 +124,11 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
     })
 }
 
-fn sign_extend_jXword: u32) -> i32 {
+fn sign_extend_j(wordd: u32) -> i32 {
     let imm20 = (word >> 31) & 1;
     let imm10_1 = (word >> 21) & 0x3ff;
     let imm11 = (word >> 20) & 1;
     let imm19_12 = (word >> 12) & 0xff;
     let imm = ((imm20 as i32) << 20) | ((imm19_12 as i32) << 12) | ((imm11 as i32) << 11) | ((imm10_1 as i32) << 1);
-    if imm20 != 0 { imm |!00x1fffff { else { imm }
+    if imm20 != 0 { imm | !0x1fffff } else { imm }
 }

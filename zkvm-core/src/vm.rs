@@ -125,8 +125,22 @@ impl Zkvm {
                 }
                 Ok(StepOutcome::Continue)
             }
+            Instruction::Auipc { rd, imm } => {
+                if rd != 0 {
+                    self.regs[rd] = self.pc.wrapping_add(imm as u32);
+                }
+                Ok(StepOutcome::Continue)
+            }
             Instruction::Jal { rd, imm } => {
                 let next_pc = self.pc.wrapping_add(imm as u32);
+                if rd != 0 {
+                    self.regs[rd] = self.pc + 4;
+                }
+                self.pc = next_pc;
+                Ok(StepOutcome::Bumped)
+            }
+            Instruction::Jalr { rd, rs1, imm } => {
+                let next_pc = (self.regs[rs1].wrapping_add(imm as u32)) & !1;
                 if rd != 0 {
                     self.regs[rd] = self.pc + 4;
                 }
@@ -136,6 +150,7 @@ impl Zkvm {
             Instruction::Ecall => Ok(StepOutcome::Ecall),
             Instruction::Ebreak => Ok(StepOutcome::Ebreak),
             Instruction::Invalid(word) => Err(ZkvmError::InvalidInstruction(word)),
+            _ => Err(ZkvmError::InvalidInstruction(0)),
         }
     }
 }
