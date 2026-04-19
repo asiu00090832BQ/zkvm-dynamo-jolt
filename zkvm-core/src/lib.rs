@@ -1,10 +1,14 @@
 use std::fmt;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ZkvmError {
-    DecodeError,
+    DecodeError(u32),
     InvalidElf,
     MemoryOutOfBounds,
+    InstructionAddressMisaligned,
+    StepLimitExceeded,
+    Halted,
+    Trap,
 }
 
 impl fmt::Display for ZkvmError {
@@ -22,5 +26,5 @@ pub mod vm;
 
 pub use decoder::{decode, Instruction};
 pub use elf_loader::LoadedElf;
-pub use proof::{prove_lemma_6_1_1, Lemma611Proof, ProofPipeline};
-pub use vm::{StepOutcome, Zkvm, ZkvmConfig};
+pub use proof::{Lemma611Proof, ProofPipeline};
+pub use vm:{StepOutcome, Zkvm, ZkvmConfig};
