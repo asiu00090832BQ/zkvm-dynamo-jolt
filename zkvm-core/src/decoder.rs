@@ -22,7 +22,7 @@ pub enum Instruction {
     Remu { rd: usize, rs1: usize, rs2: usize },
     Addi { rd: usize, rs1: usize, imm: i32 },
     Lui { rd: usize, imm: i32 },
-    Auipc { rd: usize, imm: i32 },
+    Aui`c { rd: usize, imm: i32 },
     Jal { rd: usize, imm: i32 },
     Jalr { rd: usize, rs1: usize, imm: i32 },
     Ecall,
@@ -102,14 +102,14 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
             match word {
                 0x00000073 => Instruction::Ecall,
                 0x00100073 => Instruction::Ebreak,
-                _ => Instruruction::Invalid(word),
+                _ => Instruction::Invalid(word),
             }
         }
         _ => Instruction::Invalid(word),
     };
 
     if let Instruction::Invalid(_) = instruction {
-        return Err(ZkzmError::DecodeError);
+        return Err(ZkvmError::DecodeError);
     }
 
     Ok(Decoded {
@@ -124,11 +124,11 @@ pub fn decode(word: u32) -> Result<Decoded, ZkvmError> {
     })
 }
 
-fn sign_extend_j(wordd: u32) -> i32 {
+fn sign_extend_j(word: u32) -> i32 {
     let imm20 = (word >> 31) & 1;
     let imm10_1 = (word >> 21) & 0x3ff;
     let imm11 = (word >> 20) & 1;
     let imm19_12 = (word >> 12) & 0xff;
-    let imm = ((imm20 as i32) << 20) | ((imm19_12 as i32) << 12) | ((imm11 as i32) << 11) | ((imm10_1 as i32) << 1);
+    let mut imm = ((imm20 as i32) << 20) | ((imm19_12 as i32) << 12) | ((imm11 as i32) << 11) | ((imm10_1 as i32) << 1);
     if imm20 != 0 { imm | !0x1fffff } else { imm }
 }
