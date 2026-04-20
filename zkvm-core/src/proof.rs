@@ -1,14 +1,64 @@
-// proof.rs
-use crate::decoder::Instruction;
-use crate::vm::{StepOutcome, StepStatus, VM};
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct ProofArtifact { pub step_index: u64, pub pc_before: u32, pub pc_after: u32, pub instruction: Instruction, pub status: StepStatus, pub cycles_before: u64, pub cycles_after: u64 }
-#[derive(Clone, Debug, Default)]
-pub struct ProofPipeline { pub artifacts: Vec<ProofArtifact> }
-impl ProofPipeline {
-    pub fn new() -> Self { Self::default() }
-    pub fn record_step(&mut self, i: u64, o: &StepOutcome) { self.artifacts.push(ProofArtifact { step_index: i, pc_before: o.pc_before, pc_after: o.pc_after, instruction: o.instruction, status: o.status.clone(), cycles_before: o.cycles_before, cycles_after: o.cycles_after }) }
-    pub fn run_with_proof(&mut self, vm: &mut VM, max: u64) -> (Option<StepStatus>, u64) { let mut s = None; let mut c = 0; for i in 0..max { let o = vm.step(); c += 1; s = Some(o.status.clone()); self.record_step(i, &o); if !matches!(o.status, StepStatus::Continued) { break } } (s, c) }
-    pub fn print_artifacts(&self) { for a in &self.artifacts { println!("step={:06} pc_before=0x{:08x} pc_after=0x{:08x} instr={:?} status={:?}", a.step_index, a.pc_before, a.pc_after, a.instruction, a.status) } }
+use crate::{decoder::MulDivOp, ZkvmError};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Limb16 { pub low: u16, pub high: u16 }
+impl Limb16 {
+    pub fn from_u32(v: u32) -> Self { Self { low: v as u16, high: (v >> 16) as u16 } }
+    pub fn recompose(self) -> u32 { (self.low as u32) | ((self.high as u32) << 16) }
 }
-pub fn lemma_6_1_1_single_step_determinism(vm: &VM) -> bool { let mut v1 = vm.clone(); let mut v2 = vm.clone(); v1.step() == v2.step() && v1 == v2 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Lemma611Witness {
+    pub lhs: u32, pub rhs: u32,
+    pub p00: u32, pub p01: u32, pub p10: u32, pub p11: u32,
+    pub combined: u64,
+}
+
+impl Lemma611Witness {
+    pub fn new(lhs: u32, rhs: u32) -> Self {
+        let l = Limb16::from_u32(lhs); let r = Limb16::from_u32(rhs);
+        let p00 = (l.low as u32) * (r.low as u32);
+        let p01 = (l.low as u32) * (r.high as u32);
+        let p10 = (l.high as u32) * (r.low as u32);
+        let p11 = (l.high as u32) * (r.high as u32);
+        let combined = (p00 as u64) + (((p01 as u64) + (p10 as u64)) << 16) + ((p11 as u64) << 32);
+        Self { lhs, rhs, p00, p01, p10, p11, combined }
+    }
+    pub fn verify(&self) -> bool { self.combined == (self.lhs as u64) * (self.rhs as u64) }
+}
+
+pub fn lemma_6_1_1_witness(l: u32, r: u32) -> Lemma611Witness { Lemma611Witness::new(l, r) }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MulProofArtifact { pub op: MulDivOp, pub lhs: u32, pub rhs: u32, pub witness: Lemma611Witness, pub result: u32 }
+
+impl MulProofArtifact {
+    pub fn new(op: MulDivOp, lhs: u32, rhs: u32) -> Result<Self, ZkvmError> {
+        let w = Lemma611Witness::new(lhs, rhs);
+        let res = match op {
+            MulDivOp::Mul => w.combined as u32,
+            MulDivOp::Mulhu => (w.combined >> 32) as u32,
+            MulDivOp::Mulh => ((lhs as i32 as i64).wrapping_mul(rhs as i32 as i64) >> 32) as u32,
+            MulDivOp::Mulhsu => ((lhs as i32 as i64).wrapping_mul(rhs as u64 as i64) >> 32) as u32,
+            _ => return Err(ZkvmError::Trap),
+        };
+        Ok(Self { op, lhs, rhs, witness: w, result: res })
+    }
+    pub fn verify(&self) -> bool { self.witness.verify() }
+}
+
+pub fn rv32m_mul_artifact(op: MulDivOp, lhs: u32, rhs: u32) -> Result<MulProofArtifact, ZkvmError> { MulProofArtifact::new(op, lhs, rhs) }
+pub fn rv32m_mul_result(op: MulDivOp, lhs: u32, rhs: u32) -> Result<(u32, Lemma611Witness), ZkvmError> {
+    let art = MulProofArtifact::new(op, lhs, rhs)?;
+    Ok((art.result, art.witness))
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct ProofTrace { pub artifacts: Vec<MulProofArtifact> }
+impl ProofTrace {
+    pub fn new() -> Self { Self { artifacts: vec![] } }
+    pub fn push(&mut self, a: MulProofArtifact) -> Result<(), ZkvmError> {
+        if !a.verify() { return Err(ZkvmError::Trap); }
+        self.artifacts.push(a); Ok(())
+    }
+}
