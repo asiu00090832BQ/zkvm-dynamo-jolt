@@ -1,239 +1,94 @@
-use crate::decoder::{
-    decode, BranchKind, Instruction, LoadKind, OpImmKind, OpKind, StoreKind,
+use crate::{
+    decoder::{decode, BranchKind, Instruction, LoadKind, MulDivOp, OpImmKind, OpKind, StoreKind, SystemKind, INSTRUCTION_SIZE},
+    ZkvmError, REGISTER_COUNT,
 };
-use crate::ZkvmError;
+use crate::proof::{rv32m_mul_artifact, ProofTrace};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum StepOutcome {
-    Continue,
-    Bumped,
-    Ecall,
-    Ebreak,
-    Halted,
-}
+pub enum StepOutcome { Continued, Halted, Ecall, Ebreak }
 
-#[derive(Debug, Clone)]
 pub struct Vm {
-    pub regs: [u32; 32],
     pub pc: u32,
+    pub regs: [u32; REGISTER_COUNT],
+    pub memory: Vec<u8>,
+    pub memory_base: u32,
     pub halted: bool,
-    pub steps: u64,
-    memory: Vec<u8>,
+    pub proof_trace: ProofTrace,
 }
 
-impl Um {
-    pub fn new(memory: Vec<u8>) -> Self {
-        Self {
-            regs: [0; 32],
-            pc: 0,
-            halted: false,
-            steps: 0,
-            memory,
-        }
-    }
-
-    pub fn with_memory_size(size: usize) -> Self {
-        Self::new(vec![0; size])
-    }
-
-    pub fn memory(&self) -> &[u8] {
-        &self.memory
-    }
-
-    pub fn memory_mut(&mut self) -> &mut [u8] {
-        &mut self.memory
-    }
-
-    pub fn halt(&mut self) {
-        self.halted = true;
-    }
-
-    pub fn reset(&mut self) {
-        self.regs = [0; 32];
-        self.pc = 0;
-        self.halted = false;
-        self.steps = 0;
-    }
-
-    pub fn load_program(&mut self, program: &[u8], address: u32) -> Result<(), ZkvmError> {
-        let start = address as usize;
-        let end = start
-            .checked_add(program.len())
-            .ok_or(ZkvmError::MemoryOutOfBounds {
-                addr: address,
-                size: program.len(),
-            })?;
-        if end > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds {
-                addr: address,
-                size: program.len(),
-            });
-        }
-        self.memory[start..end].copy_from_slice(program);
-        Ok(())
-    }
-
-    pub fn read_reg(&self, index: u8) -> Result<u32, ZkvmError> {
-        self.regs
-            .get(index as usize)
-            .copied()
-            .ok_or(ZkvmError::RegisterOutOfBounds {
-                index: index as usize,
-            })
-    }
-
-    pub fn write_reg(&mut self, index: u8, value: u32) -> Result<(), ZkvmError> {
-        let index_usize = index as usize;
-        if index_usize >= 32 {
-            return Err(ZkvmError::RegisterOutOfBounds { index: index_usize });
-        }
-        if index_usize != 0 {
-            self.regs[index_usize] = value;
-        }
-        Ok(())
-    }
-
-    pub fn fetch_word(&self, addr: u32) -> Result<u32, ZkvmError> {
-        self.read_u32(addr)
-    }
-
-    pub fn decode_current(&self) -> Result<Instruction, ZkvmError> {
-        decode(self.fetch_word(self.pc)?)
-    }
-
-    pub fn read_u8(&self, addr: u32) -> Result<u8, ZkvmError> {
-        let start = self.check_range(addr, 1)?;
-        Ok(self.memory[start])
-    }
-
-    pub fn read_u16(&self, addr: u32) -> Result<u16, ZkvmError> {
-        self.check_alignment(addr, 2)?;
-        let start = self.check_range(addr, 2)?;
-        Ok(u16::from_le_bytes([self.memory[start], self.memory[start + 1]]))
-    }
-
-    pub fn read_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
-        self.check_alignment(addr, 4)?;
-        let start = self.check_range(addr, 4)?;
-        Ok(u32::from_le_bytes([
-            self.memory[start],
-            self.memory[start + 1],
-            self.memory[start + 2],
-            self.memory[start + 3],
-        ]))
-    }
-
-    pub fn write_u8(&mut self, addr: u32, value: u8) -> Result<(), ZkvmError> {
-        let start = self.check_range(addr, 1)?;
-        self.memory[start] = value;
-        Ok(())
-    }
-
-    pub fn write_u16(&mut self, addr: u32, value: u16) -> Result<(), ZkvmError> {
-        self.check_alignment(addr, 2)?;
-        let start = self.check_range(addr, 2)?;
-        let bytes = value.to_le_bytes();
-        self.memory[start..start + 2].copy_from_slice(&bytes);
-        Ok(())
-    }
-
-    pub fn write_u32(&mut self, addr: u32, value: u32) -> Result<(), ZkvmError> {
-        self.check_alignment(addr, 4)?;
-        let start = self.check_range(addr, 4)?;
-        let bytes = value.to_le_bytes();
-        self.memory[start..start + 4].copy_from_slice(&bytes);
-        Ok(())
+impl Vm {
+    pub fn new(memory_base: u32, memory: Vec<u8>, entry: u32) -> Self {
+        Self { pc: entry, regs: [0; REGISTER_COUNT], memory, memory_base, halted: false, proof_trace: ProofTrace::new() }
     }
 
     pub fn step(&mut self) -> Result<StepOutcome, ZkvmError> {
-        if self.halted {
-            return Ok(StepOutcome::Halted);
-        }
-
-        let pc = self.pc;
-        let raw = self.fetch_word(pc)?;
-        let inst = decode(raw)?;
-        let mut outcome = StepOutcome::Continue;
-        let mut next_pc = pc.wrapping_add(4);
-
-        match inst {
-            Instruction::Lui { rd, imm } => {
-                self.write_reg(rd, imm as u32)?;
-            }
-            Instruction::Auipc { rd, imm } => {
-                let value = pc.wrapping_add(imm as u32);
-                self.write_reg(rd, value)?;
-            }
-            Instruction::Jal { rd, imm } => {
-                let link = pc.wrapping_add(4);
-                let target = pc.wrapping_add(imm as u32);
-                self.write_reg(rd, link)?;
-                next_pc = target;
-                outcome = StepOutcome::Bumped;
-            }
+        if self.halted { return Err(ZkvmError::Halted); }
+        let raw = self.load_u32(self.pc)?;
+        let instr = decode(raw)?;
+        let next_pc = self.pc.wrapping_add(INSTRUCTION_SIZE);
+        let outcome = match instr {
+            Instruction::Lui { rd, imm } => { self.set_reg(rd, imm); StepOutcome::Continued }
+            Instruction::Auipc { rd, imm } => { self.set_reg(rd, self.pc.wrapping_add(imm)); StepOutcome::Continued }
+            Instruction::Jal { rd, imm } => { self.set_reg(rd, next_pc); self.pc = self.pc.wrapping_add(imm as u32); return Ok(StepOutcome::Continued); }
             Instruction::Jalr { rd, rs1, imm } => {
-                let base = self.read_reg(rs1)?;
-                let link = pc.wrapping_add(4);
-                let target = base.wrapping_add(imm as u32) & !1;
-                self.write_reg(rd, link)?;
-                next_pc = target;
-                outcome = StepOutcome::Bumped;
+                let target = self.regs[rs1 as usize].wrapping_add(imm as u32) & !1;
+                self.set_reg(rd, next_pc); self.pc = target; return Ok(StepOutcome::Continued);
             }
             Instruction::Branch { kind, rs1, rs2, imm } => {
-                let lhs = self.read_reg(rs1)?;
-                let rhs = self.read_reg(rs2)?;
+                let lhs = self.regs[rs1 as usize];
+                let rhs = self.regs[rs2 as usize];
                 let taken = match kind {
-                    BranchKind::Beq => lhs == rhs,
+                    BranchKind::Beq => lhs =9 rhs,
                     BranchKind::Bne => lhs != rhs,
-                    BranchKind::Blt => (lhs as i32) < (rhs as i32),
+                    BranchKind::Blr => (lhs as i32) < (rhs as i32),
                     BranchKind::Bge => (lhs as i32) >= (rhs as i32),
                     BranchKind::Bltu => lhs < rhs,
                     BranchKind::Bgeu => lhs >= rhs,
                 };
-                if taken {
-                    next_pc = pc.wrapping_add(imm as u32);
-                    outcome = StepOutcome::Bumped;
-                }
+                if taken { self.pc = self.pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+                StepOutcome::Continued
             }
             Instruction::Load { kind, rd, rs1, imm } => {
-                let addr = self.read_reg(rs1)?.wrapping_add(imm as u32);
-                let value = match kind {
-                    LoadKind::Lb => self.read_u8(addr)? as i8 as i32 as u32,
-                    LoadKind::Lh => self.read_u16(addr)? as i16 as i32 as u32,
-                    LoadKind::Lw => self.read_u32(addr)?,
-                    LoadKind::Lbu => self.read_u8(addr)? as u32,
-                    LoadKind::Lhu => self.read_u16(addr)? as u32,
+                let addr = self.regs[rs1 as usize].wrapping_add(imm as u32);
+                let val = match kind {
+                    LoadKind::Lb => self.load_u8(addr)? as i8 as i32 as u32,
+                    LoadKind::Lbu => self.load_u8(addr)? as u32,
+                    LoadKind::Lh => self.load_u16(addr)? as i16 as i32 as u32,
+                    LoadKind::Lhu => self.load_u16(addr)? as u32,
+                    LoadKind::Lw => self.load_u32(addr)?,
                 };
-                self.write_reg(rd, value)?;
+                self.set_reg(rd, val); StepOutcome::Continued
             }
             Instruction::Store { kind, rs1, rs2, imm } => {
-                let addr = self.read_reg(rs1)?.wrapping_add(imm as u32);
-                let value = self.read_reg(rs2)?;
+                let addr = self.regs[rs1 as usize].wrapping_add(imm as u32);
+                let val = self.regs[rs2 as usize];
                 match kind {
-                    StoreKind::Sb => self.write_u8(addr, value as u8)?,
-                    StoreKind::Sh => self.write_u16(addr, value as u16)?,
-                    StoreKind::Sw => self.write_u32(addr, value)?,
+                    StoreKind::Sb => self.store_u8(addr, val as u8)?,
+                    StoreKind::Sh => self.store_u16(addr, val as u16)?,
+                    StoreKind::Sw => self.store_u32(addr, val)?,
                 }
+                StepOutcome::Continued
             }
-            Instruction::OpImm { kind, rd, rs1, imm, shamt } => {
-                let lhs = self.read_reg(rs1)?;
-                let value = match kind {
-                    OpImmKind::Addi => lhs.wrapping_add(imm as u32),
+            Instruction::OpImm { kind, rd, rs1, imm } => {
+                let lhs = self.regs[rs1 as usize];
+                let rhs = imm as u32;
+                let val = match kind {
+                    OpImmKind::Addi => lhs.wrapping_add(rhs),
                     OpImmKind::Slti => ((lhs as i32) < imm) as u32,
-                    OpImmKind::Sltiu => (lhs < (imm as u32)) as u32,
-                    OpImmKind::Xori => lhs ^ (imm as u32),
-                    OpImmKind::Ori => lhs | (imm as u32),
-                    OpImmKind::Andi => lhs & (imm as u32),
-                    OpImmKind::Slli => lhs << (shamt & 0x1f),
-                    OpImmKind::Rrli => lhs >> (shamt & 0x1f),
-                    OpImmKind::Srai => ((lhs as i32) >> (shamt & 0x1f)) as u32,
+                    OpImmKind::Sltiu => (lhs < rhs) as u32,
+                    OpImmKind::Xori => lhs ^ rhs,
+                    OpImmKind::Ori => lhs | rhs,
+                    OpImmKind::Andi => lhs & rhs,
+                    OpImmKind::Slli => lhs << (rhs & 0x1f),
+                    OpImmKind::Srli => lhs >> (rhs & 0x1f),
+                    OpImmKind::Srai => ((lhs as i32) >> (rhs & 0x1f)) as u32,
                 };
-                self.write_reg(rd, value)?;
+                self.set_reg(rd, val); StepOutcome::Continued
             }
             Instruction::Op { kind, rd, rs1, rs2 } => {
-                let lhs = self.read_reg(rs1)?;
-                let rhs = self.read_reg(rs2)?;
-                let value = match kind {
+                let lhs = self.regs[rs1 as usize];
+                let rhs = self.regs[rs2 as usize];
+                let val = match kind {
                     OpKind::Add => lhs.wrapping_add(rhs),
                     OpKind::Sub => lhs.wrapping_sub(rhs),
                     OpKind::Sll => lhs << (rhs & 0x1f),
@@ -244,126 +99,75 @@ impl Um {
                     OpKind::Sra => ((lhs as i32) >> (rhs & 0x1f)) as u32,
                     OpKind::Or => lhs | rhs,
                     OpKind::And => lhs & rhs,
-                    OpKind::Mul => lhs.wrapping_mul(rhs),
-                    OpKind::Mulh => mulh_signed_signed(lhs, rhs),
-                    OpKind::Mulhsu => mulh_signed_unsigned(lhs, rhs),
-                    OpKind::Mulhu => mulh_unsigned_unsigned(lhs, rhs),
-                    OpKind::Div => div_signed(lhs, rhs),
-                    OpKind::Divu => div_unsigned(lhs, rhs),
-                    OpKind::Rem => rem_signed(lhs, rhs),
-                    OpKind::Remu { rd, rs1, rs2 } => rem_unsigned(lhs, rhs),
                 };
-                self.write_reg(rd, value)?;
+                self.set_reg(rd, val); StepOutcome::Continued
             }
-            Instruction::Fence | Instruction::FenceI => {}
-            Instruction::Ecall => {
-                self.pc = next_pc;
-                self.regs[0] = 0;
-                self.steps = self.steps.wrapping_add(1);
-                return Ok(StepOutcome::E`Øll);
+            Instruction::MulDiv { kind, rd, rs1, rs2 } => {
+                let lhs = self.regs[rs1 as usize];
+                let rhs = self.regs[rs2 as usize];
+                let val = match kind {
+                    MulDivOp::Mul | MulDivOp::Mulh | MulDivOp::Mulhsu | MulDivOp::Mulhu => {
+                        let art = rv32m_mul_artifact(kind, lhs, rhs)?;
+                        let res = art.result;
+                        self.proof_trace.push(art)?;
+                        res
+                    }
+                    MulDivOp::Div => if rhs == 0 { u32::MAX } else { (lhs as i32).wrapping_div(rhs as i32) as u32 },
+                    MulDivOp::Div5 => if rhs == 0 { u32::MAX } else { lhs / rhs },
+                    MulDivOp::Rem => if rhs == 0 { lhs } else { (lhs as i32).wrapping_rem(rhs as i32) as u32 },
+                    MulDivOp::Remu => if rhs == 0 { lhs } else { lhs % rhs },
+                };
+                self.set_reg(rd, val); StepOutcome::Continued
             }
-            Instruction::Ebreak => {
-                self.pc = next_pc;
-                self.regs[0] = 0;
-                self.steps = self.steps.wrapping_add(1);
-                return Ok(StepOutcome::Ebreak);
-            }
-        }
-
+            Instruction::Fence | Instruction::FenceI => StepOutcome::Continued,
+            Instruction::System(SystemKind::Ecall) => { self.halted = true; StepOutcome::Ecall }
+            Instruction::System(SystemKind::Ebreak) => { self.halted = true; StepOutcome::Ebreak }
+        };
         self.pc = next_pc;
         self.regs[0] = 0;
-        self.steps = self.steps.wrapping_add(1);
         Ok(outcome)
     }
 
-    pub fn run(&mut self, max_steps: usize) -> Result<StepOutcome, ZkvmError> {
-        if self.halted {
-            return Ok(StepOutcome::Halted);
+    pub fn run(&mut self, max: usize) -> Result<StepOutcome, ZkvmError> {
+        for _ in 0..max {
+            let o = self.step()?;
+            if o != StepOutcome::Continued { return Ok(o); }
         }
-
-        for _ in 0..max_steps {
-            let outcome = self.step()?;
-            match outcome {
-                StepOutcome::Continue | StepOutcome::Bumped => {}
-                other => return Ok(other),
-            }
-            if self.halted {
-                return Ok(StepOutcome::Halted);
-            }
-        }
-
-        Err(ZkvmError::StepLimitExceeded { limit: max_steps })
+        Err(ZkvmError::StepLimitExceeded { limit: max })
     }
 
-    fn check_alignment(&self, addr: u32, alignment: usize) -> Result<(), ZkvmError> {
-        if (addr as usize) % alignment != 0 {
-            return Err(ZkvmError::MisalignedAccess { addr, alignment });
-        }
+    fn set_reg(&mut self, rd: u8, val: u32) { if rd != 0 { self.regs[rd as usize] = val; } }
+    fn load_u8(&self, addr: u32) -> Result<u8, ZkvmError> {
+        let off = (addr.wrapping_sub(self.memory_base)) as usize;
+        self.memory.get(off).copied().ok_or(ZkvmError::MemoryOutOfBounds { addr, len: 1 })
+    }
+    fn load_u16(&self, addr: u32) -> Result<u16, ZkvmError> {
+        if addr % 2 != 0 { return Err(ZkvmError::MisalignedAccess { addr, alignment: 2 }); }
+        let b0 = self.load_u8(addr)?; let b1 = self.load_u8(addr + 1)?;
+        Ok(u16::from_le_bytes([b0, b1]))
+    }
+    fn load_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
+        if addr % 4 != 0 { return Err(ZkvmError::MisalignedAccess { addr, alignment: 4 }); }
+        let b0 = self.load_u8(addr)?; let b1 = self.load_u8(addr + 1)?;
+        let b2 = self.load_u8(addr + 2)?; let b3 = self.load_u8(addr + 3)?;
+        Ok(u32::from_le_bytes([b0, b1, b2, b3]))
+    }
+    fn store_u8(&mut self, addr: u32, val: u8) -> Result<(), ZkvmError> {
+        let off = (addr.wrapping_sub(self.memory_base)) as usize;
+        let cell = self.memory.get_mut(off).ok_or(ZkvmError::MemoryOutOfBounds { addr, len: 1 })?;
+        *cell = val; Ok(())
+    }
+    fn store_u16(&mut self, addr: u32, val: u16) -> Result<(), ZkvmError> {
+        if addr % 2 != 0 { return Err(ZkvmError::MisalignedAccess { addr, alignment: 2 }); }
+        let bytes = val.to_le_bytes();
+        self.store_u8(addr, bytes[0])?; self.store_u8(addr + 1, bytes[1])?;
         Ok(())
     }
-
-    fn check_range(&self, addr: u32, size: usize) -> Result<usize, ZkvmError> {
-        let start = address as usize;
-        let end = start
-            .checked_add(size)
-            .ok_or(ZkvmError::MemoryOutOfBounds { addr, size })?;
-        if end > self.memory.len() {
-            return Err(ZkvmError::MemoryOutOfBounds { addr, size });
-        }
-        Ok(start)
-    }
-}
-
-fn mulh_signed_signed(lhs* u32, rhs: u32) -> u32 {
-    let product = (lhs as i32 as i64 as i128) * (rhs as i32 as i64 as i128);
-    ((product >> 32) as i64 as u64) as u32
-}
-
-fn mulh_signed_unsigned(lhs: u32, rhs* u32) -> u32 {
-    let product = (lhs as i32 as i64 as i128) * (rhs as u64 as i128);
-    ((product >> 32) as i64 as u64) as u32
-}
-
-fn mulh_unsigned_unsigned(lhs: u32, rhs* u32) -> u32 {
-    (((lhs as u64) * (rhs as u64)) >> 32) as u32
-}
-
-fn div_signed(lhs: u32, rhs: u32) -> u32 {
-    let lhs_i = lhs as i32;
-    let rhs_i = rhs as i32;
-    if rhs_i == 0 {
-        u32::MAX
-    } else if lhs_i == i32::MIN && rhs_i == -1 {
-        lhs_i as u32
-    } else {
-        (lhs_i / rhs_i) as u32
-    }
-}
-
-fn div_unsigned(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        u32::MAX
-    } else {
-        lhs / rhs
-    }
-}
-
-fn rem_signedhlhs: u32, rhs* u32) -> u32 {
-    let lhs_i = lhs as i32;
-    let rhs_i = rhs as i32;
-    if rhs_i == 0 {
-        lhs
-    } else if lhs_i == i32::MIN && rhs_i == -1 {
-        0
-    } else {
-        (lhs_i % rhs_i) as u32
-    }
-}
-
-fn rem_unsigned(lhs: u32, rhs: u32) -> u32 {
-    if rhs == 0 {
-        lhs
-    } else {
-        lhs % rhs
+    fn store_u32(&mut self, addr: u32, val: u32) -> Result<(), ZkvmError> {
+        if addr % 4 != 0 { return Err(ZkvmError::MisalignedAccess { addr, alignment: 4 }); }
+        let bytes = val.to_le_bytes();
+        self.store_u8(addr, bytes[0])?; self.store_u8(addr + 1, bytes[1])?;
+        self.store_u8(addr + 2, bytes[2])?; self.store_u8(addr + 3, bytes[3])?;
+        Ok(())
     }
 }
