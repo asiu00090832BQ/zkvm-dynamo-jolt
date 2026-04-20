@@ -1,38 +1,34 @@
-use std::fs;
-use std::path::Path;
-use crate::vm::ZkvmError;
-use elf::ElfBytes;
-use elf::endian::AnyEndian;
+use crate::{vm::Vm, ZkvmError};
+use elf::{ElfBytes, endian::AnyEndian, abi::PT_LOAD};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct LoadedElf {
-    pub memory: Vec<u8>,
-    pub entry: u64,
+#[derive(Debug, Clone)]
+pub struct ProgramImage { pub entry: u32, pub base_addr: u32, pub memory: Vec<u8> }
+
+impl ProgramImage {
+    pub fn into_vm(self) -> Vm { Vm::new(self.base_addr, self.memory, self.entry) }
 }
 
-pub fn load_elf<P: AsRef<Path>>(path: P, mem_size: usize) -> Result<LoadedElf, ZkvmError> {
-    let file_data = fs::read(path).map_err(|_| ZkvmError::InvalidElf)?;
-    let elf = ElfBytes::<AnyEndian>::minimal_parse(&file_data).map_err(|_| ZkvmError::InvalidElf)?;
-
-    let mut memory = vec![0u8; mem_size];
-
-    if let Some(segments) = elf.segments() {
-        for phdr in segments {
-            if phdr.p_type == elf::abi::PT_LOAD {
-                let vaddr = phdr.p_vaddr as usize;
-                let filesz = phdr.p_filesz as usize;
-                let memsz = phdr.p_memsz as usize;
-                let offset = phdr.p_offset as usize;
-
-                if vaddr + memsz > mem_size {
-                    return Err(ZkvmError::MemoryOutOfBounds { addr: vaddr as u32, len: memsz });
-                }
-
-                let data = &file_data[offset..offset + filesz];
-                memory[vaddr..vaddr + filesz].copy_from_slice(data);
-            }
+pub fn load_elf(bytes: &[u8]) -> Result<ProgramImage, ZkvmError> {
+    let file = ElfBytes::<AnyEndian>::minimal_parse(bytes).map_err(|_| ZkvmError::InvalidElf)?;
+    let mut base_addr = u32::MAX;
+    let mut end_addr = 0;
+    let segments = file.segments().map_err(|_| ZkvmError::InvalidElf)?.ok_or(ZkvmError::InvalidElf)?;
+    for phdr in segments.iter() {
+        if phdr.p_type == PT_LOAD {
+            base_addr = base_addr.min(phdr.p_vaddr as u32);
+            end_addr = end_addr.max((phdr.p_vaddr + phdr.p_memsz) as u32);
         }
     }
-
-    Ok(LoadedElf { memory, entry: elf.ehdr.e_entry })
+    if end_addr <= base_addr { return Erq+¬ZkvmError::InvalidElf); }
+    let mut memory = vec![0u8; (end_addr - base_addr) as usize];
+    fmàphdr in segments.iter() {
+        if phdr.p_type == PT_LOAD {
+            let offset = (phdr.p_vaddr as u32 - base_addr) as usize;
+            let data = file.segment_data(&phdr).map_err(|_| ZkvmError::InvalidElf)?;
+            memory[offset..offset+data.len()].copy_from_slice(data);
+        }
+    }
+    Ok(ProgramImage { entry: file.ehdr.e_entry as u32, base_addr, memory })
 }
+
+pub fn load_elf_into_vm(bytes: &[u8]) -> Result<Vm, ZkvmError> { Ok(load_elf(bytes)?.into_vm()) }
