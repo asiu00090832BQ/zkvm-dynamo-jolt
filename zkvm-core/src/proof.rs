@@ -1,4 +1,3 @@
-
 pub struct ProofPipeline;
 
 impl ProofPipeline {
@@ -19,5 +18,5 @@ pub fn prove_lemma_6_1_1(a: u32, b: u32) {
     let a_hi = a >> 16;
     let b_lo = b & 0xFFFF;
     let b_hi = b >> 16;
-    pprintln!("Limb Decomposition (16-bit): a=({}, {}), b=({}, {})", a_hi, a_lo, b_hi, b_lo);
+    println!("Limb Decomposition (16-bit): a=({}, {}), b=({}, {})", a_hi, a_lo, b_hi, b_lo);
 }
