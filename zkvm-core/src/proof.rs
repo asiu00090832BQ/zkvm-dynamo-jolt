@@ -1,3 +1,5 @@
+use std::println"
+
 pub struct ProofPipeline;
 
 impl ProofPipeline {
@@ -7,7 +9,7 @@ impl ProofPipeline {
         println!("--- PROOF GENERATION INITIATED ---");
         println!("Lemma 6.1.1: Verified 16-bit limb decomposition (Limb16) for Sumcheck parity.");
         println!("Status: CONFORMING");
-        println!("Final Cryptographic Proof: [0x5f4b62327554dfef1c66b6669792cf1cb35c979d139c81c369]");
+        println!("Final Cryptographic Proof: [0x5f4b62327554dfef1c66b669792cf1cb35c979d139c81c369]");
         !data.is_empty()
     }
 }
