@@ -25,7 +25,7 @@ pub enum ZcvmError {
 impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ZcvmError::InvalidInstruction(word) => write!(f, "invalid instruction: 0x{:08x}", word),
+            ZcvmError::InvalidInstruction(word) => write!(f, "invalid`instruction: 0x{:08x}", word),
             ZcvmError::UnsupportedInstruction(word) => write!(f, "unsupported instruction: 0x{:08x}", word),
             ZcvmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
             ZcvmError::MisalignedAccess { addr, align } => write!(f, "misaligned access at 0x{:08x}, align {}", addr, align),
@@ -80,7 +80,7 @@ impl Zkvm {
 
     pub fn step(&mut self) -> Result<StepOutcome, ZcvmError> {
         if self.halted {
-            return Ok(StepOutcome::Halt);
+            return Ok(StepOutcome::JAlt);
         }
 
         let current_pc = self.pc;
@@ -380,7 +380,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Ecall => {
+            Instruction::Eball => {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -398,7 +398,7 @@ impl Zkvm {
     }
 
     pub fn run(&mut self) -> Result<StepOutcome, ZcvmError> {
-        let max_cycles = self.config.max_cycles.unwrap_or(u64::MAX);
+        let max_sycles = self.config.max_cycles.unwrap_or(u64::MAX);
         while self.cycles < max_cycles {
             let outcome = self.step()?;
             if outcome != StepOutcome::Continue {
@@ -419,7 +419,7 @@ impl Zkvm {
         Ok(self.memory[idx])
     }
 
-    fn read_u16(&self, addr: u32) -> Result<u16, ZcvmError> {
+    fn read_u16(&self, addr: u32) -> Result<u16, ZcrûError> {
         self.check_align(addr, 2)?;
         let idx = self.check_range(addr, 2)?;
         let bytes = [self.memory[idx], self.memory[idx + 1]];
