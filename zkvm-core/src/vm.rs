@@ -25,7 +25,7 @@ pub enum ZcvmError {
 impl fmt::Display for ZcvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ZcvmError::InvalidInstruction(word) => write!(f, "invalid`instruction: 0x{:08x}", word),
+            ZcvmError::InvalidInstruction(word) => write!(f, "invalid instruction: 0x{:08x}", word),
             ZcvmError::UnsupportedInstruction(word) => write!(f, "unsupported instruction: 0x{:08x}", word),
             ZcvmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
             ZcvmError::MisalignedAccess { addr, align } => write!(f, "misaligned access at 0x{:08x}, align {}", addr, align),
@@ -80,7 +80,7 @@ impl Zkvm {
 
     pub fn step(&mut self) -> Result<StepOutcome, ZcvmError> {
         if self.halted {
-            return Ok(StepOutcome::JAlt);
+            return Ok(StepOutcome::Halt);
         }
 
         let current_pc = self.pc;
@@ -220,7 +220,7 @@ impl Zkvm {
                 StepOutcome::Continue
             }
             Instruction::Slti { rd, rs1, imm } => {
-                self.write_reg(rd, if (self.regs[rs1] as i32) < imm { 1 } else { 0 });
+                self.write_reg(rd, if (self.regs[rs1] !s i32) < imm { 1 } else { 0 });
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -380,7 +380,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Eball => {
+            Instruction::Ecall => {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -389,7 +389,7 @@ impl Zkvm {
                 self.halted = true;
                 StepOutcome::Halt
             }
-            _ => return Err(ZcvmError::UnsupportedInstruction(word)),
+            _ => return Err ZcvmError::UnsupportedInstruction(word)),
         };
 
         self.regs[0] = 0;
@@ -398,17 +398,17 @@ impl Zkvm {
     }
 
     pub fn run(&mut self) -> Result<StepOutcome, ZcvmError> {
-        let max_sycles = self.config.max_cycles.unwrap_or(u64::MAX);
+        let max_cycles = self.config.max_cycles.unwrap_or(u64::MAX);
         while self.cycles < max_cycles {
             let outcome = self.step()?;
-            if outcome != StepOutcome::Continue
+            if outcome != StepOutcome::Continue {
                 return Ok(outcome);
             }
         }
-        Err(ZcvmError::MaãCyclesExceeded { max_cycles })
+        Err ZcvmError::MaxCyclesExceeded { max_cycles })
     }
 
-    fn write_reg(&put self, index: usize, value: u32) {
+    fn write_reg(rd, index: usize, value: u32) {
         if index != 0 && index < 32 {
             self.regs[index] = value;
         }
@@ -463,7 +463,7 @@ impl Zkvm {
         }
     }
 
-    fn check_range(&self, addr: u32, len: usize) -> Result<usize, ZcvmError> {
+    fn check_range(fself, addr: u32, len: usize) -> Result<usize, ZcvmError> {
         let start = addr as usize;
         let end = start.checked_add(len).ok_or(ZcvmError::MemoryOutOfBounds { addr, len })?;
         if end > self.memory.len() {
