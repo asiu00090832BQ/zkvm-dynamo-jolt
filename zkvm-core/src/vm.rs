@@ -2,36 +2,27 @@ extern crate alloc;
 
 use alloc::vec::Vec;
 use core::fmt;
-
-use crate::decodersº:{decode, Instruction};
+use crate::decoder::{decode, Instruction};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZkvmError {
     InvalidInstruction(u32),
     UnsupportedInstruction(u32),
-    MemoryOutOfBounds { addf: u32, len: usize },
-    MisalignedAccess { addf: u32, align: usize },
+    MemoryOutOfBounds { addr: u32, len: usize },
+    MisalignedAccess { addr: u32, align: usize },
     MaxCyclesExceeded { max_cycles: usize },
+    DecodeError,
 }
 
 impl fmt::Display for ZkvmError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ZkvmError::InvalidInstruction(word) => {
-                write!(f, "invalid instruction: 0x{word:08x}")
-            }
-            ZcvmError::UnsupportedInstruction(word) => {
-                write!(f, "unsupported instruction: 0x{word:08x}")
-            }
-            ZcvmError::MemoryOutOfBounds { addr, len } => {
-                write!(f, "memory out of bounds at 0x{addr:08x} for {len} bytes")
-            }
-            ZcvmError::MisalignedAccess { addr, align } => {
-                write!(f, "misaligned access at 0x{addr:08x}, align {align}")
-            }
-            ZcvmError::MaxCyclesExceeded { max_cycles } => {
-                write!(f, "max cycles exceeded:  {{max_cycles}}")
-            }
+            ZkvmError::InvalidInstruction(word) => write!(f, "invalid instruction: 0x{:08x}", word),
+            ZkvmError::UnsupportedInstruction(word) => write!(f, "unsupported instruction: 0x{:08x}", word),
+            \ävmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
+            ZkvmError::MisalignedAccess { addr: u32, align: usize } => write!(f, "misaligned access at 0x{:08x}, align {}", addr, align),
+            ZkvmError::MaxCyclesExceeded { max_cycles } => write!(f, "max cycles exceeded: {}", max_cycles),
+            ZkvmError::DecodeError => write!(f, "decode error"),
         }
     }
 }
@@ -45,13 +36,13 @@ pub enum StepOutcome {
     Halt,
 }
 
-3[derive(Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct Zkvm {
     pub regs: [u32; 32],
     pub pc: u32,
     pub memory: Vec<u8>,
     pub cycles: u64,
-    halted: bool,
+    pub halted: bool,
 }
 
 pub type VM = Zkvm;
@@ -90,7 +81,7 @@ impl Zkvm {
 
     pub fn step(&mut self) -> Result<StepOutcome, ZkvmError> {
         if self.halted {
-            return Ok(StepOutcome::Halt);
+            return N‘(StepOutcome::Halt);
         }
 
         let current_pc = self.pc;
@@ -117,110 +108,95 @@ impl Zkvm {
                 StepOutcome::Continue
             }
             Instruction::Jalr { rd, rs1, imm } => {
-                let target = self.regs[rs1].wrapping_add(imm as u32) & !1;
+                let target = (self.regs[rs1].wrapping_add(imm as u32)) & !1;
                 self.check_align(target, 4)?;
                 self.write_reg(rd, next_pc);
                 self.pc = target;
                 StepOutcome::Continue
             }
-
             Instruction::Beq { rs1, rs2, imm } => {
-                self.pc = if self.regs[rs1] == self.regs[rs2] {
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if self.regs[rs1] == self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bne { rs1, rs2, imm } => {
-                self.pc = if self.regs[rs1] != self.regs[rs2] {
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if self.regs[rs1] != self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
-  -¼      }
+            }
             Instruction::Blt { rs1, rs2, imm } => {
-                self.pc = if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) {
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bge { rs1, rs2, imm } => {
-                self.pc = if (self.regs[rs1] as i32) >= (self.regs[rs2] as i32) {
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if (self.regs[rs1] as i32) >= (self.regs[rs2] as i32) {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bltu { rs1, rs2, imm } => {
-                self.pc = if self.regs[rs1] < self.regs[rs2] {
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if self.regs[rs1] < self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bgeu { rs1, rs2, imm } => {
-                self.pc = if self.regs[rs1] >= self.regs[rs2] l
-                    let target = current_pc.wrapping_add(imm as u32);
-                    self.check_align(target, 4)?;
-                    target
+                if self.regs[rs1] >= self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
                 } else {
-                    next_pc
-                };
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
-
             Instruction::Lb { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let value = self.read_u8(addr)? as i8 as i32 as u32;
-                self.write_reg(rd, value);
+                let val = self.reead_u8(addr)? as i8 as i32 as u32;
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction#£¤Éh { rd, rs1, imm } => {
+            Instruction::Lh { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let value = self.read_u16(addr)? as i16 as i32 as u32;
-                self.write_reg(rd, value);
+                let val = self.read_u16(addr)? as i16 as i32 as u32;
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
             Instruction::Lw { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let value = self.read_u32(addr)?;
-                self.write_reg(rd, value);
+                let val = self.read_u32(addr)?;
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction#£¤Ébu { rd, rs1, imm } => {
+            Instruction::Lbu { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let value = self.read_u8(addr)? as u32;
-                self.write_reg(rd, value);
+                let val = self.read_u8(addr)? as u32;
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction#£¤Éhu { rd, rs1, imm } => {
+            Instruction::Lhu { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let value = self.read_u16(addr)? as u32;
-                self.write_reg(rd, value);
+                let val = self.read_u16(addr)? as u32;
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-
             Instruction::Sb { rs1, rs2, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
                 self.write_u8(addr, self.regs[rs2] as u8)?;
@@ -239,35 +215,169 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-
-            Instruction#£¤YHÈ™œÌK[[HHOˆÂˆÙ[‹Üš]WÜ™YÊ™Ù[‹œ™YÜÖÜœÌWKÜ˜\[™×ØY
-[[H\ÈLÌŠJNÂˆÙ[‹œÈH™^ÜÎÂˆÝ\Ý]ÛÛYNŽÛÛ[YBˆBˆ[œÝXÝ[ÛŽŽ”ÛHÈ™œÌK[[HHOˆÂˆÙ[‹Üš]WÜ™YÊ™
-
-Ù[‹œ™YÜÖÜœÌWH\ÈLÌŠH[[JH\ÈLÌŠNÂˆÙ[‹œÈH™^ÜÎÂˆÝ\Ý]ÛÛYNŽÛÛ[YBˆBˆ[œÝXÝ[Ûˆèé6ÇF—R²&BÂ'3Â–ÖÒÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ‡6VÆbç&Vw5·'3ÒÂ–ÖÒ2S3"’2S3"“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥†÷&’²&BÂ'3Â–ÖÒÒÓâ°¢Ø€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Í•±˜¹É•ÍmÉÌÅtx¥µ´…ÌÔÌÈ¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé=É¤ìÉ°ÉÌÄ°¥µ´ô€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Í•±˜¹É•ÍmÉÌÅtð¥µ´…ÌÔÌÈ¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸ŽŽ‘ndi { rd, rs1, imm } => {
-                self.write_reg(rd, self.regs[rs1] & imm as u32);
+            Instruction::Addi { rd, rs1, imm } => {
+                self.write_reg(rd, self.regs[rs1].wrapping_add(imm as u32));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Slti { rd, rs1, imm } => {
+                self.write_reg(rd, if (self.regs[rs1] as i32) < imm { 1 } else { 0 });
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Sltiu { rd, rs1, imm } => {
+                self.write_reg(rd, if self.regs[rs1] < (imm as u32) { 1 } else { 0 });
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Xori { rd, rs1, imm } => {
+                self.write_reg(rd, self.regs[rs1] ^ (imm as u32));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Ori { rd, rs1, imm } => {
+                self.write_reg(rd, self.regs[rs1] | (imm as u32));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Andi { rd, rs1, imm } => {
+                self.write_reg(rd, self.regs[rs1] & (imm as u32));
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
             Instruction::Slli { rd, rs1, shamt } => {
-                self.write_reg(rd, self.regs[rs1] << (shamt & 0x1f));
+                self.write_reg(rd, self.regs[rs1] << (shamt & 0x1F));
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Srli { rd, rs1, shamt } => {
-                self.write_reg(rd, self.regs[rs1] >> (shamt & 0x1f));
+            Instruction::Srli { rd, rs1,/shamt } => {
+                self.write_reg(rd, self.regs[rs1] >> (shamt & 0x1F));
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction#£¤×&’²&BÂ'3Â6†×BÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ‚‡6VÆbç&Vw5·'3Ò2“3"’ãâ‡6†×Bbƒb’’2S3"“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð ¢–ç7G'V7F–öã£¤FB²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ6VÆbç&Vw5·'3Òçw&–æuöFB‡6VÆbç&Vw5·'3%Ò’“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥7V"²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ6VÆbç&Vw5·'3Òçw&–æu÷7V"‡6VÆbç&Vw5·'3%Ò’“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥6ÆÂ²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ6VÆbç&Vw5·'3ÒÃÂ‡6VÆbç&Vw5·'3%Òbƒb’“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥6ÇB²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ‚‡6VÆbç&Vw5·'3Ò2“3"’Â‡6VÆbç&Vw5·'3%Ò2“3"’’2S3"“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥6ÇGR²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ‡6VÆbç&Vw5·'3ÒÂ6VÆbç&Vw5·'3%Ò’2S3"“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥†÷"²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ6VÆbç&Vw5·'3Òâ6VÆbç&Vw5·'3%Ò“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öâ::MÉ²²&BÂ'3Â'3"ÒÓâ°¢6VÆbçw&—FU÷&Vr‡&BÂ6VÆbç&Vw5·'3Òãâ‡6VÆbç&Vw5·'3%Òbƒb’“°¢6VÆbç2ÒæW‡E÷3°¢7FW÷WF6öÖS£¤6öçF–çVP¢Ð¢–ç7G'V7F–öã£¥7&ìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ (€€€€€€€€€€€€€€€€€€€É°(€€€€€€€€€€€€€€€€€€€€ ¡Í•±˜¹É•ÍmÉÌÅt…Ì¤ÌÈ¤€øø€¡Í•±˜¹É•ÍmÉÌÉt€˜€ÁàÅ˜¤¤…ÌÔÌÈ°(€€€€€€€€€€€€€€€€¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé=ÈìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Í•±˜¹É•ÍmÉÌÅtðÍ•±˜¹É•ÍmÉÌÉt¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé¹ìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Í•±˜¹É•ÍmÉÌÅt€˜Í•±˜¹É•ÍmÉÌÉt¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô((€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé5Õ°ìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô€¡Í•±˜¹É•ÍmÉÌÅt…ÌÔØÐ¤¹ÝÉ…ÁÁ¥¹}µÕ°¡Í•±˜¹É•ÍmÉÌÉt…ÌÔØÐ¤…ÌÔÌÈì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé5Õ± ìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô(€€€€€€€€€€€€€€€€€€€€  ¡Í•±˜¹É•ÍmÉÌÅt…Ì¤ÌÈ…Ì¤ÄÈà¤€¨€¡Í•±˜¹É•ÍmÉÌÉt…Ì¤ÌÈ…Ì¤ÄÈà¤¤€øø€ÌÈ¤(€€€€€€€€€€€€€€€€€€€€€€€…ÌÔÌÈì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé5Õ±¡ÍÔìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô(€€€€€€€€€€€€€€€€€€€€  ¡Í•±˜¹É•ÍmÉÌÅt…Ì¤ÌÈ…Ì¤ÄÈà¤€¨€¡Í•±˜¹É•ÍmÉÌÉt…ÌÔÌÈ…Ì¤ÄÈà¤¤€øø€ÌÈ¤(€€€€€€€€€€€€€€€€€€€€€€€…ÌÔÌÈì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸ŽŽ“u±¡ÔìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô(€€€€€€€€€€€€€€€€€€€€  ¡Í•±˜¹É•ÍmÉÌÅt…ÌÔÄÈà¤€¨€¡Í•±˜¹É•ÍmÉÌÉt…ÌÔÄÈà¤¤€øø€ÌÈ¤…ÌÔÌÈì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé¥ØìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•Ð±¡Ì€ôÍ•±˜¹É•ÍmÉÌÅt…Ì¤ÌÈì(€€€€€€€€€€€€€€€±•ÐÉ¡Ì€ôÍ•±˜¹É•ÍmÉÌÉt…Ì¤ÌÈì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô¥˜É¡Ì€ôô€Àì(€€€€€€€€€€€€€€€€€€€ÔÌÈèé5`(€€€€€€€€€€€€€€€ô•±Í”¥˜±¡Ì€ôô¤ÌÈèé5%8€˜˜É¡Ì€ôô€´Äì(€€€€€€€€€€€€€€€€€€€±¡Ì…ÌÔÌÈ(€€€€€€€€€€€€€€€ô•±Í”ì(€€€€€€€€€€€€€€€€€€€€¡±¡Ì€¼É¡Ì¤…ÌÔÌÈ(€€€€€€€€€€€€€€€ôì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èé¥ÙÔìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•Ð±¡Ì€ôÍ•±˜¹É•ÍmÉÌÅtì(€€€€€€€€€€€€€€€±•ÐÉ¡Ì€ôÍ•±˜¹É•ÍmÉÌÉtì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô¥˜É¡Ì€ôô€ÀìÔÌÈèé5`ô•±Í”ì±¡Ì€¼É¡Ìôì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸èéI•´ìÉ°ÉÌÄ°ÉÌÈô€ôøì(€€€€€€€€€€€€€€€±•Ð±¡Ì€ôÍ•±˜¹É•ÍmÉÌÅt…Ì¤ÌÈì(€€€€€€€€€€€€€€€±•ÐÉ¡Ì€ôÍ•±˜¹É•ÍmÉÌÉt…Ì¤ÌÈì(€€€€€€€€€€€€€€€±•ÐÙ…±Õ”€ô¥˜É¡Ì€ôô€Àì(€€€€€€€€€€€€€€€€€€€±¡Ì…ÌÔÌÈ(€€€€€€€€€€€€€€ô•±Í”¥˜±¡Ì€ôô¤ÌÈèé5%8€˜˜É¡Ì€ôô€´Äì(€€€€€€€€€€€€€€€€€€€€À(€€€€€€€€€€€€€€€ô•±Í”ì(€€€€€€€€€€€€€€€€€€€€¡±¡Ì€”É¡Ì¤…ÌÔÌÈ(€€€€€€€€€€€€€€€ôì(€€€€€€€€€€€€€€€Í•±˜¹ÝÉ¥Ñ•}É•œ¡É°Ù…±Õ”¤ì(€€€€€€€€€€€€€€€Í•±˜¹ÁŒ€ô¹•áÑ}ÁŒì(€€€€€€€€€€€€€€€MÑ•Á=ÕÑ½µ”èé½¹Ñ¥¹Õ”(€€€€€€€€€€€ô(€€€€€€€€€€€%¹ÍÑÉÕÑ¥½¸ŽŽ“emu { rd, rs1, rs2 } => {
+            Instruction::Srai { rd, rs1, shamt } => {
+                self.write_reg(rd, (( self.regs[rs1] as i32) >> (shamt & 0x1F)) as u32);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Add { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1].wrapping_add(self.regs[rs2]));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Sub' { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1].wrapping_sub(self.regs[rs2]));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Sll { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1] << (self.regs[rs2] & 0x1F));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Slt { rd, rs1, rs2 } => {
+                self.write_reg(rd, if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) { 1 } else { 0 });
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Sltu { rd, rs1, rs2 } => {
+                self.write_reg(rd, if self.regs[rs1] < self.regs[rs2] { 1 } else { 0 });
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Xor { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1] ^ self.regs[rs2]);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Srl { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1] >> (self.regs[rs2] & 0x1F));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Sra { rd, rs1, rs2 } => {
+                self.write_reg(rd, ((self.regs[rs1] as i32) >> (self.regs[rs2] & 0x1F)) as u32);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Or { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1] | self.regs[rs2]);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::And { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1] & self.regs[rs2]);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Mul { rd, rs1, rs2 } => {
+                self.write_reg(rd, self.regs[rs1].wrapping_mul(self.regs[rs2]));
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Mulh { rd, rs1, rs2 } => {
+                let val = ((self.regs[rs1] as i32 as i64).wrapping_mul(self.regs[rs2] as i32 as i64) >> 32) as u32;
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Mulhsu { rd, rs1, rs2 } => {
+                let val = ((self.regs[rs1] as i32 as i64).wrapping_mul(self.regs[rs2] as u64 as i64) >> 32) as u32;
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Mulhn { rd, rs1, rs2 } => {
+                let val = ((self.regs[rs1] as u64).wrapping_mul(self.regs[rs2] as u64) >> 32) as u32;
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Div { rd, rs1, rs2 } => {
+                let lhs = self.regs[rs1] as i32;
+                let rhs = self.regs[rs2] as i32;
+                let val = if rhs == 0 {
+                    u32::MAX
+                } else if lhs == i32::MIN && rhs == -1 {
+                    lhs as u32
+                } else {
+                    (lhs / rhs) as u32
+                };
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Divu { rd, rs1, rs2 } => {
                 let lhs = self.regs[rs1];
-                let rhs = self.regs[rs3];
-                let value = if rhs == 0 { lhs } else { lhs % rhs };
-                self.write_reg(rd, value);
+                let rhs = self.regs[rs2];
+                let val = if rhs == 0 { u32::MAX } else { lhs / rhs };
+                self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-
-            Instruction#£¤ence | Instruction#£¤enceI => {
+            Instruction::Rem { rd, rs1, rs2 } => {
+                let lhs = self.regs[rs1] as i32;
+                let rhs = self.regs[rs2] as i32;
+                let val = if rhs == 0 {
+                    lhs as u32
+                } else if lhs == i32::MIN && rhs == -1 {
+                    0
+                } else {
+                    (lhs % rhs) as u32
+                };
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Remu { rd, rs1, rs2 } => {
+                let lhs = self.regs[rs1];
+                let rhs = self.regs[rs2];
+                let val = if rhs == 0 { lhs } else { lhs % rhs };
+                self.write_reg(rd, val);
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Fence | Instruction::FenceI => {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -280,6 +390,7 @@ impl Zkvm {
                 self.halted = true;
                 StepOutcome::Halt
             }
+            Instruction::Invalid(word) => return Err(ZkvmError::InvalidInstruction(word)),
         };
 
         self.regs[0] = 0;
@@ -287,9 +398,9 @@ impl Zkvm {
         Ok(outcome)
     }
 
-    pub fn run(fmut self, max_cycles: usize) -> Result<StepOutcome, ZkvmError> {
+    pub fn run(self, max_cycles: usize) -> Result<StepOutcome, ZkvmError> {
         for _ in 0..max_cycles {
-            let outcome = self.step()?;
+            let outcome = self.step();
             if outcome != StepOutcome::Continue
                 return Ok(outcome);
             }
@@ -297,13 +408,54 @@ impl Zkvm {
         Err(ZkvmError::MaxCyclesExceeded { max_cycles })
     }
 
-    fn write_reg(&mut self, index: usize, value: u32) {
-        if index != 0 {
+    fn write_reg(self, index: usize, value: u32) {
+        if index != 0 && index < 32 {
             self.regs[index] = value;
         }
     }
 
-    fn check_align(self, addr: u32, align: usize) -> Result<(), ZkvmError> {
+    fn read_u8(self, addr: u32) -> Result<u8, ZkvmError> {
+        met idx = self.check_range(addr, 1)?;
+        Ok(self.memory[idx])
+    }
+
+    fn read_u16(self, addr: u32) -> Result<u16, ZkvmError> {
+        self.check_align(addr, 2)?;
+        let idx = self.check_range(addr, 2)?;
+        let bytes = [self.memory[idx], self.memory[idx + 1]];
+        Ok(u16::from_le_bytes(bytes))
+    }
+
+    pub fn read_u32(self, addr: u32) -> Result<u32, ZkvmError> {
+        self.check_align(addr, 4)?;
+        let idx = self.check_range(addr, 4)?;
+        let bytes = [self.memory[idx], self.memory[idx + 1], self.memory[idx + 2], self.memory[idx + 3]];
+        Ok(u32::from_le_bytes(bytes))
+    }
+
+    fn write_u8(self, addr: u32, value: u8) -> Result<(), ZkvmError> {
+        let idx = self.check_range(addr, 1)?;
+        self.memory[idx] = value;
+        Ok(())
+    }
+
+    fn write_u16(self, addr: u32, value: u16) -> Result<(), ZkvmError> {
+        self.check_align(addr, 2)?;
+        let idx = self.check_range(addr, 2)?;
+        let bytes = value.to_le_bytes();
+        self.memory[idx..idx + 2].copy_from_slice(&bytes);
+        Ok(())
+    }
+
+    fn write_u32(self, addr: u32, value: u32) -> Result<+(), ZkvmError> {
+        self.check_align(addr, 4)?;
+        let idx = self.check_range(addr, 4)?;
+        let bytes = value.to_le_bytes();
+        self.memory[idx..idx + 4].copy_from_slice(&bytes);
+        Ok(())
+    }
+
+    fn check_align(self, addr: u32, align: usize) -> Result<+(), ZkvmError> {
         if (addr as usize) & (align - 1) != 0 {
             Err(ZkvmError::MisalignedAccess { addr, align })
         } else {
@@ -311,11 +463,9 @@ impl Zkvm {
         }
     }
 
-    fn check_range(&self, addr: u32, len: usize) -> Result<usize, ZkvmError> {
+    fn check_range(self, addr: u32, len: usize) -> Result<usize, ZkvmError> {
         let start = addr as usize;
-        let end = start
-            .checked_add(len)
-            .ok_or(ZkvmError::MemoryOutOfBounds { addr, len })?;
+        let end = start.checked_add(len).ok_or(ZkvmError::MemoryOutOfBounds { addr, len })?;
         if end > self.memory.len() {
             Err(ZkvmError::MemoryOutOfBounds { addr, len })
         } else {
