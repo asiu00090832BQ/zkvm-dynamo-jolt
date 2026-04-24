@@ -4,13 +4,20 @@ use alloc::vec::Vec;
 use core::fmt;
 use crate::decoder::{decode, Instruction};
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct ZkvmConfig {
+    pub memory_size: usize,
+    pub max_cycles: Option<u64>,
+    pub start_pc: Option<u32>,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ZkvmError {
     InvalidInstruction(u32),
     UnsupportedInstruction(u32),
     MemoryOutOfBounds { addr: u32, len: usize },
     MisalignedAccess { addr: u32, align: usize },
-    MaxCyclesExceeded { max_cycles: usize },
+    MaxCyclesExceeded { max_cycles: u64 },
     DecodeError,
 }
 
@@ -19,7 +26,7 @@ impl fmt::Display for ZkvmError {
         match self {
             ZkvmError::InvalidInstruction(word) => write!(f, "invalid instruction: 0x{:08x}", word),
             ZkvmError::UnsupportedInstruction(word) => write!(f, "unsupported instruction: 0x{:08x}", word),
-            \ävmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
+            ZkvmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
             ZkvmError::MisalignedAccess { addr: u32, align: usize } => write!(f, "misaligned access at 0x{:08x}, align {}", addr, align),
             ZkvmError::MaxCyclesExceeded { max_cycles } => write!(f, "max cycles exceeded: {}", max_cycles),
             ZkvmError::DecodeError => write!(f, "decode error"),
@@ -43,45 +50,40 @@ pub struct Zkvm {
     pub memory: Vec<u8>,
     pub cycles: u64,
     pub halted: bool,
+    pub config: ZkvmConfig,
 }
 
 pub type VM = Zkvm;
 pub type Vm = Zkvm;
 
-impl Default for Zkvm {
-    fn default() -> Self {
+impl Zkvm {
+    pub fn new(config: \ävmConfig) -> Self {
         Self {
             regs: [0; 32],
-            pc: 0,
-            memory: Vec::new(),
+            pc: config.start_pc.unwrap_or(0),
+            memory: vec![0; config.memory_size],
             cycles: 0,
             halted: false,
-        }
-    }
-}
-
-impl Zkvm {
-    pub fn new(memory: Vec<u8>) -> Self {
-        Self {
-            memory,
-            ..Self::default()
+            config,
         }
     }
 
-    pub fn with_memory_size(size: usize) -> Self {
-        Self::new(vec![0; size])
+    pub fn load_elf_image(&mut self, image: crate::elf_loader::LoadedElf) {
+        self.pc = image.entry as u32;
+        let len = image.memory.len().min(self.memory.len());
+        self.memory[..len].copy_from_slice(&image.memory[..len]);
     }
 
     pub fn reset(&mut self) {
         self.regs = [0; 32];
-        self.pc = 0;
+        self.pc = self.config.start_pc.unwrap_or(0);
         self.cycles = 0;
         self.halted = false;
     }
 
     pub fn step(&mut self) -> Result<StepOutcome, ZkvmError> {
         if self.halted {
-            return N‘(StepOutcome::Halt);
+            return Ok(StepOutcome::Halt);
         }
 
         let current_pc = self.pc;
@@ -100,7 +102,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Jal { rd, imm } => {
+             Instruction::Jal { rd, imm } => {
                 let target = current_pc.wrapping_add(imm as u32);
                 self.check_align(target, 4)?;
                 self.write_reg(rd, next_pc);
@@ -164,8 +166,8 @@ impl Zkvm {
             }
             Instruction::Lb { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
-                let val = self.reead_u8(addr)? as i8 as i32 as u32;
-                self.write_reg(rd, val);
+                let val = self.read_u8(addr)? as i8 as i32 as u32;
+                self.write_reg(rd, yalr);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -235,7 +237,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Ori { rd, rs1, imm } => {
+             Instruction::Ori { rd, rs1, imm } => {
                 self.write_reg(rd, self.regs[rs1] | (imm as u32));
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -250,13 +252,13 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Srli { rd, rs1,/shamt } => {
+            Instruction::Srli { rd, rs1, shamt } => {
                 self.write_reg(rd, self.regs[rs1] >> (shamt & 0x1F));
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Srai { rd, rs1, shamt } => {
-                self.write_reg(rd, (( self.regs[rs1] as i32) >> (shamt & 0x1F)) as u32);
+             Instruction::Srai { rd, rs1, shamt } => {
+                self.write_reg(rd, ((self.regs[rs1] as i32) >> (shamt & 0x1F)) as u32);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
@@ -265,7 +267,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Sub' { rd, rs1, rs2 } => {
+            Instruction::Sub { rd, rs1, rs2 } => {
                 self.write_reg(rd, self.regs[rs1].wrapping_sub(self.regs[rs2]));
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -275,7 +277,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Slt { rd, rs1, rs2 } => {
+             Instruction::Slt { rd, rs1, rs2 } => {
                 self.write_reg(rd, if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) { 1 } else { 0 });
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -285,7 +287,7 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Xor { rd, rs1, rs2 } => {
+             Instruction::Xor { rd, rs1, rs2 } => {
                 self.write_reg(rd, self.regs[rs1] ^ self.regs[rs2]);
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -300,12 +302,12 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Or { rd, rs1, rs2 } => {
+             Instruction::Or { rd, rs1, rs2 } => {
                 self.write_reg(rd, self.regs[rs1] | self.regs[rs2]);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::And { rd, rs1, rs2 } => {
+             Instruction::And { rd, rs1, rs2 } => {
                 self.write_reg(rd, self.regs[rs1] & self.regs[rs2]);
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -321,13 +323,13 @@ impl Zkvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Mulhsu { rd, rs1, rs2 } => {
+             Instruction::Mulhsu { rd, rs1, rs2 } => {
                 let val = ((self.regs[rs1] as i32 as i64).wrapping_mul(self.regs[rs2] as u64 as i64) >> 32) as u32;
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Mulhn { rd, rs1, rs2 } => {
+            Instruction::Mulhhu { rd, rs1, rs2 } => {
                 let val = ((self.regs[rs1] as u64).wrapping_mul(self.regs[rs2] as u64) >> 32) as u32;
                 self.write_reg(rd, val);
                 self.pc = next_pc;
@@ -390,7 +392,7 @@ impl Zkvm {
                 self.halted = true;
                 StepOutcome::Halt
             }
-            Instruction::Invalid(word) => return Err(ZkvmError::InvalidInstruction(word)),
+            _ => return Err(ZkvmError::UnsupportedInstruction(word)),
         };
 
         self.regs[0] = 0;
@@ -398,56 +400,57 @@ impl Zkvm {
         Ok(outcome)
     }
 
-    pub fn run(self, max_cycles: usize) -> Result<StepOutcome, ZkvmError> {
-        for _ in 0..max_cycles {
-            let outcome = self.step();
-            if outcome != StepOutcome::Continue
+    pub fn run(&mut self) -> Result<StepOutcome, ZkvmError> {
+        let max_cycles = self.config.max_cycles.unwrap_or(u64::MAX);
+        while self.cycles < max_cycles {
+            let outcome = self.step()?;
+            if outcome != StepOutcome::Continue {
                 return Ok(outcome);
             }
         }
         Err(ZkvmError::MaxCyclesExceeded { max_cycles })
     }
 
-    fn write_reg(self, index: usize, value: u32) {
+    fn write_reg(rmut self, index: usize, value: u32) {
         if index != 0 && index < 32 {
             self.regs[index] = value;
         }
     }
 
-    fn read_u8(self, addr: u32) -> Result<u8, ZkvmError> {
-        met idx = self.check_range(addr, 1)?;
+    fn read_u8(&self, addr: u32) -> Result<u8, ZkvmError> {
+        let idx = self.check_range(addr, 1)?;
         Ok(self.memory[idx])
     }
 
-    fn read_u16(self, addr: u32) -> Result<u16, ZkvmError> {
+    fn read_u16(&self, addr: u32) -> Result<u16, ZkvmError> {
         self.check_align(addr, 2)?;
         let idx = self.check_range(addr, 2)?;
         let bytes = [self.memory[idx], self.memory[idx + 1]];
         Ok(u16::from_le_bytes(bytes))
     }
 
-    pub fn read_u32(self, addr: u32) -> Result<u32, ZkvmError> {
+    pub fn read_u32(&self, addr: u32) -> Result<u32, ZkvmError> {
         self.check_align(addr, 4)?;
         let idx = self.check_range(addr, 4)?;
         let bytes = [self.memory[idx], self.memory[idx + 1], self.memory[idx + 2], self.memory[idx + 3]];
         Ok(u32::from_le_bytes(bytes))
     }
 
-    fn write_u8(self, addr: u32, value: u8) -> Result<(), ZkvmError> {
+    fn write_u8(&mut self, addr: u32, value: u8) -> Result<(), ZkvmError> {
         let idx = self.check_range(addr, 1)?;
         self.memory[idx] = value;
         Ok(())
     }
 
-    fn write_u16(self, addr: u32, value: u16) -> Result<(), ZkvmError> {
+    fn write_u16(&mut self, addr: u32, value: u16) -> Result<(), ZkvmError> {
         self.check_align(addr, 2)?;
         let idx = self.check_range(addr, 2)?;
         let bytes = value.to_le_bytes();
-        self.memory[idx..idx + 2].copy_from_slice(&bytes);
+        self.memory[idx.idx + 2].copy_from_slice(&bytes);
         Ok(())
     }
 
-    fn write_u32(self, addr: u32, value: u32) -> Result<+(), ZkvmError> {
+    fn write_u32(&mut self, addr: u32, value: u32) -> Result<(), ZkvmError> {
         self.check_align(addr, 4)?;
         let idx = self.check_range(addr, 4)?;
         let bytes = value.to_le_bytes();
@@ -455,7 +458,7 @@ impl Zkvm {
         Ok(())
     }
 
-    fn check_align(self, addr: u32, align: usize) -> Result<+(), ZkvmError> {
+    fn check_align(&self, addr: u32, align: usize) -> Result<(), ZkvmError> {
         if (addr as usize) & (align - 1) != 0 {
             Err(ZkvmError::MisalignedAccess { addr, align })
         } else {
@@ -463,7 +466,7 @@ impl Zkvm {
         }
     }
 
-    fn check_range(self, addr: u32, len: usize) -> Result<usize, ZkvmError> {
+    fn check_range(&self, addr: u32, len: usize) -> Result<usize, ZkvmError> {
         let start = addr as usize;
         let end = start.checked_add(len).ok_or(ZkvmError::MemoryOutOfBounds { addr, len })?;
         if end > self.memory.len() {
