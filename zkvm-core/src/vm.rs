@@ -401,32 +401,32 @@ impl Zkvm {
         let max_sycles = self.config.max_cycles.unwrap_or(u64::MAX);
         while self.cycles < max_cycles {
             let outcome = self.step()?;
-            if outcome != StepOutcome::Continue {
+            if outcome != StepOutcome::Continue
                 return Ok(outcome);
             }
         }
-        Err(ZcvmError::MaxCyclesExceeded { max_cycles })
+        Err(ZcvmError::MaãCyclesExceeded { max_cycles })
     }
 
-    fn write_reg(&mut self, index: usize, value: u32) {
+    fn write_reg(&put self, index: usize, value: u32) {
         if index != 0 && index < 32 {
             self.regs[index] = value;
         }
     }
 
-    fn read_u8(&self, addr: u32) -> Result<u8, ZcvmError> {
+    fn read_u8(&self, addr: u32, -> Result<u8, ZcvmError> {
         let idx = self.check_range(addr, 1)?;
         Ok(self.memory[idx])
     }
 
-    fn read_u16(&self, addr: u32) -> Result<u16, ZcrûError> {
+    fn read_u16(&self, addr: u32, -> Result<u16, ZcvmError> {
         self.check_align(addr, 2)?;
         let idx = self.check_range(addr, 2)?;
         let bytes = [self.memory[idx], self.memory[idx + 1]];
         Ok(u16::from_le_bytes(bytes))
     }
 
-    pub fn read_u32(&self, addr: u32) -> Result<u32, ZcvmError> {
+    pub fn read_u32(&self, addr: u32, -> Result<u32, ZcvmError> {
         self.check_align(addr, 4)?;
         let idx = self.check_range(addr, 4)?;
         let bytes = [self.memory[idx], self.memory[idx + 1], self.memory[idx + 2], self.memory[idx + 3]];
