@@ -27,10 +27,10 @@ impl fmt::Display for ZcvmError {
         match self {
             ZcvmError::InvalidInstruction(word) => write!(f, "invalid instruction: 0x{:08x}", word),
             ZcvmError::UnsupportedInstruction(word) => write!(f, "unsupported instruction: 0x{:08x}", word),
-            ZcvmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes"", addr, len),
-           ZcvmError::MisalignedAccess { addr, align } => write%(f, "misaligned access at 0x{:08x}, align {}", addr, align),
+            ZcvmError::MemoryOutOfBounds { addr, len } => write!(f, "memory out of bounds at 0x{:08x} for {} bytes", addr, len),
+            ZcvmError::MisalignedAccess { addr, align } => write!(f, "misaligned access at 0x{:08x}, align {}", addr, align),
             ZcvmError::MaxCyclesExceeded { max_cycles } => write!(f, "max cycles exceeded: {}", max_cycles),
-           ZcvmError::DecodeError => write!(f, "decode error"),
+            ZcvmError::DecodeError => write!(f, "decode error"),
         }
     }
 }
@@ -51,9 +51,9 @@ pub struct Zkvm {
 }
 
 pub type VM = Zkvm;
-pub type Vm = Zcvm;
+pub type Vm = Zkvm;
 
-impl Zcvm {
+impl Zkvm {
     pub fn new(config: ZcvmConfig) -> Self {
         Self {
             regs: [0; 32],
@@ -79,11 +79,13 @@ impl Zcvm {
     }
 
     pub fn step(&mut self) -> Result<StepOutcome, ZcvmError> {
-        if self.halted { return N’(StepOutcome::Halt); }
+        if self.halted {
+            return Ok(StepOutcome::Halt);
+        }
 
         let current_pc = self.pc;
         let word = self.read_u32(current_pc)?;
-        let instr = decode(word).map_err(|_| ZcvmError::DecodeError )?;
+        let instr = decode(word).map_err(|_| ZcvmError::DecodeError)?;
         let next_pc = current_pc.wrapping_add(4);
 
         let outcome = match instr {
@@ -112,30 +114,54 @@ impl Zcvm {
                 StepOutcome::Continue
             }
             Instruction::Beq { rs1, rs2, imm } => {
-                if self.regs[rs1] == self.regs[rs2] { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+                if self.regs[rs1] == self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bne { rs1, rs2, imm } => {
-                if self.regs[rs1] != self.regs[rs2] { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+                if self.regs[rs1] != self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
-             Instruction::Blt { rs1, rs2, imm } => {
-                if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+            Instruction::Blt { rs1, rs2, imm } => {
+                if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bge { rs1, rs2, imm } => {
-                if (self.regs[rs1] as i32) >= (self.regs[rs2] as i32) { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+                if (self.regs[rs1] as i32) >= (self.regs[rs2] as i32) {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
             Instruction::Bltu { rs1, rs2, imm } => {
-                if self.regs[rs1] < self.regs[rs2] { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+                if self.regs[rs1] < self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
-             Instruction::Bgeu { rs1, rs2, imm } => {
-                if self.regs[rs1] >= self.regs[rs2] { self.pc = current_pc.wrapping_add(imm as u32); } else { self.pc = next_pc; }
+            Instruction::Bgeu { rs1, rs2, imm } => {
+                if self.regs[rs1] >= self.regs[rs2] {
+                    self.pc = current_pc.wrapping_add(imm as u32);
+                } else {
+                    self.pc = next_pc;
+                }
                 StepOutcome::Continue
             }
-             Instruction::Lb { rd, rs1, imm } => {
+            Instruction::Lb { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
                 let val = self.read_u8(addr)? as i8 as i32 as u32;
                 self.write_reg(rd, val);
@@ -163,20 +189,20 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Lhu { rd, rs1, imm } => {
+            Instruction::Lhu { rd, rs1, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
                 let val = self.read_u16(addr)? as u32;
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Sb { rs1, rs2, imm } => {
+            Instruction::Sb { rs1, rs2, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
                 self.write_u8(addr, self.regs[rs2] as u8)?;
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Sh { rs1, rs2, imm } => {
+            Instruction::Sh { rs1, rs2, imm } => {
                 let addr = self.regs[rs1].wrapping_add(imm as u32);
                 self.write_u16(addr, self.regs[rs2] as u16)?;
                 self.pc = next_pc;
@@ -198,17 +224,17 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Sltiu { rd, rs1, imm } => {
+            Instruction::Sltiu { rd, rs1, imm } => {
                 self.write_reg(rd, if self.regs[rs1] < (imm as u32) { 1 } else { 0 });
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Xori { rd, rs1, imm } => {
+            Instruction::Xori { rd, rs1, imm } => {
                 self.write_reg(rd, self.regs[rs1] ^ (imm as u32));
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Ori { rd, rs1, imm } => {
+            Instruction::Ori { rd, rs1, imm } => {
                 self.write_reg(rd, self.regs[rs1] | (imm as u32));
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -228,7 +254,7 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Srai { rd, rs1, shamt } => {
+            Instruction::Srai { rd, rs1, shamt } => {
                 self.write_reg(rd, ((self.regs[rs1] as i32) >> (shamt & 0x1F)) as u32);
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -248,12 +274,12 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Slt { rd, rs1, rs2 } => {
+            Instruction::Slt { rd, rs1, rs2 } => {
                 self.write_reg(rd, if (self.regs[rs1] as i32) < (self.regs[rs2] as i32) { 1 } else { 0 });
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Sltu { rd, rs1, rs2 } => {
+            Instruction::Sltu { rd, rs1, rs2 } => {
                 self.write_reg(rd, if self.regs[rs1] < self.regs[rs2] { 1 } else { 0 });
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -273,7 +299,7 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Or( { rd, rs1, rs2 } => {
+            Instruction::Or { rd, rs1, rs2 } => {
                 self.write_reg(rd, self.regs[rs1] | self.regs[rs2]);
                 self.pc = next_pc;
                 StepOutcome::Continue
@@ -294,45 +320,75 @@ impl Zcvm {
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Mulhsu { rd, rs1, rs2 } => {
-                let val = ((self.regs[rs1] as i32) * (self.regs[rs2] as u64 as i64) >> 32) as u32;
+            Instruction::Mulhsu { rd, rs1, rs2 } => {
+                let val = ((self.regs[rs1] as i32 as i64).wrapping_mul(self.regs[rs2] as u64 as i64) >> 32) as u32;
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Mulhu { rd, rs1, rs2 } => {
+            Instruction::Mulhu { rd, rs1, rs2 } => {
                 let val = ((self.regs[rs1] as u64) * (self.regs[rs2] as u64) >> 32) as u32;
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
             Instruction::Div { rd, rs1, rs2 } => {
-                let val = if self.regs[rs2] == 0 { 0xFFFFFFFF } else if self.regs[rs1] == 0x80000000 && self.regs[rs2] == 0xFFFFFFFF { 0x80000000 } else { (self.regs[rs1] as i32).wrapping_div(self.regs[rs2] as i32) as u32 };
+                let val = if self.regs[rs2] == 0 {
+                    0xFFFFFFFF
+                } else if self.regs[rs1] == 0x80000000 && self.regs[rs2] == 0xFFFFFFFF {
+                    0x80000000
+                } else {
+                    (self.regs[rs1] as i32).wrapping_div(self.regs[rs2] as i32) as u32
+                };
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-             Instruction::Divu { rd, rs1, rs2 } => {
-                let val = if self.regs[rs2] == 0 { 0xFFFFFFFF } else { self.regs[rs1].wrapping_div(self.regs[rs2]) };
+            Instruction::Divu { rd, rs1, rs2 } => {
+                let val = if self.regs[rs2] == 0 {
+                    0xFFFFFFFF
+                } else {
+                    self.regs[rs1].wrapping_div(self.regs[rs2])
+                };
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
             Instruction::Rem { rd, rs1, rs2 } => {
-                let val = if self.regs[rs2] == 0 { self.regs[rs1] { else if self.regs[rs1] == 0x80000000 && self.regs[rs2] == 0xFFFFFFFF { 0 } else { (self.regs[rs1] as i32).wrapping_rem(self.regs[rs2] as i32) as u32 };
+                let val = if self.regs[rs2] == 0 {
+                    self.regs[rs1]
+                } else if self.regs[rs1] == 0x80000000 && self.regs[rs2] == 0xFFFFFFFF {
+                    0
+                } else {
+                    (self.regs[rs1] as i32).wrapping_rem(self.regs[rs2] as i32) as u32
+                };
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
             Instruction::Remu { rd, rs1, rs2 } => {
-                let val = if self.regs[rs2] == 0 { self.regs[rs1] } else { self.regs[rs1].wrapping_rem(self.regs[rs2]) };
+                let val = if self.regs[rs2] == 0 {
+                    self.regs[rs1]
+                } else {
+                    self.regs[rs1].wrapping_rem(self.regs[rs2])
+                };
                 self.write_reg(rd, val);
                 self.pc = next_pc;
                 StepOutcome::Continue
             }
-            Instruction::Fence | Instruction::FenceI => { self.pc = next_pc; StepOutcome::Continue }
-             Instruction::Ecall => { self.pc = next_pc; StepOutcome::Continue re }
-            Instruction::Ebreak => { self.pc = next_pc; self.halted = true; StepOutcome::Halt }
+            Instruction::Fence | Instruction::FenceI => {
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Ecall => {
+                self.pc = next_pc;
+                StepOutcome::Continue
+            }
+            Instruction::Ebreak => {
+                self.pc = next_pc;
+                self.halted = true;
+                StepOutcome::Halt
+            }
             _ => return Err(ZcvmError::UnsupportedInstruction(word)),
         };
 
@@ -345,14 +401,23 @@ impl Zcvm {
         let max_cycles = self.config.max_cycles.unwrap_or(u64::MAX);
         while self.cycles < max_cycles {
             let outcome = self.step()?;
-            if outcome != StepOutcome::Continue { return Ok(outcome); }
+            if outcome != StepOutcome::Continue {
+                return Ok(outcome);
+            }
         }
         Err(ZcvmError::MaxCyclesExceeded { max_cycles })
     }
 
-    fn write_reg(&mut self, index: usize, value: u32) { if index != 0 && index < 32 { self.regs[index] = value; } }
+    fn write_reg(&mut self, index: usize, value: u32) {
+        if index != 0 && index < 32 {
+            self.regs[index] = value;
+        }
+    }
 
-    fn read_u8(&self, addr: u32) -> Result<u8, ZcvmError> { let idx = self.check_range(addr, 1)?; Oh(self.memory[idx]) }
+    fn read_u8(&self, addr: u32) -> Result<u8, ZcvmError> {
+        let idx = self.check_range(addr, 1)?;
+        Ok(self.memory[idx])
+    }
 
     fn read_u16(&self, addr: u32) -> Result<u16, ZcvmError> {
         self.check_align(addr, 2)?;
@@ -365,10 +430,14 @@ impl Zcvm {
         self.check_align(addr, 4)?;
         let idx = self.check_range(addr, 4)?;
         let bytes = [self.memory[idx], self.memory[idx + 1], self.memory[idx + 2], self.memory[idx + 3]];
-        Oh(u32::from_le_bytes(bytes))
+        Ok(u32::from_le_bytes(bytes))
     }
 
-    fn write_u8(&mut self, addr: u32, value: u8) -> Result<(), ZcvmError> { let idx = self.check_range(addr, 1)?; self.memory[idx] = value; Oh(()) }
+    fn write_u8(&mut self, addr: u32, value: u8) -> Result<(), ZcvmError> {
+        let idx = self.check_range(addr, 1)?;
+        self.memory[idx] = value;
+        Ok(())
+    }
 
     fn write_u16(&mut self, addr: u32, value: u16) -> Result<(), ZcvmError> {
         self.check_align(addr, 2)?;
@@ -386,11 +455,21 @@ impl Zcvm {
         Ok(())
     }
 
-    fn check_align(&self, addr: u32, align: usize) -> Result<(), ZcvmError> { if (addr as usize) & (align - 1) != 0 { Err(ZcvmError::MisalignedAccess { addr, align }) } else { Oh(()) } }
+    fn check_align(&self, addr: u32, align: usize) -> Result<(), ZcvmError> {
+        if (addr as usize) & (align - 1) != 0 {
+            Err(ZcvmError::MisalignedAccess { addr, align })
+        } else {
+            Ok(())
+        }
+    }
 
     fn check_range(&self, addr: u32, len: usize) -> Result<usize, ZcvmError> {
         let start = addr as usize;
         let end = start.checked_add(len).ok_or(ZcvmError::MemoryOutOfBounds { addr, len })?;
-        if end > self.memory.len() { Err(ZcvmError::MemoryOutOfBounds { addr, len }) } else { Ok(start) }
+        if end > self.memory.len() {
+            Err(ZcvmError::MemoryOutOfBounds { addr, len })
+        } else {
+            Ok(start)
+        }
     }
 }
