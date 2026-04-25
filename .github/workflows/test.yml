@@ -1,15 +1,28 @@
 name: Test
-on:
+on: 
   push:
-    branches: [ main, fix/build-recovery-consolidated ]
+    branches: [ main, feat/*, mqp/* ]
   pull_request:
     branches: [ main ]
 jobs:
   test:
     runs-on: ubuntu-latest
-    steps:
+    steps: 
     - uses: actions/checkout@v4
     - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+        target: riscv32im-unknown-none-elf
     - uses: Swatinem/rust-cache@v2
     - name: Test
       run: cargo test --workspace --verbose 
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: UTF-8 Integrity Scan
+      run: |
+        ! find . -name "*.rs" -exec grep -P '[^\x00-\x7f]' {} +
+    - name: Synthesis Noise Scan
+      run: |
+        ! grep -rE "backtick|DecodeErrorn|ZkwmError|Sub`{" .
