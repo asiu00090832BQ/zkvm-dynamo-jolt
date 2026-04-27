@@ -142,7 +142,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
                 0b000 => Ok(Instruction::Beq { rs1, rs2, imm }),
                 0b001 => Ok(Instruction::Bne { rs1, rs2, imm }),
                 0b100 => Ok(Instruction::Blt { rs1, rs2, imm }),
-                0b101 => Ok(Instruction::Bge { rs1, rs2, imm }),
+               0b101 => Ok(Instruction::Bge { rs1, rs2, imm }),
                 0b110 => Ok(Instruction::Bltu { rs1, rs2, imm }),
                 0b111 => Ok(Instruction::Bgeu { rs1, rs2, imm }),
                 _ => Err(ZkvmError::InvalidInstruction(word)),
@@ -155,7 +155,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
                 0b001 => Ok(Instruction::Lh { rd, rs1, imm }),
                 0b010 => Ok(Instruction::Lw { rd, rs1, imm }),
                 0b100 => Ok(Instruction::Lbu { rd, rs1, imm }),
-                0b101 => Ok(Instruction::Lhu { rd, rs1, imm }),
+               0b101 => Ok(Instruction::Lhu { rd, rs1, imm }),
                 _ => Err(ZkvmError::InvalidInstruction(word)),
             }
         }
@@ -164,7 +164,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
             match funct3 {
                 0b000 => Ok(Instruction::Sb { rs1, rs2, imm }),
                 0b001 => Ok(Instruction::Sh { rs1, rs2, imm }),
-                0b010 => Ok(Instruction::Sw { rs1, rs2, imm }),
+               0b010 => Ok(Instruction::Sw { rs1, rs2, imm }),
                 _ => Err(ZkvmError::InvalidInstruction(word)),
             }
         }
@@ -172,11 +172,11 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
             let imm = imm_i(word);
             match funct3 {
                 0b000 => Ok(Instruction::Addi { rd, rs1, imm }),
-                0b010 => Ok(Instruction::Slti { rd, rs1, imm }),
+               0b010 => Ok(Instruction::Slti { rd, rs1, imm }),
                 0b011 => Ok(Instruction::Sltiu { rd, rs1, imm }),
                 0b100 => Ok(Instruction::Xori { rd, rs1, imm }),
-                0b110 => Ok(Instruction::Ori { rd, rs1, imm }),
-                0b111 => Ok(Instruction::Andi { rd, rs1, imm }),
+               0b110 => Ok(Instruction::Ori { rd, rs1, imm }),
+               0b111 => Ok(Instruction::Andi { rd, rs1, imm }),
                 0b001 => {
                     if funct7 == 0b0000000 {
                         Ok(Instruction::Slli {
@@ -228,7 +228,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
         },
         0b0001111 => match funct3 {
             0b000 => Ok(Instruction::Fence),
-            0b001 => Ok(Instruction::FenceI ),
+            0b001 => Ok(Instruction::FenceI),
             _ => Err(ZkvmError::InvalidInstruction(word)),
         },
         0b1110011 => match (funct3, word >> 20) {
