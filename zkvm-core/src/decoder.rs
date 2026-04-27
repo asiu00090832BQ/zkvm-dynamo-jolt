@@ -129,7 +129,11 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
         0b0010111 => Ok(Instruction::Auipc { rd, imm: imm_u(word) }),
         0b1101111 => Ok(Instruction::Jal { rd, imm: imm_j(word) }),
         0b1100111 => match funct3 {
-            0b000 => Ok(Instruction::Jalr { rd, rs1, imm: imm_i(word) }),
+            0b000 => Ok(Instruction::Jalr {
+                rd,
+                rs1,
+                imm: imm_i(word),
+            }),
             _ => Err(ZkvmError::InvalidInstruction(word)),
         },
         0b1100011 => {
@@ -167,11 +171,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
         0b0010011 => {
             let imm = imm_i(word);
             match funct3 {
-                0b000 => Ok(Instruction::Addi {
-                    rd,
-                    rs1,
-                    imm,
-                }),
+                0b000 => Ok(Instruction::Addi { rd, rs1, imm }),
                 0b010 => Ok(Instruction::Slti { rd, rs1, imm }),
                 0b011 => Ok(Instruction::Sltiu { rd, rs1, imm }),
                 0b100 => Ok(Instruction::Xori { rd, rs1, imm }),
@@ -182,7 +182,7 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
                         Ok(Instruction::Slli {
                             rd,
                             rs1,
-                            shamt: ((word >> 20) & 0x1f) as u32,
+                            shamt: (word >> 20) & 0x1f,
                         })
                     } else {
                         Err(ZkvmError::InvalidInstruction(word))
@@ -192,12 +192,12 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
                     0b0000000 => Ok(Instruction::Srli {
                         rd,
                         rs1,
-                        shamt: ((word >> 20) & 0x1f) as u32,
+                        shamt: (word >> 20) & 0x1f,
                     }),
                     0b0100000 => Ok(Instruction::Srai {
                         rd,
                         rs1,
-                        shamt: ((word >> 20) & 0x1f) as u32,
+                        shamt: (word >> 20) & 0x1f,
                     }),
                     _ => Err(ZkvmError::InvalidInstruction(word)),
                 },
@@ -228,12 +228,12 @@ pub fn decode(word: u32) -> Result<Instruction, ZkvmError> {
         },
         0b0001111 => match funct3 {
             0b000 => Ok(Instruction::Fence),
-            0b001 => Ok(Instruction::FenceI),
+            0b001 => Ok(Instruction::FenceI ),
             _ => Err(ZkvmError::InvalidInstruction(word)),
         },
-        0b1111011 => match (funct3, word >> 20) {
+        0b1110011 => match (funct3, word >> 20) {
             (0b000, 0x000) => Ok(Instruction::Ecall),
-            0b000, 0x001) => Ok(Instruction::Ebreak),
+            (0b000, 0x001) => Ok(Instruction::Ebreak),
             _ => Err(ZkvmError::UnsupportedInstruction(word)),
         },
         _ => Err(ZkvmError::InvalidInstruction(word)),
